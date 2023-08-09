@@ -83,7 +83,6 @@ void APhantomCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 
 		//Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APhantomCharacter::Look);
-
 	}
 
 }
