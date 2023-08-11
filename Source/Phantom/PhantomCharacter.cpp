@@ -49,16 +49,41 @@ APhantomCharacter::APhantomCharacter()
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
 	bCanMove = true;
+	bCanRun = false;
+	bCanSprint = true;
+	bWantsToSprint = false;
 }
 
-void APhantomCharacter::OnStartWalkLoopWalkEndTransition()
+void APhantomCharacter::OnStartMoveEndTransition()
 {
 	bCanMove = false;
 }
 
-void APhantomCharacter::OnEndWalkEndIdleTransition()
+void APhantomCharacter::OnEndMoveEndToIdleTransition()
 {
 	bCanMove = true;
+}
+
+void APhantomCharacter::OnEnteredWalkingState()
+{
+	GetCharacterMovement()->MaxWalkSpeed = MaxWalkSpeedCache;
+}
+
+void APhantomCharacter::OnEnteredRunningState()
+{
+	GetCharacterMovement()->MaxWalkSpeed = MaxRunSpeed;
+}
+
+void APhantomCharacter::OnEnteredSprintingState()
+{
+	bIsSprinting = true;
+	GetCharacterMovement()->MaxWalkSpeed = MaxSprintSpeed;
+	bWantsToSprint = false;
+}
+
+void APhantomCharacter::OnLeftSprintingState()
+{
+	bIsSprinting = false;
 }
 
 void APhantomCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
@@ -69,9 +94,11 @@ void APhantomCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Triggered, this, &APhantomCharacter::Walk);
 		//Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APhantomCharacter::Look);
+		//Running
+		EnhancedInputComponent->BindAction(RunAction, ETriggerEvent::Triggered, this, &APhantomCharacter::OnRunButtonPressed);
+		EnhancedInputComponent->BindAction(RunAction, ETriggerEvent::Completed, this, &APhantomCharacter::OnRunButtonReleased);
 		//Sprinting
-		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Triggered, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);		
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Triggered, this, &APhantomCharacter::OnSprintButtonPressed);
 	}
 }
 
@@ -87,6 +114,8 @@ void APhantomCharacter::BeginPlay()
 			Subsystem->AddMappingContext(NormalMovementMappingContext, 0);
 		}
 	}
+
+	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
 }
 
 
@@ -123,5 +152,23 @@ void APhantomCharacter::Look(const FInputActionValue& Value)
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
+	}
+}
+
+void APhantomCharacter::OnRunButtonPressed()
+{
+	bCanRun = true;
+}
+
+void APhantomCharacter::OnRunButtonReleased()
+{
+	bCanRun = false;
+}
+
+void APhantomCharacter::OnSprintButtonPressed()
+{
+	if(!bIsSprinting)
+	{
+		bWantsToSprint = true;
 	}
 }

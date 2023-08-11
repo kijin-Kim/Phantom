@@ -17,9 +17,19 @@ public:
 
 	// Animation Notifies
 	UFUNCTION(BlueprintCallable)
-	void OnStartWalkLoopWalkEndTransition();
+	void OnStartMoveEndTransition();
 	UFUNCTION(BlueprintCallable)
-	void OnEndWalkEndIdleTransition();
+	void OnEndMoveEndToIdleTransition();
+	UFUNCTION(BlueprintCallable)
+	void OnEnteredWalkingState();
+	UFUNCTION(BlueprintCallable)
+    void OnEnteredRunningState();
+	UFUNCTION(BlueprintCallable)
+	void OnEnteredSprintingState();
+	UFUNCTION(BlueprintCallable)
+	void OnLeftSprintingState();
+	
+	
 	
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
@@ -30,6 +40,9 @@ protected:
 private:
 	void Walk(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
+	void OnRunButtonPressed();
+	void OnRunButtonReleased();
+	void OnSprintButtonPressed();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -39,12 +52,29 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputMappingContext* NormalMovementMappingContext;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* SprintAction;
+	class UInputAction* RunAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* WalkAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* LookAction;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* SprintAction;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Transient, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
+	float MaxWalkSpeedCache; // 블루프린트에서 설정된 Max Walk Speed를 저장해놓는 변수.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement, meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
+	float MaxRunSpeed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Movement, meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
+	float MaxSprintSpeed;
+	
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
 	bool bCanMove;
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
+	bool bCanRun;
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
+	bool bWantsToSprint;
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
+    bool bCanSprint;
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
+	bool bIsSprinting;
 };
