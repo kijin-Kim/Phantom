@@ -16,7 +16,6 @@
 
 APhantomCharacter::APhantomCharacter()
 {
-	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
 	// Don't rotate when the controller rotates. Let that just affect the camera.
@@ -35,6 +34,7 @@ APhantomCharacter::APhantomCharacter()
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
+	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -48,57 +48,85 @@ APhantomCharacter::APhantomCharacter()
 	// Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	bCanMove = true;
-	bCanRun = false;
-	bCanSprint = true;
-	bWantsToSprint = false;
+	bIsDodging = false;
 }
 
-void APhantomCharacter::OnStartMoveEndTransition()
+void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
-	bCanMove = false;
+	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	CameraBoom->TargetOffset.Z += ScaledHalfHeightAdjust;
 }
 
-void APhantomCharacter::OnEndMoveEndToIdleTransition()
+void APhantomCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
-	bCanMove = true;
+	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	CameraBoom->TargetOffset.Z -= ScaledHalfHeightAdjust;
 }
 
-void APhantomCharacter::OnEnteredWalkingState()
+bool APhantomCharacter::CanCrouch() const
 {
-	GetCharacterMovement()->MaxWalkSpeed = MaxWalkSpeedCache;
+	return Super::CanCrouch() && !bIsDodging;
 }
 
-void APhantomCharacter::OnEnteredRunningState()
+bool APhantomCharacter::CanDodge() const
+{
+	return !bIsDodging && !bIsCrouched;
+}
+
+bool APhantomCharacter::IsRunning() const
+{
+	return GetCharacterMovement()->MaxWalkSpeed >= MaxRunSpeed;
+}
+
+bool APhantomCharacter::IsSprinting() const
+{
+	return GetCharacterMovement()->MaxWalkSpeed >= MaxSprintSpeed;
+}
+
+void APhantomCharacter::Run()
 {
 	GetCharacterMovement()->MaxWalkSpeed = MaxRunSpeed;
+	GetCharacterMovement()->MaxWalkSpeedCrouched = MaxRunSpeedCrouched;
 }
 
-void APhantomCharacter::OnEnteredSprintingState()
+void APhantomCharacter::Walk()
 {
-	bIsSprinting = true;
-	GetCharacterMovement()->MaxWalkSpeed = MaxSprintSpeed;
-	bWantsToSprint = false;
+	GetCharacterMovement()->MaxWalkSpeed = MaxWalkSpeedCache;
+	GetCharacterMovement()->MaxWalkSpeedCrouched = MaxWalkSpeedCrouchedCache;
 }
 
-void APhantomCharacter::OnLeftSprintingState()
+void APhantomCharacter::Sprint()
 {
-	bIsSprinting = false;
+	if (IsRunning()) // 현재 캐릭터가 Run하고 있을 때만 Sprint상태에 진입할 수 있다.
+	{
+		GetCharacterMovement()->MaxWalkSpeed = MaxSprintSpeed;
+		if (bIsCrouched) // Crouch상태에서 Sprint상태에 진입하면 UnCrouch한다.
+		{
+			UnCrouch();
+		}
+	}
 }
 
 void APhantomCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
 	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		//Walking
-		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Triggered, this, &APhantomCharacter::Walk);
-		//Looking
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APhantomCharacter::Look);
-		//Running
-		EnhancedInputComponent->BindAction(RunAction, ETriggerEvent::Triggered, this, &APhantomCharacter::OnRunButtonPressed);
-		EnhancedInputComponent->BindAction(RunAction, ETriggerEvent::Completed, this, &APhantomCharacter::OnRunButtonReleased);
-		//Sprinting
+		// Walking
+		EnhancedInputComponent->BindAction(WalkFRAction, ETriggerEvent::Triggered, this, &APhantomCharacter::OnWalk);
+		EnhancedInputComponent->BindAction(WalkBLAction, ETriggerEvent::Triggered, this, &APhantomCharacter::OnWalk);
+		// Looking
+		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APhantomCharacter::OnLook);
+		// Running
+		EnhancedInputComponent->BindAction(StartRunAction, ETriggerEvent::Triggered, this, &APhantomCharacter::OnRunButtonPressed);
+		EnhancedInputComponent->BindAction(EndRunAction, ETriggerEvent::Triggered, this, &APhantomCharacter::OnRunButtonReleased);
+		// Sprinting
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Triggered, this, &APhantomCharacter::OnSprintButtonPressed);
+		// Dodging
+		EnhancedInputComponent->BindAction(DodgeAction, ETriggerEvent::Triggered, this, &APhantomCharacter::OnDodgeButtonPressed);
+
+		// Stealthing
+		EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Started, this, &APhantomCharacter::OnStealthButtonPressed);
+		EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Completed, this, &APhantomCharacter::OnStealthButtonReleased);
 	}
 }
 
@@ -108,23 +136,24 @@ void APhantomCharacter::BeginPlay()
 
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
-			UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem
+			= ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
 			Subsystem->AddMappingContext(NormalMovementMappingContext, 0);
 		}
 	}
 
 	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
+	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
 }
 
 
-void APhantomCharacter::Walk(const FInputActionValue& Value)
+void APhantomCharacter::OnWalk(const FInputActionValue& Value)
 {
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
-	if (bCanMove && Controller != nullptr)
+	if (Controller != nullptr)
 	{
 		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
@@ -142,7 +171,7 @@ void APhantomCharacter::Walk(const FInputActionValue& Value)
 	}
 }
 
-void APhantomCharacter::Look(const FInputActionValue& Value)
+void APhantomCharacter::OnLook(const FInputActionValue& Value)
 {
 	// input is a Vector2D
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
@@ -157,18 +186,43 @@ void APhantomCharacter::Look(const FInputActionValue& Value)
 
 void APhantomCharacter::OnRunButtonPressed()
 {
-	bCanRun = true;
+	Run();
 }
 
 void APhantomCharacter::OnRunButtonReleased()
 {
-	bCanRun = false;
+	Walk();
 }
 
 void APhantomCharacter::OnSprintButtonPressed()
 {
-	if(!bIsSprinting)
+	Sprint();
+}
+
+void APhantomCharacter::OnDodgeButtonPressed()
+{
+	if (CanCrouch() && DodgeMontage)
 	{
-		bWantsToSprint = true;
+		bIsDodging = true;
+		float Duration = PlayAnimMontage(DodgeMontage);
+		FTimerHandle DodgeEndTimer;
+		GetWorldTimerManager().SetTimer(DodgeEndTimer, [this]()
+		{
+			bIsDodging = false;
+		}, Duration, false);
 	}
+}
+
+void APhantomCharacter::OnStealthButtonPressed()
+{
+	if (IsSprinting())
+	{
+		Run();
+	}
+	Crouch();
+}
+
+void APhantomCharacter::OnStealthButtonReleased()
+{
+	UnCrouch();
 }
