@@ -10,8 +10,6 @@
 
 class USpringArmComponent;
 class UCameraComponent;
-class UInputAction;
-class UInputMappingContext;
 
 UCLASS(config=Game)
 class APhantomCharacter : public ACharacter
@@ -20,63 +18,39 @@ class APhantomCharacter : public ACharacter
 
 public:
 	APhantomCharacter();
-
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual bool CanCrouch() const override;
 
-	bool CanDodge() const;
-	bool IsRunning() const;
-	bool IsSprinting() const;
-
+	void Move(const FInputActionValue& Value);
+	void Look(const FInputActionValue& Value);
 	void Run();
 	void Walk();
 	void Sprint();
+	void Dodge();
+	void Stealth();
+	void UnStealth();
+	
+	bool CanDodge() const;
+	UFUNCTION(BlueprintCallable)
+	bool IsWalking() const;
+	UFUNCTION(BlueprintCallable)
+	bool IsRunning() const;
+	bool IsSprinting() const;
 	
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
 protected:
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	virtual void BeginPlay();
+	virtual void BeginPlay() override;
 
-private:
-	void OnWalk(const FInputActionValue& Value);
-	void OnLook(const FInputActionValue& Value);
-	void OnRunButtonPressed();
-	void OnRunButtonReleased();
-	void OnSprintButtonPressed();
-	void OnDodgeButtonPressed();
-	void OnStealthButtonPressed();
-	void OnStealthButtonReleased();
-
-	
-	
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputMappingContext* NormalMovementMappingContext;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* StartRunAction;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* EndRunAction;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* WalkFRAction;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* WalkBLAction;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* LookAction;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* SprintAction;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* DodgeAction;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-    UInputAction* StealthAction;
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* DodgeMontage;
 
