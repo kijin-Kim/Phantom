@@ -12,9 +12,8 @@ void APhantomPlayerController::BeginPlay()
 	Super::BeginPlay();
 
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
-	{
 		Subsystem->AddMappingContext(NormalMovementMappingContext, 0);
-	}
+	
 }
 
 void APhantomPlayerController::SetupInputComponent()
@@ -45,25 +44,19 @@ void APhantomPlayerController::SetupInputComponent()
 void APhantomPlayerController::OnMove(const FInputActionValue& Value)
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-	{
 		PhantomCharacter->Move(Value);
-	}
 }
 
 void APhantomPlayerController::OnLook(const FInputActionValue& Value)
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-	{
 		PhantomCharacter->Look(Value);
-	}
 }
 
 void APhantomPlayerController::OnRunButtonPressed()
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-	{
 		PhantomCharacter->Run();
-	}
 }
 
 void APhantomPlayerController::OnRunButtonReleased()
@@ -77,31 +70,24 @@ void APhantomPlayerController::OnRunButtonReleased()
 void APhantomPlayerController::OnSprintButtonPressed()
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-	{
 		PhantomCharacter->Sprint();
-	}
 }
 
 void APhantomPlayerController::OnDodgeButtonPressed()
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-	{
 		PhantomCharacter->Dodge();
-	}
 }
 
 void APhantomPlayerController::OnStealthButtonPressed()
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-	{
-		PhantomCharacter->Stealth();
-	}
+		PhantomCharacter->EnterStealthMode();
+	
 }
 
 void APhantomPlayerController::OnStealthButtonReleased()
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-	{
-		PhantomCharacter->UnStealth();
-	}
+		PhantomCharacter->LeaveStealthMode();
 }

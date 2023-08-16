@@ -24,12 +24,12 @@ public:
 
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
-	void Run();
 	void Walk();
+	void Run();
 	void Sprint();
 	void Dodge();
-	void Stealth();
-	void UnStealth();
+	void EnterStealthMode();
+	void LeaveStealthMode();
 	
 	bool CanDodge() const;
 	UFUNCTION(BlueprintCallable)
@@ -43,7 +43,23 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	
+private:
+	void LocalWalk();
+	UFUNCTION(Server, Reliable)
+	void ServerWalk();
+	
+	void LocalRun();
+	UFUNCTION(Server, Reliable)
+	void ServerRun();
+	
+	void LocalSprint();
+	UFUNCTION(Server, Reliable)
+	void ServerSprint();
 
+	void LocalDodge();
+	UFUNCTION(Server, Reliable)
+	void ServerDodge();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))

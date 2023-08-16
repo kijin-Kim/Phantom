@@ -62,81 +62,6 @@ void APhantomCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeig
 	CameraBoom->TargetOffset.Z -= ScaledHalfHeightAdjust;
 }
 
-void APhantomCharacter::Run()
-{
-	GetCharacterMovement()->MaxWalkSpeed = MaxRunSpeed;
-	GetCharacterMovement()->MaxWalkSpeedCrouched = MaxRunSpeedCrouched;
-}
-
-void APhantomCharacter::Walk()
-{
-	GetCharacterMovement()->MaxWalkSpeed = MaxWalkSpeedCache;
-	GetCharacterMovement()->MaxWalkSpeedCrouched = MaxWalkSpeedCrouchedCache;
-}
-
-void APhantomCharacter::Sprint()
-{
-	if (IsRunning()) // 현재 캐릭터가 Run하고 있을 때만 Sprint상태에 진입할 수 있다.
-	{
-		GetCharacterMovement()->MaxWalkSpeed = MaxSprintSpeed;
-		if (bIsCrouched) // Crouch상태에서 Sprint상태에 진입하면 UnCrouch한다.
-		{
-			UnCrouch();
-		}
-	}
-}
-
-bool APhantomCharacter::CanCrouch() const
-{
-	return Super::CanCrouch() && !bIsDodging;
-}
-
-bool APhantomCharacter::CanDodge() const
-{
-	return !bIsDodging && !bIsCrouched;
-}
-
-bool APhantomCharacter::IsWalking() const
-{
-	if (GetVelocity().IsNearlyZero())
-	{
-		return false;
-	}
-
-	return !bIsCrouched
-		       ? GetCharacterMovement()->MaxWalkSpeed >= MaxWalkSpeedCache && GetCharacterMovement()->MaxWalkSpeed < MaxRunSpeed
-		       : GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxWalkSpeedCrouchedCache && GetCharacterMovement()->MaxWalkSpeedCrouched < MaxRunSpeedCrouched;
-}
-
-bool APhantomCharacter::IsRunning() const
-{
-	if (GetVelocity().IsNearlyZero())
-	{
-		return false;
-	}
-
-	return !bIsCrouched
-		       ? GetCharacterMovement()->MaxWalkSpeed >= MaxRunSpeed && GetCharacterMovement()->MaxWalkSpeed < MaxSprintSpeed
-		       : GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxRunSpeedCrouched;
-}
-
-bool APhantomCharacter::IsSprinting() const
-{
-	if (GetVelocity().IsNearlyZero())
-	{
-		return false;
-	}
-
-	return !bIsCrouched ? GetCharacterMovement()->MaxWalkSpeed >= MaxSprintSpeed : false;
-}
-
-void APhantomCharacter::BeginPlay()
-{
-	Super::BeginPlay();
-	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
-	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
-}
-
 void APhantomCharacter::Move(const FInputActionValue& Value)
 {
 	// input is a Vector2D
@@ -173,7 +98,129 @@ void APhantomCharacter::Look(const FInputActionValue& Value)
 	}
 }
 
+void APhantomCharacter::Walk()
+{
+	if (!HasAuthority())
+		LocalWalk();
+	ServerWalk();
+}
+
+void APhantomCharacter::Run()
+{
+	if (!HasAuthority())
+		LocalRun();
+	ServerRun();
+}
+
+void APhantomCharacter::Sprint()
+{
+	if (!HasAuthority())
+		LocalSprint();
+	ServerSprint();
+}
+
 void APhantomCharacter::Dodge()
+{
+	if(!HasAuthority())
+		LocalDodge();
+	ServerDodge();
+}
+
+void APhantomCharacter::EnterStealthMode()
+{
+	if (IsSprinting())
+		Run();
+	Crouch();
+}
+
+void APhantomCharacter::LeaveStealthMode()
+{
+	UnCrouch();
+}
+
+bool APhantomCharacter::CanCrouch() const
+{
+	return Super::CanCrouch() && !bIsDodging;
+}
+
+bool APhantomCharacter::CanDodge() const
+{
+	return !bIsDodging && !bIsCrouched;
+}
+
+bool APhantomCharacter::IsWalking() const
+{
+	if (GetVelocity().IsNearlyZero())
+		return false;
+
+	return !bIsCrouched
+		       ? GetCharacterMovement()->MaxWalkSpeed >= MaxWalkSpeedCache && GetCharacterMovement()->MaxWalkSpeed < MaxRunSpeed
+		       : GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxWalkSpeedCrouchedCache && GetCharacterMovement()->MaxWalkSpeedCrouched < MaxRunSpeedCrouched;
+}
+
+bool APhantomCharacter::IsRunning() const
+{
+	if (GetVelocity().IsNearlyZero())
+		return false;
+
+	return !bIsCrouched
+		       ? GetCharacterMovement()->MaxWalkSpeed >= MaxRunSpeed && GetCharacterMovement()->MaxWalkSpeed < MaxSprintSpeed
+		       : GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxRunSpeedCrouched;
+}
+
+bool APhantomCharacter::IsSprinting() const
+{
+	if (GetVelocity().IsNearlyZero())
+		return false;
+
+	return !bIsCrouched ? GetCharacterMovement()->MaxWalkSpeed >= MaxSprintSpeed : false;
+}
+
+void APhantomCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
+	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
+}
+
+void APhantomCharacter::LocalWalk()
+{
+	GetCharacterMovement()->MaxWalkSpeed = MaxWalkSpeedCache;
+	GetCharacterMovement()->MaxWalkSpeedCrouched = MaxWalkSpeedCrouchedCache;
+}
+
+void APhantomCharacter::ServerWalk_Implementation()
+{
+	LocalWalk();
+}
+
+void APhantomCharacter::LocalRun()
+{
+	GetCharacterMovement()->MaxWalkSpeed = MaxRunSpeed;
+	GetCharacterMovement()->MaxWalkSpeedCrouched = MaxRunSpeedCrouched;
+}
+
+void APhantomCharacter::ServerRun_Implementation()
+{
+	LocalRun();
+}
+
+void APhantomCharacter::LocalSprint()
+{
+	if (IsRunning()) // 현재 캐릭터가 Run하고 있을 때만 Sprint상태에 진입할 수 있다.
+	{
+		GetCharacterMovement()->MaxWalkSpeed = MaxSprintSpeed;
+		if (bIsCrouched) // Crouch상태에서 Sprint상태에 진입하면 UnCrouch한다.
+			UnCrouch();
+	}
+}
+
+void APhantomCharacter::ServerSprint_Implementation()
+{
+	LocalSprint();
+}
+
+void APhantomCharacter::LocalDodge()
 {
 	if (CanCrouch() && DodgeMontage)
 	{
@@ -187,17 +234,7 @@ void APhantomCharacter::Dodge()
 	}
 }
 
-void APhantomCharacter::Stealth()
+void APhantomCharacter::ServerDodge_Implementation()
 {
-	if (IsSprinting())
-	{
-		Run();
-	}
-	Crouch();
-}
-
-void APhantomCharacter::UnStealth()
-{
-	UnCrouch();
-
+	LocalDodge();
 }
