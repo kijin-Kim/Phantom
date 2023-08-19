@@ -3,15 +3,13 @@
 #include "PhantomCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputSubsystems.h"
-
-
-//////////////////////////////////////////////////////////////////////////
-// APhantomCharacter
+#include "Phantom.h"
+#include "VisualLogger/VisualLogger.h"
+#include "VisualLogger/VisualLoggerTypes.h"
 
 APhantomCharacter::APhantomCharacter()
 {
@@ -21,13 +19,9 @@ APhantomCharacter::APhantomCharacter()
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
-
-	// Configure character movement
+	
 	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f); // ...at this rotation rate
-
-	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
-	// instead of recompiling to adjust them
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	GetCharacterMovement()->JumpZVelocity = 700.f;
 	GetCharacterMovement()->AirControl = 0.35f;
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
@@ -35,51 +29,55 @@ APhantomCharacter::APhantomCharacter()
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
 
-	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
+	CameraBoom->TargetArmLength = 400.0f;
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
 
-	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-	// Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
 	bIsDodging = false;
 }
 
+#if ENABLE_VISUAL_LOG
+void APhantomCharacter::GrabDebugSnapshot(FVisualLogEntry* Snapshot) const
+{
+	IVisualLoggerDebugSnapshotInterface::GrabDebugSnapshot(Snapshot);
+	const int32 CatIndex = Snapshot->Status.AddZeroed();
+	FVisualLogStatusCategory& PlaceableCategory = Snapshot->Status[CatIndex];
+	PlaceableCategory.Category = TEXT("Phantom Character");
+	PlaceableCategory.Add(TEXT("Location"), FString::Printf(TEXT("%s"), *(GetActorLocation().ToString())));
+}
+#endif
+
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
 	CameraBoom->TargetOffset.Z += ScaledHalfHeightAdjust;
+	UE_VLOG_LOCATION(this, LogPhantom, Verbose, GetActorLocation(), 2.0f, FColor::Red, TEXT("Phantom Start Crouch"));
 }
 
 void APhantomCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
 	CameraBoom->TargetOffset.Z -= ScaledHalfHeightAdjust;
+	UE_VLOG_LOCATION(this, LogPhantom, Verbose, GetActorLocation(), 2.0f, FColor::Red, TEXT("Phantom End Crouch"));
 }
 
 void APhantomCharacter::Move(const FInputActionValue& Value)
 {
-	// input is a Vector2D
 	const FVector2D MovementVector = Value.Get<FVector2D>();
 
 	if (Controller != nullptr)
 	{
-		// find out which way is forward
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-		// get forward vector
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-
-		// get right vector 
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-		// add movement 
+		
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
 	}
@@ -87,12 +85,10 @@ void APhantomCharacter::Move(const FInputActionValue& Value)
 
 void APhantomCharacter::Look(const FInputActionValue& Value)
 {
-	// input is a Vector2D
 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
 
 	if (Controller != nullptr)
 	{
-		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
@@ -138,6 +134,20 @@ void APhantomCharacter::LeaveStealthMode()
 	UnCrouch();
 }
 
+// void APhantomCharacter::Attack()
+// {
+// 	if (CanAttack() && AttackMontage)
+// 	{
+// 		bIsAttacking = true;
+// 		const float Duration = PlayAnimMontage(AttackMontage);
+// 		FTimerHandle AttackEndTimer;
+// 		GetWorldTimerManager().SetTimer(AttackEndTimer, [this]()
+// 		{
+// 			bIsAttacking = false;
+// 		}, Duration, false);
+// 	}
+// }
+
 bool APhantomCharacter::CanCrouch() const
 {
 	return Super::CanCrouch() && !bIsDodging;
@@ -146,6 +156,11 @@ bool APhantomCharacter::CanCrouch() const
 bool APhantomCharacter::CanDodge() const
 {
 	return !bIsDodging && !bIsCrouched;
+}
+
+bool APhantomCharacter::CanAttack() const
+{
+	return !bIsAttacking && !bIsCrouched && !bIsDodging;
 }
 
 bool APhantomCharacter::IsWalking() const
@@ -222,7 +237,7 @@ void APhantomCharacter::ServerSprint_Implementation()
 
 void APhantomCharacter::LocalDodge()
 {
-	if (CanCrouch() && DodgeMontage)
+	if (CanDodge() && DodgeMontage)
 	{
 		bIsDodging = true;
 		const float Duration = PlayAnimMontage(DodgeMontage);

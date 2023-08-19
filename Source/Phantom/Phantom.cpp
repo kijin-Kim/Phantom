@@ -5,3 +5,4 @@
 
 IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, Phantom, "Phantom" );
  
+DEFINE_LOG_CATEGORY(LogPhantom); //추가

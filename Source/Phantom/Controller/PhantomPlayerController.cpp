@@ -12,8 +12,10 @@ void APhantomPlayerController::BeginPlay()
 	Super::BeginPlay();
 
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
-		Subsystem->AddMappingContext(NormalMovementMappingContext, 0);
-	
+	{
+		Subsystem->AddMappingContext(NormalMovementMappingContext, 1);
+		Subsystem->AddMappingContext(CombatMappingContext, 0);
+	}
 }
 
 void APhantomPlayerController::SetupInputComponent()
@@ -38,6 +40,9 @@ void APhantomPlayerController::SetupInputComponent()
 		// Stealthing
 		EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Started, this, &APhantomPlayerController::OnStealthButtonPressed);
 		EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Completed, this, &APhantomPlayerController::OnStealthButtonReleased);
+
+		// Attacking
+		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnAttackButtonPressed);
 	}
 }
 
@@ -83,11 +88,16 @@ void APhantomPlayerController::OnStealthButtonPressed()
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
 		PhantomCharacter->EnterStealthMode();
-	
 }
 
 void APhantomPlayerController::OnStealthButtonReleased()
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
 		PhantomCharacter->LeaveStealthMode();
+}
+
+void APhantomPlayerController::OnAttackButtonPressed()
+{
+	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
+		PhantomCharacter->Attack();
 }

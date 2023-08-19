@@ -19,7 +19,6 @@ class PHANTOM_API APhantomPlayerController : public APlayerController
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
-	
 
 private:
 	void OnMove(const FInputActionValue& Value);
@@ -30,6 +29,8 @@ private:
 	void OnDodgeButtonPressed();
 	void OnStealthButtonPressed();
 	void OnStealthButtonReleased();
+
+	void OnAttackButtonPressed();
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -50,5 +51,10 @@ private:
 	UInputAction* StealthAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	UInputAction* AttackAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* NormalMovementMappingContext;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	UInputMappingContext* CombatMappingContext;
 };
