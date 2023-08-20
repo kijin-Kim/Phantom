@@ -66,23 +66,6 @@ void APhantomCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeig
 	UE_VLOG_LOCATION(this, LogPhantom, Verbose, GetActorLocation(), 2.0f, FColor::Red, TEXT("Phantom End Crouch"));
 }
 
-void APhantomCharacter::Move(const FInputActionValue& Value)
-{
-	const FVector2D MovementVector = Value.Get<FVector2D>();
-
-	if (Controller != nullptr)
-	{
-		const FRotator Rotation = Controller->GetControlRotation();
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
-
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-		
-		AddMovementInput(ForwardDirection, MovementVector.Y);
-		AddMovementInput(RightDirection, MovementVector.X);
-	}
-}
-
 void APhantomCharacter::Look(const FInputActionValue& Value)
 {
 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
@@ -134,6 +117,7 @@ void APhantomCharacter::LeaveStealthMode()
 	UnCrouch();
 }
 
+
 // void APhantomCharacter::Attack()
 // {
 // 	if (CanAttack() && AttackMontage)
@@ -151,6 +135,22 @@ void APhantomCharacter::LeaveStealthMode()
 bool APhantomCharacter::CanCrouch() const
 {
 	return Super::CanCrouch() && !bIsDodging;
+}
+
+void APhantomCharacter::Move(const FInputActionValue& Value)
+{
+	const FVector2D MovementVector = Value.Get<FVector2D>();
+	if (Controller != nullptr)
+	{
+		const FRotator Rotation = Controller->GetControlRotation();
+		const FRotator YawRotation(0, Rotation.Yaw, 0);
+
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+		
+		AddMovementInput(ForwardDirection, MovementVector.Y);
+		AddMovementInput(RightDirection, MovementVector.X);
+	}
 }
 
 bool APhantomCharacter::CanDodge() const
@@ -197,6 +197,8 @@ void APhantomCharacter::BeginPlay()
 	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
 	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
 }
+
+
 
 void APhantomCharacter::LocalWalk()
 {

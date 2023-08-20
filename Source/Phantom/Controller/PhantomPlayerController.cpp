@@ -43,6 +43,8 @@ void APhantomPlayerController::SetupInputComponent()
 
 		// Attacking
 		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnAttackButtonPressed);
+
+		
 	}
 }
 
@@ -67,9 +69,7 @@ void APhantomPlayerController::OnRunButtonPressed()
 void APhantomPlayerController::OnRunButtonReleased()
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-	{
 		PhantomCharacter->Walk();
-	}
 }
 
 void APhantomPlayerController::OnSprintButtonPressed()
@@ -101,3 +101,4 @@ void APhantomPlayerController::OnAttackButtonPressed()
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
 		PhantomCharacter->Attack();
 }
+

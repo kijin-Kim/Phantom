@@ -27,6 +27,7 @@ public:
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual bool CanCrouch() const override;
+	
 
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
@@ -38,7 +39,7 @@ public:
 	void LeaveStealthMode();
 	UFUNCTION(BlueprintImplementableEvent)
 	void Attack();
-
+	
 	bool CanDodge() const;
 	bool CanAttack() const;
 	UFUNCTION(BlueprintCallable)
@@ -55,6 +56,8 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
+	
+	
 	void LocalWalk();
 	UFUNCTION(Server, Reliable)
 	void ServerWalk();
@@ -94,8 +97,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Crouch", meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
 	float MaxRunSpeedCrouched;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
 	bool bIsDodging;
-	UPROPERTY(BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Transient, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	bool bIsAttacking;
+	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
+	FVector CurrentInputVector;
 };

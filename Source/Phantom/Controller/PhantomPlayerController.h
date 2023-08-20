@@ -29,7 +29,7 @@ private:
 	void OnDodgeButtonPressed();
 	void OnStealthButtonPressed();
 	void OnStealthButtonReleased();
-
+	
 	void OnAttackButtonPressed();
 
 private:
@@ -57,4 +57,5 @@ private:
 	UInputMappingContext* NormalMovementMappingContext;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* CombatMappingContext;
+	
 };
