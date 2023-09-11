@@ -7,9 +7,6 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "Phantom.h"
-#include "VisualLogger/VisualLogger.h"
-#include "VisualLogger/VisualLoggerTypes.h"
 
 APhantomCharacter::APhantomCharacter()
 {
@@ -41,29 +38,18 @@ APhantomCharacter::APhantomCharacter()
 	bIsDodging = false;
 }
 
-#if ENABLE_VISUAL_LOG
-void APhantomCharacter::GrabDebugSnapshot(FVisualLogEntry* Snapshot) const
-{
-	IVisualLoggerDebugSnapshotInterface::GrabDebugSnapshot(Snapshot);
-	const int32 CatIndex = Snapshot->Status.AddZeroed();
-	FVisualLogStatusCategory& PlaceableCategory = Snapshot->Status[CatIndex];
-	PlaceableCategory.Category = TEXT("Phantom Character");
-	PlaceableCategory.Add(TEXT("Location"), FString::Printf(TEXT("%s"), *(GetActorLocation().ToString())));
-}
-#endif
 
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
 	CameraBoom->TargetOffset.Z += ScaledHalfHeightAdjust;
-	UE_VLOG_LOCATION(this, LogPhantom, Verbose, GetActorLocation(), 2.0f, FColor::Red, TEXT("Phantom Start Crouch"));
 }
 
 void APhantomCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
 	CameraBoom->TargetOffset.Z -= ScaledHalfHeightAdjust;
-	UE_VLOG_LOCATION(this, LogPhantom, Verbose, GetActorLocation(), 2.0f, FColor::Red, TEXT("Phantom End Crouch"));
+	
 }
 
 void APhantomCharacter::Look(const FInputActionValue& Value)
@@ -197,8 +183,6 @@ void APhantomCharacter::BeginPlay()
 	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
 	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
 }
-
-
 
 void APhantomCharacter::LocalWalk()
 {

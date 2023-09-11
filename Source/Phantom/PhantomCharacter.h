@@ -19,11 +19,7 @@ class APhantomCharacter : public ACharacter, public IVisualLoggerDebugSnapshotIn
 
 public:
 	APhantomCharacter();
-
-#if ENABLE_VISUAL_LOG
-	virtual void GrabDebugSnapshot(FVisualLogEntry* Snapshot) const override;
-#endif
-
+	
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual bool CanCrouch() const override;
@@ -52,7 +48,7 @@ public:
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	
 
-protected:
+protected:	
 	virtual void BeginPlay() override;
 
 private:
