@@ -7,6 +7,10 @@
 #include "InputAction.h"
 #include "Phantom/PhantomCharacter.h"
 
+APhantomPlayerController::APhantomPlayerController()
+{
+}
+
 void APhantomPlayerController::BeginPlay()
 {
 	Super::BeginPlay();

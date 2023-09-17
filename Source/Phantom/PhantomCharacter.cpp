@@ -7,16 +7,20 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Phantom.h"
+#include "Net/UnrealNetwork.h"
 
 APhantomCharacter::APhantomCharacter()
 {
+	PrimaryActorTick.bCanEverTick = true;
+
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
 	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
-	
+
 	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	GetCharacterMovement()->JumpZVelocity = 700.f;
@@ -38,6 +42,22 @@ APhantomCharacter::APhantomCharacter()
 	bIsDodging = false;
 }
 
+void APhantomCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (HasAuthority() && GetMesh())
+	{
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+		{
+			ReplicatedAnimMontage.AnimMontage = AnimInstance->GetCurrentActiveMontage();
+			ReplicatedAnimMontage.PlayRate = AnimInstance->Montage_GetPlayRate(ReplicatedAnimMontage.AnimMontage);
+			ReplicatedAnimMontage.StartSectionName = AnimInstance->Montage_GetCurrentSection(ReplicatedAnimMontage.AnimMontage);
+			ReplicatedAnimMontage.Position = AnimInstance->Montage_GetPosition(ReplicatedAnimMontage.AnimMontage);
+			ReplicatedAnimMontage.bIsStopped = AnimInstance->Montage_GetIsStopped(ReplicatedAnimMontage.AnimMontage);
+		}
+	}
+}
 
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
@@ -49,7 +69,6 @@ void APhantomCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeig
 {
 	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
 	CameraBoom->TargetOffset.Z -= ScaledHalfHeightAdjust;
-	
 }
 
 void APhantomCharacter::Look(const FInputActionValue& Value)
@@ -66,41 +85,60 @@ void APhantomCharacter::Look(const FInputActionValue& Value)
 void APhantomCharacter::Walk()
 {
 	if (!HasAuthority())
+	{
 		LocalWalk();
+	}
 	ServerWalk();
 }
 
 void APhantomCharacter::Run()
 {
 	if (!HasAuthority())
+	{
 		LocalRun();
+	}
 	ServerRun();
 }
 
 void APhantomCharacter::Sprint()
 {
 	if (!HasAuthority())
+	{
 		LocalSprint();
+	}
 	ServerSprint();
 }
 
 void APhantomCharacter::Dodge()
 {
-	if(!HasAuthority())
+	if (!HasAuthority())
+	{
 		LocalDodge();
+	}
 	ServerDodge();
 }
 
 void APhantomCharacter::EnterStealthMode()
 {
 	if (IsSprinting())
+	{
 		Run();
+	}
 	Crouch();
 }
 
 void APhantomCharacter::LeaveStealthMode()
 {
 	UnCrouch();
+}
+
+void APhantomCharacter::Attack()
+{
+	if (!HasAuthority())
+	{
+		LocalAttack();
+	}
+	ServerAttack();
 }
 
 
@@ -123,6 +161,19 @@ bool APhantomCharacter::CanCrouch() const
 	return Super::CanCrouch() && !bIsDodging;
 }
 
+void APhantomCharacter::Test()
+{
+	if (Controller != nullptr)
+	{
+		const FRotator Rotation = Controller->GetControlRotation();
+		const FRotator YawRotation(0, Rotation.Yaw, 0);
+
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+	}
+}
+
 void APhantomCharacter::Move(const FInputActionValue& Value)
 {
 	const FVector2D MovementVector = Value.Get<FVector2D>();
@@ -133,7 +184,7 @@ void APhantomCharacter::Move(const FInputActionValue& Value)
 
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-		
+
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
 	}
@@ -152,27 +203,37 @@ bool APhantomCharacter::CanAttack() const
 bool APhantomCharacter::IsWalking() const
 {
 	if (GetVelocity().IsNearlyZero())
+	{
 		return false;
+	}
 
 	return !bIsCrouched
-		       ? GetCharacterMovement()->MaxWalkSpeed >= MaxWalkSpeedCache && GetCharacterMovement()->MaxWalkSpeed < MaxRunSpeed
-		       : GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxWalkSpeedCrouchedCache && GetCharacterMovement()->MaxWalkSpeedCrouched < MaxRunSpeedCrouched;
+		       ? GetCharacterMovement()->MaxWalkSpeed >= MaxWalkSpeedCache && GetCharacterMovement()->MaxWalkSpeed <
+		       MaxRunSpeed
+		       : GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxWalkSpeedCrouchedCache && GetCharacterMovement()->
+		       MaxWalkSpeedCrouched < MaxRunSpeedCrouched;
 }
 
 bool APhantomCharacter::IsRunning() const
 {
 	if (GetVelocity().IsNearlyZero())
+	{
 		return false;
+	}
 
 	return !bIsCrouched
-		       ? GetCharacterMovement()->MaxWalkSpeed >= MaxRunSpeed && GetCharacterMovement()->MaxWalkSpeed < MaxSprintSpeed
+		       ? GetCharacterMovement()->MaxWalkSpeed >= MaxRunSpeed && GetCharacterMovement()->MaxWalkSpeed <
+		       MaxSprintSpeed
 		       : GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxRunSpeedCrouched;
 }
 
 bool APhantomCharacter::IsSprinting() const
 {
 	if (GetVelocity().IsNearlyZero())
+	{
 		return false;
+	}
+
 
 	return !bIsCrouched ? GetCharacterMovement()->MaxWalkSpeed >= MaxSprintSpeed : false;
 }
@@ -182,6 +243,12 @@ void APhantomCharacter::BeginPlay()
 	Super::BeginPlay();
 	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
 	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
+}
+
+void APhantomCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(APhantomCharacter, ReplicatedAnimMontage, COND_SimulatedOnly);
 }
 
 void APhantomCharacter::LocalWalk()
@@ -212,7 +279,9 @@ void APhantomCharacter::LocalSprint()
 	{
 		GetCharacterMovement()->MaxWalkSpeed = MaxSprintSpeed;
 		if (bIsCrouched) // Crouch상태에서 Sprint상태에 진입하면 UnCrouch한다.
+		{
 			UnCrouch();
+		}
 	}
 }
 
@@ -238,4 +307,85 @@ void APhantomCharacter::LocalDodge()
 void APhantomCharacter::ServerDodge_Implementation()
 {
 	LocalDodge();
+}
+
+void APhantomCharacter::LocalAttack()
+{
+	if (CanAttack())
+	{
+		bIsAttacking = true;
+		PlayAnimMontage(AttackMontage);
+	}
+}
+
+void APhantomCharacter::ServerAttack_Implementation()
+{
+	LocalAttack();
+}
+
+void APhantomCharacter::OnRep_ReplicatedAnimMontage()
+{
+	// Simulated Proxy에서만 불림
+	const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.net.AnimMontage"));
+	bool bDebugRepAnimMontage = CVar && CVar->GetValueOnGameThread();
+	if (bDebugRepAnimMontage)
+	{
+		if (ReplicatedAnimMontage.AnimMontage)
+		{
+			UE_LOG(LogPhantom, Warning, TEXT("Montage Name: %s"), *ReplicatedAnimMontage.AnimMontage->GetName());
+		}
+		UE_LOG(LogPhantom, Warning, TEXT("Play Rate: %f"), ReplicatedAnimMontage.PlayRate);
+		UE_LOG(LogPhantom, Warning, TEXT("Position: %f"), ReplicatedAnimMontage.Position);
+		UE_LOG(LogPhantom, Warning, TEXT("Start Section Name: %s"), *ReplicatedAnimMontage.StartSectionName.ToString());
+		UE_LOG(LogPhantom, Warning, TEXT("bIsStopped %s"), ReplicatedAnimMontage.bIsStopped ? TEXT("True") : TEXT("False"));
+	}
+
+
+	const USkeletalMeshComponent* SkeletalMeshComponent = GetMesh();
+	if (!SkeletalMeshComponent)
+	{
+		return;
+	}
+
+	UAnimInstance* AnimInstance = SkeletalMeshComponent->GetAnimInstance();
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	UAnimMontage* LocalActiveMontage = AnimInstance->GetCurrentActiveMontage();
+	if (ReplicatedAnimMontage.AnimMontage && LocalActiveMontage != ReplicatedAnimMontage.AnimMontage)
+	{
+		AnimInstance->Montage_Play(ReplicatedAnimMontage.AnimMontage);
+	}
+	
+	if (LocalActiveMontage)
+	{
+		if (ReplicatedAnimMontage.bIsStopped)
+		{
+			AnimInstance->Montage_Stop(LocalActiveMontage->BlendOut.GetBlendTime(), ReplicatedAnimMontage.AnimMontage);
+			return;
+		}
+
+		if (AnimInstance->Montage_GetPlayRate(LocalActiveMontage) != ReplicatedAnimMontage.PlayRate)
+		{
+			AnimInstance->Montage_SetPlayRate(LocalActiveMontage, ReplicatedAnimMontage.PlayRate);
+		}
+		if (AnimInstance->Montage_GetCurrentSection(LocalActiveMontage) != ReplicatedAnimMontage.StartSectionName)
+		{
+			AnimInstance->Montage_JumpToSection(ReplicatedAnimMontage.StartSectionName);
+		}
+		
+		const float MONTAGE_POSITION_DELTA_TOLERANCE = 0.1f;
+		const float LocalMontagePosition = AnimInstance->Montage_GetPosition(LocalActiveMontage);
+		if (!FMath::IsNearlyEqual(LocalMontagePosition, ReplicatedAnimMontage.Position, MONTAGE_POSITION_DELTA_TOLERANCE))
+		{
+			if(bDebugRepAnimMontage)
+			{
+				const float PositionDelta = FMath::Abs(LocalMontagePosition - ReplicatedAnimMontage.Position);
+				UE_LOG(LogPhantom, Warning, TEXT("Adjusted Simulated Proxy Montage Position Delta. AnimNotify may be skipped. (Delta : %f)"), PositionDelta);
+			}
+			AnimInstance->Montage_SetPosition(LocalActiveMontage, ReplicatedAnimMontage.Position);
+		}
+	}
 }
