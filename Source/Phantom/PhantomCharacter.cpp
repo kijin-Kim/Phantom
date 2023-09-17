@@ -22,12 +22,11 @@ APhantomCharacter::APhantomCharacter()
 
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
-	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
+	GetCharacterMovement()->bOrientRotationToMovement = true; 
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	GetCharacterMovement()->JumpZVelocity = 700.f;
 	GetCharacterMovement()->AirControl = 0.35f;
@@ -39,11 +38,11 @@ APhantomCharacter::APhantomCharacter()
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 400.0f;
-	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
+	CameraBoom->bUsePawnControlRotation = true;
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	FollowCamera->bUsePawnControlRotation = false;
 
 	CombatRangeSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CombatRangeSphere"));
 	CombatRangeSphere->SetupAttachment(RootComponent);
@@ -64,21 +63,23 @@ void APhantomCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	AuthUpdateReplicatedAnimMontage(DeltaSeconds);
-	if(IsLocallyControlled())
+	if (IsLocallyControlled())
 	{
-		CalculateTargeted();	
+		CalculateNewTargetingEnemy();
 	}
 }
 
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	// Capsule크기가 작아지면서 Capsule에 부착된 SpringArm, Camera가 같이 내려가는것을 원래 위치를 유지하도록 보정함.
 	CameraBoom->TargetOffset.Z += ScaledHalfHeightAdjust;
 }
 
 void APhantomCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	// Capsule크기가 작아지면서 Capsule에 부착된 SpringArm, Camera가 같이 내려가는것을 원래 위치를 유지하도록 보정함.
 	CameraBoom->TargetOffset.Z -= ScaledHalfHeightAdjust;
 }
 
@@ -122,16 +123,19 @@ void APhantomCharacter::Sprint()
 
 void APhantomCharacter::Dodge()
 {
-	if (!HasAuthority())
+	if (CanDodge())
 	{
-		LocalDodge();
+		if (!HasAuthority())
+		{
+			LocalDodge();
+		}
+		ServerDodge();
 	}
-	ServerDodge();
 }
 
 void APhantomCharacter::EnterStealthMode()
 {
-	if (IsSprinting())
+	if (IsSprinting()) // Stealth(Crouch)상태에서는 Sprint를 할 수가 없으므로, Run상태로 진입.
 	{
 		Run();
 	}
@@ -145,11 +149,14 @@ void APhantomCharacter::LeaveStealthMode()
 
 void APhantomCharacter::Attack()
 {
-	if (!HasAuthority())
+	if (CanAttack())
 	{
-		LocalAttack(CurrentTargetedEnemy);
+		if (!HasAuthority())
+		{
+			LocalAttack(CurrentTargetedEnemy);
+		}
+		ServerAttack(CurrentTargetedEnemy);
 	}
-	ServerAttack(CurrentTargetedEnemy);
 }
 
 bool APhantomCharacter::CanCrouch() const
@@ -190,11 +197,15 @@ bool APhantomCharacter::IsWalking() const
 		return false;
 	}
 
-	return !bIsCrouched
-		       ? GetCharacterMovement()->MaxWalkSpeed >= MaxWalkSpeedCache && GetCharacterMovement()->MaxWalkSpeed <
-		       MaxRunSpeed
-		       : GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxWalkSpeedCrouchedCache && GetCharacterMovement()->
-		       MaxWalkSpeedCrouched < MaxRunSpeedCrouched;
+	// WalkSpeed <= 현재 속도 < MaxRunSpeed이면 Walking
+	if (bIsCrouched)
+	{
+		const float CurrentCrouchedSpeed = GetCharacterMovement()->MaxWalkSpeedCrouched;
+		return CurrentCrouchedSpeed >= MaxWalkSpeedCrouchedCache && CurrentCrouchedSpeed < MaxRunSpeedCrouched;
+	}
+
+	const float CurrentSpeed = GetCharacterMovement()->MaxWalkSpeed;
+	return CurrentSpeed >= MaxWalkSpeedCache && CurrentSpeed < MaxRunSpeed;
 }
 
 bool APhantomCharacter::IsRunning() const
@@ -204,10 +215,15 @@ bool APhantomCharacter::IsRunning() const
 		return false;
 	}
 
-	return !bIsCrouched
-		       ? GetCharacterMovement()->MaxWalkSpeed >= MaxRunSpeed && GetCharacterMovement()->MaxWalkSpeed <
-		       MaxSprintSpeed
-		       : GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxRunSpeedCrouched;
+	// Crouch시에는 현재속도가 Crouch Run Speed보다 빠르면되고,
+	// UnCrouch시에는 Run Speed보다 빠르고 Sprint Speed보다 느려야함. (Crouch는 Sprint가 없음)
+	if (bIsCrouched)
+	{
+		return GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxRunSpeedCrouched;
+	}
+	
+	const float CurrentSpeed = GetCharacterMovement()->MaxWalkSpeed;
+	return CurrentSpeed >= MaxRunSpeed && CurrentSpeed < MaxSprintSpeed;
 }
 
 bool APhantomCharacter::IsSprinting() const
@@ -216,8 +232,7 @@ bool APhantomCharacter::IsSprinting() const
 	{
 		return false;
 	}
-
-
+	
 	return !bIsCrouched ? GetCharacterMovement()->MaxWalkSpeed >= MaxSprintSpeed : false;
 }
 
@@ -242,7 +257,7 @@ void APhantomCharacter::AuthUpdateReplicatedAnimMontage(float DeltaSeconds)
 	}
 }
 
-void APhantomCharacter::CalculateTargeted()
+void APhantomCharacter::CalculateNewTargetingEnemy()
 {
 	if (EnemiesInCombatRange.IsEmpty())
 	{
@@ -253,12 +268,13 @@ void APhantomCharacter::CalculateTargeted()
 	float MaxDot = 0.0f;
 	AEnemy* NewTargetedCandidate = nullptr;
 	const FVector LastInputVector = GetCharacterMovement()->GetLastInputVector();
-	const FVector DotRight = LastInputVector.IsNearlyZero() ? FollowCamera->GetForwardVector() : LastInputVector; /* 플레이어의 입력이 있으면 입력을
-	타겟팅에 반영합니다*/
+	// 플레이어의 입력이 있으면 입력을 새로 타겟팅할 Enemy를 뽑는데 반영합니다
+	const FVector DotRight = LastInputVector.IsNearlyZero() ? FollowCamera->GetForwardVector() : LastInputVector;
 
 	const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Targeting"));
 	const bool bDebugTargeting = CVar && CVar->GetValueOnGameThread();
 
+	// 새로운 타겟팅 후보를 찾는다.
 	for (AEnemy* Enemy : EnemiesInCombatRange)
 	{
 		FVector PhantomToEnemy = (Enemy->GetActorLocation() - GetActorLocation());
@@ -288,11 +304,13 @@ void APhantomCharacter::CalculateTargeted()
 		}
 		else
 		{
+			// 새로운 타겟팅 후보와 현재 타겟팅할 후보중 더 적절한 Enemy를 선택함.
+
 			FVector PhantomToTargeted = (CurrentTargetedEnemy->GetActorLocation() - GetActorLocation());
 			PhantomToTargeted.Normalize();
 			const float DotResult = FVector::DotProduct(PhantomToTargeted, DotRight);
-			const float CURRENT_TARGETED_DOT_ADVANTAGE = 0.5f;
-			if (DotResult < MaxDot - CURRENT_TARGETED_DOT_ADVANTAGE) // 현재 Targeted Enemy보다 더 정확하게 바라보고 있어야 새로운 타겟이 됨.
+			const float CURRENT_TARGETED_DOT_ADVANTAGE = 0.5f; // 현재 타겟팅하는 후보를 좀 더 선호하도록 Offset을 줌. 타겟팅하는 대상이 너무 자주 바뀌는 것을 방지하기 위함. 
+			if (DotResult < MaxDot - CURRENT_TARGETED_DOT_ADVANTAGE)
 			{
 				CurrentTargetedEnemy = NewTargetedCandidate;
 			}
@@ -328,8 +346,6 @@ void APhantomCharacter::OnCombatSphereBeginOverlap(UPrimitiveComponent* Overlapp
 	if (NewEnemy)
 	{
 		EnemiesInCombatRange.AddUnique(NewEnemy);
-		UE_LOG(LogPhantom, Warning, TEXT("CombatSphere BeginOverlap Actor Name: %s"), *OtherActor->GetName());
-		UE_LOG(LogPhantom, Warning, TEXT("Total Enemies In Combat Range: %d"), EnemiesInCombatRange.Num());
 	}
 }
 
@@ -345,8 +361,6 @@ void APhantomCharacter::OnCombatSphereEndOverlap(UPrimitiveComponent* Overlapped
 	if (LeftEnemy)
 	{
 		EnemiesInCombatRange.Remove(LeftEnemy);
-		UE_LOG(LogPhantom, Warning, TEXT("CombatSphere EndOverlap Actor Name: %s"), *OtherActor->GetName());
-		UE_LOG(LogPhantom, Warning, TEXT("Total Enemies In Combat Range: %d"), EnemiesInCombatRange.Num());
 	}
 }
 
@@ -391,7 +405,7 @@ void APhantomCharacter::ServerSprint_Implementation()
 
 void APhantomCharacter::LocalDodge()
 {
-	if (CanDodge() && DodgeMontage)
+	if (DodgeMontage)
 	{
 		bIsDodging = true;
 		const float Duration = PlayAnimMontage(DodgeMontage);
@@ -405,12 +419,19 @@ void APhantomCharacter::LocalDodge()
 
 void APhantomCharacter::ServerDodge_Implementation()
 {
-	LocalDodge();
+	// TODO: Lag Compensation
+	if (CanDodge())
+	{
+		LocalDodge();
+	}
 }
 
 void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 {
-	if (CanAttack() && AttackMontage)
+	// Motion Warping할 Enemy가 있으면 Motion Warping를 하고,
+	// 없으면 Motion Warping을 하지 않음.
+	
+	if (AttackMontage)
 	{
 		if (AttackTarget)
 		{
@@ -429,12 +450,17 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 
 void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget)
 {
-	LocalAttack(AttackTarget);
+	// TODO: Lag Compensation
+	if (CanAttack())
+	{
+		LocalAttack(AttackTarget);
+	}
 }
 
 void APhantomCharacter::OnRep_ReplicatedAnimMontage()
 {
-	// Simulated Proxy에서만 불림
+	// Server로부터 AnimMontage정보를 받아 Simulated Proxy에서 이 정보를 확인하고 갱신함. 
+	
 	const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.AnimMontage"));
 	bool bDebugRepAnimMontage = CVar && CVar->GetValueOnGameThread();
 	if (bDebugRepAnimMontage)
@@ -485,8 +511,10 @@ void APhantomCharacter::OnRep_ReplicatedAnimMontage()
 			AnimInstance->Montage_JumpToSection(ReplicatedAnimMontage.StartSectionName);
 		}
 
+		// AnimMontage Position의 최대 오류 허용치
 		const float MONTAGE_POSITION_DELTA_TOLERANCE = 0.1f;
 		const float LocalMontagePosition = AnimInstance->Montage_GetPosition(LocalActiveMontage);
+		// Server와 Simulated Proxy사이의 Position의 차이가 허용치를 넘으면 Server의 값으로 갱신함.
 		if (!FMath::IsNearlyEqual(LocalMontagePosition, ReplicatedAnimMontage.Position, MONTAGE_POSITION_DELTA_TOLERANCE))
 		{
 			if (bDebugRepAnimMontage)

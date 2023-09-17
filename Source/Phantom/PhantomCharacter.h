@@ -54,8 +54,10 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
-	void AuthUpdateReplicatedAnimMontage(float DeltaSeconds);
-	void CalculateTargeted();
+	// Simulated Proxy에게 Replicate할 애니메이션 정보를 Update함.
+	void AuthUpdateReplicatedAnimMontage(float DeltaSeconds); 
+	// 매 프레임마다 새로 타겟팅할 후보를 계산함.
+	void CalculateNewTargetingEnemy(); 
 
 	UFUNCTION()
 	void OnCombatSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
@@ -78,25 +80,27 @@ private:
 	void LocalDodge();
 	UFUNCTION(Server, Reliable)
 	void ServerDodge();
-
-
+	
 	void LocalAttack(AEnemy* AttackTarget);
 	UFUNCTION(Server, Reliable)
 	void ServerAttack(AEnemy* AttackTarget);
 
+	// Server에서 Update된 AnimMontage정보를 Simulated Proxy에서 반영함
 	UFUNCTION()
-	void OnRep_ReplicatedAnimMontage(); // Simulated Proxy
+	void OnRep_ReplicatedAnimMontage(); 
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
+	// 주변 Enemy를 감지하기 위한 SphereComponent.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	USphereComponent* CombatRangeSphere;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	UMotionWarpingComponent* MotionWarping;
 
+	// Server에서 Update되고 Simulated Proxy에 전달되는 AnimMontage에 대한 정보
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_ReplicatedAnimMontage)
 	FRepAnimMontage ReplicatedAnimMontage;
 
@@ -105,8 +109,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* AttackMontage;
 
+	// 블루프린트에서 설정된 Max Walk Speed를 저장해놓는 변수.
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
-	float MaxWalkSpeedCache; // 블루프린트에서 설정된 Max Walk Speed를 저장해놓는 변수.
+	float MaxWalkSpeedCache; 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement",
 		meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
 	float MaxRunSpeed;
@@ -114,23 +119,24 @@ private:
 		meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
 	float MaxSprintSpeed;
 
+	// 블루프린트에서 설정된 Max Walk Speed Crouched를 저장해놓는 변수.
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement|Crouch", meta = (AllowPrivateAccess = "true"))
-	float MaxWalkSpeedCrouchedCache; // 블루프린트에서 설정된 Max Walk Speed Crouched를 저장해놓는 변수.
+	float MaxWalkSpeedCrouchedCache; 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Crouch",
 		meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
 	float MaxRunSpeedCrouched;
-
+	
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
 	bool bIsDodging = false;
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	bool bIsAttacking = false;
-	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
-	FVector CurrentInputVector;
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	FName MotionWarpAttackTargetName;
+	FName MotionWarpAttackTargetName; 
+	// 현재 타겟팅된 Enemy
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	AEnemy* CurrentTargetedEnemy;
+	AEnemy* CurrentTargetedEnemy; 
+	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	TArray<AEnemy*> EnemiesInCombatRange;
+	TArray<AEnemy*> EnemiesInCombatRange; 
 };

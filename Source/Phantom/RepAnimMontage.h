@@ -3,6 +3,10 @@
 #include "CoreMinimal.h"
 #include "RepAnimMontage.generated.h"
 
+
+// Simualted Proxy에 Replicate하기 위한 정보를 담을 구조체
+
+
 USTRUCT()
 struct FRepAnimMontage
 {
