@@ -3,12 +3,18 @@
 #include "PhantomCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputBehavior.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "EnhancedInputSubsystems.h"
-#include "Phantom.h"
 #include "Net/UnrealNetwork.h"
+#include "Phantom.h"
+#include "MotionWarpingComponent.h"
+#include "Components/SphereComponent.h"
+#include "Enemy/Enemy.h"
+#include "Kismet/GameplayStatics.h"
+
 
 APhantomCharacter::APhantomCharacter()
 {
@@ -39,23 +45,28 @@ APhantomCharacter::APhantomCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	bIsDodging = false;
+	CombatRangeSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CombatRangeSphere"));
+	CombatRangeSphere->SetupAttachment(RootComponent);
+
+	MotionWarping = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
+}
+
+void APhantomCharacter::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	CombatRangeSphere->OnComponentBeginOverlap.AddDynamic(this, &APhantomCharacter::OnCombatSphereBeginOverlap);
+	CombatRangeSphere->OnComponentEndOverlap.AddDynamic(this, &APhantomCharacter::OnCombatSphereEndOverlap);
+	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
+	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
 }
 
 void APhantomCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
-	if (HasAuthority() && GetMesh())
+	AuthUpdateReplicatedAnimMontage(DeltaSeconds);
+	if(IsLocallyControlled())
 	{
-		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
-		{
-			ReplicatedAnimMontage.AnimMontage = AnimInstance->GetCurrentActiveMontage();
-			ReplicatedAnimMontage.PlayRate = AnimInstance->Montage_GetPlayRate(ReplicatedAnimMontage.AnimMontage);
-			ReplicatedAnimMontage.StartSectionName = AnimInstance->Montage_GetCurrentSection(ReplicatedAnimMontage.AnimMontage);
-			ReplicatedAnimMontage.Position = AnimInstance->Montage_GetPosition(ReplicatedAnimMontage.AnimMontage);
-			ReplicatedAnimMontage.bIsStopped = AnimInstance->Montage_GetIsStopped(ReplicatedAnimMontage.AnimMontage);
-		}
+		CalculateTargeted();	
 	}
 }
 
@@ -136,42 +147,14 @@ void APhantomCharacter::Attack()
 {
 	if (!HasAuthority())
 	{
-		LocalAttack();
+		LocalAttack(CurrentTargetedEnemy);
 	}
-	ServerAttack();
+	ServerAttack(CurrentTargetedEnemy);
 }
-
-
-// void APhantomCharacter::Attack()
-// {
-// 	if (CanAttack() && AttackMontage)
-// 	{
-// 		bIsAttacking = true;
-// 		const float Duration = PlayAnimMontage(AttackMontage);
-// 		FTimerHandle AttackEndTimer;
-// 		GetWorldTimerManager().SetTimer(AttackEndTimer, [this]()
-// 		{
-// 			bIsAttacking = false;
-// 		}, Duration, false);
-// 	}
-// }
 
 bool APhantomCharacter::CanCrouch() const
 {
 	return Super::CanCrouch() && !bIsDodging;
-}
-
-void APhantomCharacter::Test()
-{
-	if (Controller != nullptr)
-	{
-		const FRotator Rotation = Controller->GetControlRotation();
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
-
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-	}
 }
 
 void APhantomCharacter::Move(const FInputActionValue& Value)
@@ -238,17 +221,133 @@ bool APhantomCharacter::IsSprinting() const
 	return !bIsCrouched ? GetCharacterMovement()->MaxWalkSpeed >= MaxSprintSpeed : false;
 }
 
-void APhantomCharacter::BeginPlay()
-{
-	Super::BeginPlay();
-	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
-	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
-}
-
 void APhantomCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(APhantomCharacter, ReplicatedAnimMontage, COND_SimulatedOnly);
+}
+
+void APhantomCharacter::AuthUpdateReplicatedAnimMontage(float DeltaSeconds)
+{
+	if (HasAuthority() && GetMesh())
+	{
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+		{
+			ReplicatedAnimMontage.AnimMontage = AnimInstance->GetCurrentActiveMontage();
+			ReplicatedAnimMontage.PlayRate = AnimInstance->Montage_GetPlayRate(ReplicatedAnimMontage.AnimMontage);
+			ReplicatedAnimMontage.StartSectionName = AnimInstance->Montage_GetCurrentSection(ReplicatedAnimMontage.AnimMontage);
+			ReplicatedAnimMontage.Position = AnimInstance->Montage_GetPosition(ReplicatedAnimMontage.AnimMontage);
+			ReplicatedAnimMontage.bIsStopped = AnimInstance->Montage_GetIsStopped(ReplicatedAnimMontage.AnimMontage);
+		}
+	}
+}
+
+void APhantomCharacter::CalculateTargeted()
+{
+	if (EnemiesInCombatRange.IsEmpty())
+	{
+		CurrentTargetedEnemy = nullptr;
+		return;
+	}
+
+	float MaxDot = 0.0f;
+	AEnemy* NewTargetedCandidate = nullptr;
+	const FVector LastInputVector = GetCharacterMovement()->GetLastInputVector();
+	const FVector DotRight = LastInputVector.IsNearlyZero() ? FollowCamera->GetForwardVector() : LastInputVector; /* 플레이어의 입력이 있으면 입력을
+	타겟팅에 반영합니다*/
+
+	const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Targeting"));
+	const bool bDebugTargeting = CVar && CVar->GetValueOnGameThread();
+
+	for (AEnemy* Enemy : EnemiesInCombatRange)
+	{
+		FVector PhantomToEnemy = (Enemy->GetActorLocation() - GetActorLocation());
+		PhantomToEnemy.Normalize();
+
+		const float DotResult = FVector::DotProduct(PhantomToEnemy, DotRight);
+		if (MaxDot < DotResult)
+		{
+			MaxDot = DotResult;
+			NewTargetedCandidate = Enemy;
+		}
+
+		if (bDebugTargeting)
+		{
+			if (UWorld* World = GetWorld())
+			{
+				DrawDebugString(World, FVector::ZeroVector, FString::Printf(TEXT("%f"), DotResult), Enemy, FColor::White, 0.0f, true);
+			}
+		}
+	}
+
+	if (NewTargetedCandidate)
+	{
+		if (!CurrentTargetedEnemy)
+		{
+			CurrentTargetedEnemy = NewTargetedCandidate;
+		}
+		else
+		{
+			FVector PhantomToTargeted = (CurrentTargetedEnemy->GetActorLocation() - GetActorLocation());
+			PhantomToTargeted.Normalize();
+			const float DotResult = FVector::DotProduct(PhantomToTargeted, DotRight);
+			const float CURRENT_TARGETED_DOT_ADVANTAGE = 0.5f;
+			if (DotResult < MaxDot - CURRENT_TARGETED_DOT_ADVANTAGE) // 현재 Targeted Enemy보다 더 정확하게 바라보고 있어야 새로운 타겟이 됨.
+			{
+				CurrentTargetedEnemy = NewTargetedCandidate;
+			}
+		}
+	}
+
+	if (bDebugTargeting)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (NewTargetedCandidate && NewTargetedCandidate != CurrentTargetedEnemy)
+			{
+				DrawDebugSphere(World, NewTargetedCandidate->GetActorLocation(), 100.0f, 12, FColor::Blue, 0.0f, 0.0f);
+			}
+
+			if (CurrentTargetedEnemy)
+			{
+				DrawDebugSphere(World, CurrentTargetedEnemy->GetActorLocation(), 100.0f, 12, FColor::Red, 0.0f, 0.0f);
+			}
+		}
+	}
+}
+
+void APhantomCharacter::OnCombatSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+                                                   int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (!OtherActor || OtherActor == this)
+	{
+		return;
+	}
+
+	AEnemy* NewEnemy = Cast<AEnemy>(OtherActor);
+	if (NewEnemy)
+	{
+		EnemiesInCombatRange.AddUnique(NewEnemy);
+		UE_LOG(LogPhantom, Warning, TEXT("CombatSphere BeginOverlap Actor Name: %s"), *OtherActor->GetName());
+		UE_LOG(LogPhantom, Warning, TEXT("Total Enemies In Combat Range: %d"), EnemiesInCombatRange.Num());
+	}
+}
+
+void APhantomCharacter::OnCombatSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+                                                 int32 OtherBodyIndex)
+{
+	if (!OtherActor || OtherActor == this)
+	{
+		return;
+	}
+
+	AEnemy* LeftEnemy = Cast<AEnemy>(OtherActor);
+	if (LeftEnemy)
+	{
+		EnemiesInCombatRange.Remove(LeftEnemy);
+		UE_LOG(LogPhantom, Warning, TEXT("CombatSphere EndOverlap Actor Name: %s"), *OtherActor->GetName());
+		UE_LOG(LogPhantom, Warning, TEXT("Total Enemies In Combat Range: %d"), EnemiesInCombatRange.Num());
+	}
 }
 
 void APhantomCharacter::LocalWalk()
@@ -309,24 +408,34 @@ void APhantomCharacter::ServerDodge_Implementation()
 	LocalDodge();
 }
 
-void APhantomCharacter::LocalAttack()
+void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 {
-	if (CanAttack())
+	if (CanAttack() && AttackMontage)
 	{
-		bIsAttacking = true;
-		PlayAnimMontage(AttackMontage);
+		if (AttackTarget)
+		{
+			MotionWarping->AddOrUpdateWarpTargetFromTransform(MotionWarpAttackTargetName, AttackTarget->GetActorTransform());
+		}
+
+		//bIsAttacking = true;
+		const float Duration = PlayAnimMontage(AttackMontage);
+		FTimerHandle AttackEndTimer;
+		GetWorldTimerManager().SetTimer(AttackEndTimer, [this]()
+		{
+			bIsAttacking = false;
+		}, Duration, false);
 	}
 }
 
-void APhantomCharacter::ServerAttack_Implementation()
+void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget)
 {
-	LocalAttack();
+	LocalAttack(AttackTarget);
 }
 
 void APhantomCharacter::OnRep_ReplicatedAnimMontage()
 {
 	// Simulated Proxy에서만 불림
-	const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.net.AnimMontage"));
+	const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.AnimMontage"));
 	bool bDebugRepAnimMontage = CVar && CVar->GetValueOnGameThread();
 	if (bDebugRepAnimMontage)
 	{
@@ -358,7 +467,7 @@ void APhantomCharacter::OnRep_ReplicatedAnimMontage()
 	{
 		AnimInstance->Montage_Play(ReplicatedAnimMontage.AnimMontage);
 	}
-	
+
 	if (LocalActiveMontage)
 	{
 		if (ReplicatedAnimMontage.bIsStopped)
@@ -375,15 +484,16 @@ void APhantomCharacter::OnRep_ReplicatedAnimMontage()
 		{
 			AnimInstance->Montage_JumpToSection(ReplicatedAnimMontage.StartSectionName);
 		}
-		
+
 		const float MONTAGE_POSITION_DELTA_TOLERANCE = 0.1f;
 		const float LocalMontagePosition = AnimInstance->Montage_GetPosition(LocalActiveMontage);
 		if (!FMath::IsNearlyEqual(LocalMontagePosition, ReplicatedAnimMontage.Position, MONTAGE_POSITION_DELTA_TOLERANCE))
 		{
-			if(bDebugRepAnimMontage)
+			if (bDebugRepAnimMontage)
 			{
 				const float PositionDelta = FMath::Abs(LocalMontagePosition - ReplicatedAnimMontage.Position);
-				UE_LOG(LogPhantom, Warning, TEXT("Adjusted Simulated Proxy Montage Position Delta. AnimNotify may be skipped. (Delta : %f)"), PositionDelta);
+				UE_LOG(LogPhantom, Warning, TEXT("Adjusted Simulated Proxy Montage Position Delta. AnimNotify may be skipped. (Delta : %f)"),
+				       PositionDelta);
 			}
 			AnimInstance->Montage_SetPosition(LocalActiveMontage, ReplicatedAnimMontage.Position);
 		}
