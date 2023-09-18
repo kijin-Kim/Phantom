@@ -9,6 +9,7 @@
 #include "PhantomCharacter.generated.h"
 
 
+class AWeapon;
 class AEnemy;
 class UCameraComponent;
 class UMotionWarpingComponent;
@@ -23,11 +24,19 @@ class APhantomCharacter : public ACharacter
 public:
 	APhantomCharacter();
 	virtual void PostInitializeComponents() override;
+	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual bool CanCrouch() const override;
+
+	virtual float PlayAnimMontage(UAnimMontage* AnimMontage, float InPlayRate = 1.f, FName StartSectionName = NAME_None) override;
+
+	UFUNCTION(BlueprintCallable)
+	void OnNotifyEnableCombo();
+	UFUNCTION(BlueprintCallable)
+	void OnNotifyDisableCombo();
 
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
@@ -47,15 +56,15 @@ public:
 	bool IsRunning() const;
 	bool IsSprinting() const;
 
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-
+	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	FORCEINLINE AWeapon* GetWeapon() const { return Weapon; }
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
 	// Simulated Proxy에게 Replicate할 애니메이션 정보를 Update함.
-	void AuthUpdateReplicatedAnimMontage(float DeltaSeconds); 
+	void AuthUpdateReplicatedAnimMontage(float DeltaSeconds);
 	// 매 프레임마다 새로 타겟팅할 후보를 계산함.
 	void CalculateNewTargetingEnemy(); 
 
@@ -103,11 +112,16 @@ private:
 	// Server에서 Update되고 Simulated Proxy에 전달되는 AnimMontage에 대한 정보
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_ReplicatedAnimMontage)
 	FRepAnimMontage ReplicatedAnimMontage;
+	// Simulated Proxy의 Local AnimMontage정보
+	UPROPERTY(Transient)
+	FLocalAnimMontage LocalAnimMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* DodgeMontage;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* AttackMontage;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
+	TArray<FName> AttackMontageSectionNames;
 
 	// 블루프린트에서 설정된 Max Walk Speed를 저장해놓는 변수.
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
@@ -138,5 +152,16 @@ private:
 	AEnemy* CurrentTargetedEnemy; 
 	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	TArray<AEnemy*> EnemiesInCombatRange; 
+	TArray<AEnemy*> EnemiesInCombatRange;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<AWeapon> DefaultWeaponClass;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
+	AWeapon* Weapon;
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	int32 AttackComboCount = 0;
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	bool bCanCombo = false;
+	UPROPERTY(Transient)
+	FTimerHandle AttackComboTimer;
 };

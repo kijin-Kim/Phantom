@@ -15,6 +15,8 @@ struct FRepAnimMontage
 	UPROPERTY(Transient)
 	UAnimMontage* AnimMontage;
 	UPROPERTY(Transient)
+	uint8 AnimMontageInstanceID = 0;
+	UPROPERTY(Transient)
 	float PlayRate  = 0.0f;
 	UPROPERTY(Transient)
 	float Position = 0.0f;
@@ -22,6 +24,17 @@ struct FRepAnimMontage
 	bool bIsStopped = false;
 	UPROPERTY(Transient)
 	FName StartSectionName = NAME_None;
+};
+
+USTRUCT()
+struct FLocalAnimMontage
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	UAnimMontage* AnimMontage;
+	UPROPERTY(Transient)
+	uint8 AnimMontageInstanceID = 0;
 };
 
 
