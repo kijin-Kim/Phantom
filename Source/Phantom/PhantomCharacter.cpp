@@ -12,6 +12,7 @@
 #include "MotionWarpingComponent.h"
 #include "Components/SphereComponent.h"
 #include "Enemy/Enemy.h"
+#include "Engine/Canvas.h"
 #include "Weapon/Weapon.h"
 
 
@@ -49,6 +50,47 @@ APhantomCharacter::APhantomCharacter()
 	MotionWarping = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
 }
 
+void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
+{
+	Super::DisplayDebug(Canvas, DebugDisplay, YL, YPos);
+
+	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
+	DisplayDebugManager.SetFont(GEngine->GetSmallFont());
+	DisplayDebugManager.SetDrawColor(FColor::Yellow);
+	DisplayDebugManager.DrawString(TEXT("PHANTOM CHARACTER"));
+	DisplayDebugManager.SetDrawColor(FColor::White);
+	if (CharacterActionState == ECharacterActionState::ECT_Attack)
+	{
+		DisplayDebugManager.SetDrawColor(FColor::Green);
+	}
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("Is Attacking: %s"),
+	                                               CharacterActionState == ECharacterActionState::ECT_Attack ? TEXT("true") : TEXT("false")));
+	DisplayDebugManager.SetDrawColor(FColor::White);
+
+	if (bCanCombo)
+	{
+		DisplayDebugManager.SetDrawColor(FColor::Green);
+	}
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false")));
+	DisplayDebugManager.SetDrawColor(FColor::White);
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("Attack Combo Count: %d"), AttackComboCount));
+
+
+	DisplayDebugManager.DrawString(TEXT("Action State"));
+
+	static ECharacterActionState PrevCharacterActionState = ECharacterActionState::ECT_MAX;
+	static ECharacterActionState CurrentCharacterActionStateCache = ECharacterActionState::ECT_MAX;
+	if (CharacterActionState != CurrentCharacterActionStateCache)
+	{
+		PrevCharacterActionState = CurrentCharacterActionStateCache;
+		CurrentCharacterActionStateCache = CharacterActionState;
+	}
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("  Current Character Action State: %s"),
+    	                                               *UEnum::GetDisplayValueAsText<ECharacterActionState>(CharacterActionState).ToString()));
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("    Previous Character Action State: %s"),
+	                                               *UEnum::GetDisplayValueAsText<ECharacterActionState>(PrevCharacterActionState).ToString()));
+}
+
 void APhantomCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
@@ -61,6 +103,7 @@ void APhantomCharacter::PostInitializeComponents()
 void APhantomCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
 	if (DefaultWeaponClass)
 	{
 		if (UWorld* World = GetWorld())
@@ -173,7 +216,7 @@ void APhantomCharacter::Attack()
 
 bool APhantomCharacter::CanCrouch() const
 {
-	return Super::CanCrouch() && !bIsDodging;
+	return Super::CanCrouch() && CharacterActionState != ECharacterActionState::ECT_Dodge;
 }
 
 float APhantomCharacter::PlayAnimMontage(UAnimMontage* AnimMontage, float InPlayRate, FName StartSectionName)
@@ -184,6 +227,22 @@ float APhantomCharacter::PlayAnimMontage(UAnimMontage* AnimMontage, float InPlay
 		ReplicatedAnimMontage.AnimMontageInstanceID = CurrentID < UINT8_MAX ? CurrentID + 1 : 0;
 	}
 	return Super::PlayAnimMontage(AnimMontage, InPlayRate, StartSectionName);
+}
+
+void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActionState)
+{
+	if(CharacterActionState == NewActionState)
+	{
+		return;
+	}
+
+	if(CharacterActionState == ECharacterActionState::ECT_Attack)
+	{
+		bCanCombo = false;
+		AttackComboCount = 0;
+	}
+	
+	CharacterActionState = NewActionState;
 }
 
 void APhantomCharacter::OnNotifyEnableCombo()
@@ -215,12 +274,12 @@ void APhantomCharacter::Move(const FInputActionValue& Value)
 
 bool APhantomCharacter::CanDodge() const
 {
-	return !bIsDodging && !bIsCrouched;
+	return CharacterActionState != ECharacterActionState::ECT_Dodge && !bIsCrouched;
 }
 
 bool APhantomCharacter::CanAttack() const
 {
-	return (!bIsAttacking || bCanCombo) && !bIsCrouched && !bIsDodging;
+	return (CharacterActionState != ECharacterActionState::ECT_Attack || bCanCombo) && !bIsCrouched && CharacterActionState != ECharacterActionState::ECT_Dodge;
 }
 
 bool APhantomCharacter::IsWalking() const
@@ -440,12 +499,15 @@ void APhantomCharacter::LocalDodge()
 {
 	if (DodgeMontage)
 	{
-		bIsDodging = true;
+		ChangeCharacterActionState(ECharacterActionState::ECT_Dodge);
 		const float Duration = PlayAnimMontage(DodgeMontage);
 		FTimerHandle DodgeEndTimer;
 		GetWorldTimerManager().SetTimer(DodgeEndTimer, [this]()
 		{
-			bIsDodging = false;
+			if(CharacterActionState == ECharacterActionState::ECT_Dodge)
+			{
+				ChangeCharacterActionState(ECharacterActionState::ECT_Idle);	
+			}
 		}, Duration, false);
 	}
 }
@@ -481,10 +543,13 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 		const int32 SectionIndex = AttackMontage->GetSectionIndex(AttackMontageSectionNames[AttackComboCount]);
 		const float SectionDuration = AttackMontage->GetSectionLength(SectionIndex);
 
-		bIsAttacking = true;
+		ChangeCharacterActionState(ECharacterActionState::ECT_Attack);
 		GetWorldTimerManager().SetTimer(AttackComboTimer, [this]()
 		{
-			bIsAttacking = false;
+			if (CharacterActionState == ECharacterActionState::ECT_Attack)
+			{
+				ChangeCharacterActionState(ECharacterActionState::ECT_Idle);
+			}
 		}, SectionDuration, false);
 	}
 }

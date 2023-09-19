@@ -16,8 +16,6 @@ UCLASS()
 class PHANTOM_API APhantomPlayerController : public APlayerController
 {
 	GENERATED_BODY()
-public:
-	APhantomPlayerController();
 	
 protected:
 	virtual void BeginPlay() override;

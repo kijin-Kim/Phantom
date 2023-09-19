@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "InputActionValue.h"
+#include "PhantomTypes.h"
 #include "RepAnimMontage.h"
 #include "PhantomCharacter.generated.h"
 
@@ -23,6 +24,7 @@ class APhantomCharacter : public ACharacter
 
 public:
 	APhantomCharacter();
+	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
 	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
@@ -32,6 +34,7 @@ public:
 	virtual bool CanCrouch() const override;
 
 	virtual float PlayAnimMontage(UAnimMontage* AnimMontage, float InPlayRate = 1.f, FName StartSectionName = NAME_None) override;
+	void ChangeCharacterActionState(ECharacterActionState NewActionState);
 
 	UFUNCTION(BlueprintCallable)
 	void OnNotifyEnableCombo();
@@ -139,11 +142,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Crouch",
 		meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
 	float MaxRunSpeedCrouched;
-	
-	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
-	bool bIsDodging = false;
-	UPROPERTY(Transient, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	bool bIsAttacking = false;
+
+	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	ECharacterActionState CharacterActionState = ECharacterActionState::ECT_Idle;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	FName MotionWarpAttackTargetName; 
