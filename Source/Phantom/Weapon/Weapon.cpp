@@ -5,6 +5,7 @@
 #include "Components/BoxComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Phantom/HitInterface.h"
+#include "Phantom/Phantom.h"
 
 
 // Sets default values
@@ -14,21 +15,19 @@ AWeapon::AWeapon()
 	PrimaryActorTick.bCanEverTick = true;
 
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
-	WeaponMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
-	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	WeaponMesh->SetCollisionProfileName(FName("NoCollision"));
 	SetRootComponent(WeaponMesh);
 
 	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
 	CollisionBox->SetupAttachment(RootComponent);
-	CollisionBox->SetCollisionResponseToAllChannels(ECR_Overlap);
-	CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-
+	CollisionBox->SetCollisionProfileName(FName("Weapon"));
+	
 	TraceStart = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStart"));
 	TraceStart->SetupAttachment(RootComponent);
 	TraceEnd = CreateDefaultSubobject<USceneComponent>(TEXT("TraceEnd"));
 	TraceEnd->SetupAttachment(RootComponent);
 }
+
 
 void AWeapon::PostInitializeComponents()
 {
@@ -56,6 +55,12 @@ void AWeapon::OnNotifyDisableWeaponBoxCollision()
 	{
 		CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
+	
+	AlreadyHitActors.Empty();
+	if(AActor* WeaponOwner = GetOwner())
+	{
+		AlreadyHitActors.AddUnique(WeaponOwner);	
+	}
 }
 
 void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
@@ -63,12 +68,7 @@ void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponen
 {
 	const FVector Start = TraceStart->GetComponentLocation();
 	const FVector End = TraceEnd->GetComponentLocation();
-
-	TArray<AActor*> ActorToIgnore;
-	if(AActor* WeaponOwner = GetOwner())
-	{
-		ActorToIgnore.Add(WeaponOwner);	
-	}
+	
 	FHitResult HitResult;
 	UKismetSystemLibrary::BoxTraceSingle(
 		this,
@@ -78,14 +78,15 @@ void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponen
 		TraceStart->GetComponentRotation(),
 		ETraceTypeQuery::TraceTypeQuery1,
 		false,
-		ActorToIgnore,
+		AlreadyHitActors,
 		EDrawDebugTrace::ForDuration,
 		HitResult,
 		true
 	);
-	
+
 	if(IHitInterface* HitActor = Cast<IHitInterface>(HitResult.GetActor()))
 	{
-		HitActor->GetHit(HitResult.ImpactPoint);
+		HitActor->GetHit(HitResult, this);
+		AlreadyHitActors.AddUnique(HitResult.GetActor());
 	}
 }

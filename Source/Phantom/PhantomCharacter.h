@@ -160,7 +160,7 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
 	AWeapon* Weapon;
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	int32 AttackComboCount = 0;
+	int32 AttackSequenceComboCount = 0;
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	bool bCanCombo = false;
 	UPROPERTY(Transient)

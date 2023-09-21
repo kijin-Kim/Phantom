@@ -14,5 +14,9 @@ class PHANTOM_API AEnemy : public ACharacter, public IHitInterface
 
 public:
 	AEnemy();
-	virtual void GetHit(const FVector& ImpactPoint) override;
+	virtual void GetHit(const FHitResult& HitResult, AActor* Hitter) override;
+
+private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* HitMontage;
 };

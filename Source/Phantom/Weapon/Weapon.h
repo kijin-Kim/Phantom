@@ -35,10 +35,10 @@ private:
 	UStaticMeshComponent* WeaponMesh;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision", meta=(AllowPrivateAccess = true))
 	UBoxComponent* CollisionBox;
-
-private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision", meta=(AllowPrivateAccess = true))
 	USceneComponent* TraceStart;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision", meta=(AllowPrivateAccess = true))
 	USceneComponent* TraceEnd;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision", meta=(AllowPrivateAccess = true))
+	TArray<AActor*> AlreadyHitActors;
 };

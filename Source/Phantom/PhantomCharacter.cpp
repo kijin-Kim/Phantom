@@ -21,6 +21,8 @@ APhantomCharacter::APhantomCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -73,7 +75,7 @@ void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& D
 	}
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false")));
 	DisplayDebugManager.SetDrawColor(FColor::White);
-	DisplayDebugManager.DrawString(FString::Printf(TEXT("Attack Combo Count: %d"), AttackComboCount));
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("Attack Sequence Combo Count: %d"), AttackSequenceComboCount));
 
 
 	DisplayDebugManager.DrawString(TEXT("Action State"));
@@ -85,10 +87,12 @@ void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& D
 		PrevCharacterActionState = CurrentCharacterActionStateCache;
 		CurrentCharacterActionStateCache = CharacterActionState;
 	}
-	DisplayDebugManager.DrawString(FString::Printf(TEXT("  Current Character Action State: %s"),
-    	                                               *UEnum::GetDisplayValueAsText<ECharacterActionState>(CharacterActionState).ToString()));
-	DisplayDebugManager.DrawString(FString::Printf(TEXT("    Previous Character Action State: %s"),
-	                                               *UEnum::GetDisplayValueAsText<ECharacterActionState>(PrevCharacterActionState).ToString()));
+
+	const UEnum* EnumPtr = StaticEnum<ECharacterActionState>();
+	const FString CurrentActionStateString = EnumPtr->GetDisplayNameTextByValue(static_cast<uint8>(CharacterActionState)).ToString();
+	const FString PrevActionStateString = EnumPtr->GetDisplayNameTextByValue(static_cast<uint8>(PrevCharacterActionState)).ToString();
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("  Current Character Action State: %s"), *CurrentActionStateString));
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("    Previous Character Action State: %s"), *PrevActionStateString));
 }
 
 void APhantomCharacter::PostInitializeComponents()
@@ -104,11 +108,14 @@ void APhantomCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (DefaultWeaponClass)
+	if (HasAuthority() && DefaultWeaponClass)
 	{
 		if (UWorld* World = GetWorld())
 		{
-			Weapon = World->SpawnActor<AWeapon>(DefaultWeaponClass);
+			FActorSpawnParameters ActorSpawnParameters;
+			ActorSpawnParameters.Owner = this;
+			ActorSpawnParameters.Instigator = this;
+			Weapon = World->SpawnActor<AWeapon>(DefaultWeaponClass, ActorSpawnParameters);
 			Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName("katana_r"));
 		}
 	}
@@ -231,17 +238,17 @@ float APhantomCharacter::PlayAnimMontage(UAnimMontage* AnimMontage, float InPlay
 
 void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActionState)
 {
-	if(CharacterActionState == NewActionState)
+	if (CharacterActionState == NewActionState)
 	{
 		return;
 	}
 
-	if(CharacterActionState == ECharacterActionState::ECT_Attack)
+	if (CharacterActionState == ECharacterActionState::ECT_Attack)
 	{
 		bCanCombo = false;
-		AttackComboCount = 0;
+		AttackSequenceComboCount = 0;
 	}
-	
+
 	CharacterActionState = NewActionState;
 }
 
@@ -253,7 +260,7 @@ void APhantomCharacter::OnNotifyEnableCombo()
 void APhantomCharacter::OnNotifyDisableCombo()
 {
 	bCanCombo = false;
-	AttackComboCount = 0;
+	AttackSequenceComboCount = 0;
 }
 
 void APhantomCharacter::Move(const FInputActionValue& Value)
@@ -279,7 +286,8 @@ bool APhantomCharacter::CanDodge() const
 
 bool APhantomCharacter::CanAttack() const
 {
-	return (CharacterActionState != ECharacterActionState::ECT_Attack || bCanCombo) && !bIsCrouched && CharacterActionState != ECharacterActionState::ECT_Dodge;
+	return (CharacterActionState != ECharacterActionState::ECT_Attack || bCanCombo) && !bIsCrouched && CharacterActionState !=
+		ECharacterActionState::ECT_Dodge;
 }
 
 bool APhantomCharacter::IsWalking() const
@@ -369,9 +377,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 	// 새로운 타겟팅 후보를 찾는다.
 	for (AEnemy* Enemy : EnemiesInCombatRange)
 	{
-		FVector PhantomToEnemy = (Enemy->GetActorLocation() - GetActorLocation());
-		PhantomToEnemy.Normalize();
-
+		FVector PhantomToEnemy = (Enemy->GetActorLocation() - GetActorLocation()).GetSafeNormal();
 		const float DotResult = FVector::DotProduct(PhantomToEnemy, DotRight);
 		if (MaxDot < DotResult)
 		{
@@ -398,8 +404,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 		{
 			// 새로운 타겟팅 후보와 현재 타겟팅할 후보중 더 적절한 Enemy를 선택함.
 
-			FVector PhantomToTargeted = (CurrentTargetedEnemy->GetActorLocation() - GetActorLocation());
-			PhantomToTargeted.Normalize();
+			FVector PhantomToTargeted = (CurrentTargetedEnemy->GetActorLocation() - GetActorLocation()).GetSafeNormal();
 			const float DotResult = FVector::DotProduct(PhantomToTargeted, DotRight);
 			const float CURRENT_TARGETED_DOT_ADVANTAGE = 0.5f; // 현재 타겟팅하는 후보를 좀 더 선호하도록 Offset을 줌. 타겟팅하는 대상이 너무 자주 바뀌는 것을 방지하기 위함. 
 			if (DotResult < MaxDot - CURRENT_TARGETED_DOT_ADVANTAGE)
@@ -504,9 +509,9 @@ void APhantomCharacter::LocalDodge()
 		FTimerHandle DodgeEndTimer;
 		GetWorldTimerManager().SetTimer(DodgeEndTimer, [this]()
 		{
-			if(CharacterActionState == ECharacterActionState::ECT_Dodge)
+			if (CharacterActionState == ECharacterActionState::ECT_Dodge)
 			{
-				ChangeCharacterActionState(ECharacterActionState::ECT_Idle);	
+				ChangeCharacterActionState(ECharacterActionState::ECT_Idle);
 			}
 		}, Duration, false);
 	}
@@ -529,8 +534,8 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 	{
 		if (bCanCombo)
 		{
-			AttackComboCount++;
-			AttackComboCount %= AttackMontageSectionNames.Num();
+			AttackSequenceComboCount++;
+			AttackSequenceComboCount %= AttackMontageSectionNames.Num();
 			bCanCombo = false;
 		}
 
@@ -539,8 +544,8 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 			MotionWarping->AddOrUpdateWarpTargetFromTransform(MotionWarpAttackTargetName, AttackTarget->GetActorTransform());
 		}
 
-		PlayAnimMontage(AttackMontage, 1.0f, AttackMontageSectionNames[AttackComboCount]);
-		const int32 SectionIndex = AttackMontage->GetSectionIndex(AttackMontageSectionNames[AttackComboCount]);
+		PlayAnimMontage(AttackMontage, 1.0f, AttackMontageSectionNames[AttackSequenceComboCount]);
+		const int32 SectionIndex = AttackMontage->GetSectionIndex(AttackMontageSectionNames[AttackSequenceComboCount]);
 		const float SectionDuration = AttackMontage->GetSectionLength(SectionIndex);
 
 		ChangeCharacterActionState(ECharacterActionState::ECT_Attack);
