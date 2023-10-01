@@ -16,7 +16,13 @@ UCLASS()
 class PHANTOM_API APhantomPlayerController : public APlayerController
 {
 	GENERATED_BODY()
-	
+
+public:
+	virtual void ReceivedPlayer() override;
+	void AuthInitializeRandomSeed();
+	float GetServerTime() const;
+	float GetAverageRoundTripTime() const { return AvgRoundTripTime; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
@@ -30,8 +36,20 @@ private:
 	void OnDodgeButtonPressed();
 	void OnStealthButtonPressed();
 	void OnStealthButtonReleased();
-	
 	void OnAttackButtonPressed();
+
+
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateRandomSeed(int32 NewRandomSeed);
+
+	UFUNCTION(Server, Reliable)
+	void ServerRequestServerTime(float ClientRequestedTime);
+	UFUNCTION(Client, Reliable)
+	void ClientSendServerTime(float ClientRequestedTime, float ServerTime);
+
+public:
+	UPROPERTY(Transient)
+	FRandomStream RandomStream;
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -58,5 +76,11 @@ private:
 	UInputMappingContext* NormalMovementMappingContext;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* CombatMappingContext;
-	
+
+	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float ServerTimeDeltaOnClient;
+	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float AvgRoundTripTime;
+
+	TArray<float> RoundTripTimes;
 };

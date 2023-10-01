@@ -13,6 +13,7 @@
 AEnemy::AEnemy()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	GetMesh()->SetCollisionProfileName(FName("HittableMesh"));
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -20,6 +21,7 @@ AEnemy::AEnemy()
 
 void AEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 {
+	return;
 	if (UWorld* World = GetWorld())
 	{
 		DrawDebugSphere(World, HitResult.ImpactPoint, 10.0f, 12, FColor::Yellow, false, 2.0f);
@@ -41,9 +43,7 @@ void AEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 			{
 				Degree *= -1.0f;
 			}
-
 			
-
 			FName HitMontageSectionName = FName("HitB");
 			if(Degree >= -22.5f && Degree < 22.5f)
 			{

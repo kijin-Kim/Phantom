@@ -2,6 +2,7 @@
 
 #include "PhantomGameMode.h"
 #include "PhantomCharacter.h"
+#include "Controller/PhantomPlayerController.h"
 #include "UObject/ConstructorHelpers.h"
 
 APhantomGameMode::APhantomGameMode()

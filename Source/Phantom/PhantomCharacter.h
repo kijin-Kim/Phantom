@@ -62,6 +62,7 @@ public:
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 	FORCEINLINE AWeapon* GetWeapon() const { return Weapon; }
+
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -69,7 +70,7 @@ private:
 	// Simulated Proxy에게 Replicate할 애니메이션 정보를 Update함.
 	void AuthUpdateReplicatedAnimMontage(float DeltaSeconds);
 	// 매 프레임마다 새로 타겟팅할 후보를 계산함.
-	void CalculateNewTargetingEnemy(); 
+	void CalculateNewTargetingEnemy();
 
 	UFUNCTION()
 	void OnCombatSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
@@ -92,14 +93,14 @@ private:
 	void LocalDodge();
 	UFUNCTION(Server, Reliable)
 	void ServerDodge();
-	
+
 	void LocalAttack(AEnemy* AttackTarget);
 	UFUNCTION(Server, Reliable)
 	void ServerAttack(AEnemy* AttackTarget);
 
 	// Server에서 Update된 AnimMontage정보를 Simulated Proxy에서 반영함
 	UFUNCTION()
-	void OnRep_ReplicatedAnimMontage(); 
+	void OnRep_ReplicatedAnimMontage();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
@@ -123,41 +124,36 @@ private:
 	UAnimMontage* DodgeMontage;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* AttackMontage;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
-	TArray<FName> AttackMontageSectionNames;
 
 	// 블루프린트에서 설정된 Max Walk Speed를 저장해놓는 변수.
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
-	float MaxWalkSpeedCache; 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement",
-		meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
+	float MaxWalkSpeedCache;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
 	float MaxRunSpeed;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement",
-		meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
 	float MaxSprintSpeed;
 
 	// 블루프린트에서 설정된 Max Walk Speed Crouched를 저장해놓는 변수.
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement|Crouch", meta = (AllowPrivateAccess = "true"))
-	float MaxWalkSpeedCrouchedCache; 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Crouch",
-		meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
+	float MaxWalkSpeedCrouchedCache;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Crouch", meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
 	float MaxRunSpeedCrouched;
 
 	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	ECharacterActionState CharacterActionState = ECharacterActionState::ECT_Idle;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	FName MotionWarpAttackTargetName; 
+	FName MotionWarpAttackTargetName;
 	// 현재 타겟팅된 Enemy
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	AEnemy* CurrentTargetedEnemy; 
+	AEnemy* CurrentTargetedEnemy;
 	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	TArray<AEnemy*> EnemiesInCombatRange;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AWeapon> DefaultWeaponClass;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
 	AWeapon* Weapon;
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	int32 AttackSequenceComboCount = 0;

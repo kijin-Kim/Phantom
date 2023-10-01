@@ -11,15 +11,19 @@
 #include "Phantom.h"
 #include "MotionWarpingComponent.h"
 #include "Components/SphereComponent.h"
+#include "Controller/PhantomPlayerController.h"
 #include "Enemy/Enemy.h"
 #include "Engine/Canvas.h"
+#include "GameFramework/GameStateBase.h"
+#include "Kismet/GameplayStatics.h"
 #include "Weapon/Weapon.h"
 
 
 APhantomCharacter::APhantomCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
-
+	bReplicates = true;
+	
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -128,6 +132,18 @@ void APhantomCharacter::Tick(float DeltaSeconds)
 	if (IsLocallyControlled())
 	{
 		CalculateNewTargetingEnemy();
+	}
+	
+	if(IsLocallyControlled())
+	{
+		if(HasAuthority())
+		{
+			GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor::Red, FString::Printf(TEXT("Server: %f"), Cast<APhantomPlayerController>(Controller)->GetServerTime()));			
+		}
+		else
+		{
+			GEngine->AddOnScreenDebugMessage(2, 5.0f, FColor::Blue, FString::Printf(TEXT("Client: %f"), Cast<APhantomPlayerController>(Controller)->GetServerTime()));
+		}
 	}
 }
 
@@ -245,8 +261,8 @@ void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActi
 
 	if (CharacterActionState == ECharacterActionState::ECT_Attack)
 	{
-		bCanCombo = false;
-		AttackSequenceComboCount = 0;
+		// bCanCombo = false;
+		// AttackSequenceComboCount = 0;
 	}
 
 	CharacterActionState = NewActionState;
@@ -259,8 +275,8 @@ void APhantomCharacter::OnNotifyEnableCombo()
 
 void APhantomCharacter::OnNotifyDisableCombo()
 {
-	bCanCombo = false;
-	AttackSequenceComboCount = 0;
+	// bCanCombo = false;
+	// AttackSequenceComboCount = 0;
 }
 
 void APhantomCharacter::Move(const FInputActionValue& Value)
@@ -321,7 +337,7 @@ bool APhantomCharacter::IsRunning() const
 	{
 		return GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxRunSpeedCrouched;
 	}
-
+	
 	const float CurrentSpeed = GetCharacterMovement()->MaxWalkSpeed;
 	return CurrentSpeed >= MaxRunSpeed && CurrentSpeed < MaxSprintSpeed;
 }
@@ -528,25 +544,45 @@ void APhantomCharacter::ServerDodge_Implementation()
 
 void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 {
-	// Motion Warping할 Enemy가 있으면 Motion Warping를 하고,
-	// 없으면 Motion Warping을 하지 않음.
-	if (AttackMontage && !AttackMontageSectionNames.IsEmpty())
+	APhantomPlayerController* PC = Cast<APhantomPlayerController>(Controller);
+	if(PC)
 	{
+		if(HasAuthority())
+		{
+			UE_LOG(LogPhantom, Warning, TEXT("Auth Attack"));	
+		}
+		else
+		{
+			UE_LOG(LogPhantom, Warning, TEXT("Local Attack"));
+		}
+		
+	}
+	
+	if (AttackMontage)
+	{
+		const int32 SectionCount = AttackMontage->GetNumSections();
 		if (bCanCombo)
 		{
 			AttackSequenceComboCount++;
-			AttackSequenceComboCount %= AttackMontageSectionNames.Num();
-			bCanCombo = false;
+			AttackSequenceComboCount %= SectionCount;
+			//bCanCombo = false;
 		}
 
+		if(AttackSequenceComboCount == 0)
+		{
+//			UE_LOG(LogPhantom, Warning, TEXT("New Sequece"));
+		}
+		
+		
 		if (AttackTarget)
 		{
+			// Motion Warping할 Enemy가 있으면 Motion Warping를 하고,
+			// 없으면 Motion Warping을 하지 않음.
 			MotionWarping->AddOrUpdateWarpTargetFromTransform(MotionWarpAttackTargetName, AttackTarget->GetActorTransform());
 		}
-
-		PlayAnimMontage(AttackMontage, 1.0f, AttackMontageSectionNames[AttackSequenceComboCount]);
-		const int32 SectionIndex = AttackMontage->GetSectionIndex(AttackMontageSectionNames[AttackSequenceComboCount]);
-		const float SectionDuration = AttackMontage->GetSectionLength(SectionIndex);
+		
+		PlayAnimMontage(AttackMontage, 1.0f, AttackMontage->GetSectionName(AttackSequenceComboCount));
+		const float SectionDuration = AttackMontage->GetSectionLength(AttackSequenceComboCount);
 
 		ChangeCharacterActionState(ECharacterActionState::ECT_Attack);
 		GetWorldTimerManager().SetTimer(AttackComboTimer, [this]()

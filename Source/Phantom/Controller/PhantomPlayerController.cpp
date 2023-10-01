@@ -5,8 +5,54 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
+#include "Algo/Accumulate.h"
+#include "GameFramework/PlayerState.h"
+#include "Phantom/Phantom.h"
 #include "Phantom/PhantomCharacter.h"
 
+void APhantomPlayerController::ReceivedPlayer()
+{
+	Super::ReceivedPlayer();
+
+	if (HasAuthority())
+	{
+		AuthInitializeRandomSeed();
+	}
+	else
+	{
+		if (IsLocalController())
+		{
+			FTimerHandle RequestServerTimeTimerHandle;
+			const float REQUEST_SERVER_TIME_RATE = 5.0f;
+			GetWorld()->GetTimerManager().SetTimer(RequestServerTimeTimerHandle,
+			                                       [this]()
+			                                       {
+				                                       ServerRequestServerTime(GetWorld()->GetTimeSeconds());
+			                                       },
+			                                       REQUEST_SERVER_TIME_RATE, true, 0.0f);
+		}
+	}
+}
+
+void APhantomPlayerController::AuthInitializeRandomSeed()
+{
+	if (HasAuthority())
+	{
+		const int32 RandomSeed = FMath::Rand();
+		RandomStream.Initialize(RandomSeed);
+		ClientUpdateRandomSeed(RandomSeed);
+	}
+}
+
+float APhantomPlayerController::GetServerTime() const
+{
+	if (HasAuthority())
+	{
+		return GetWorld()->GetTimeSeconds();
+	}
+
+	return GetWorld()->GetTimeSeconds() + ServerTimeDeltaOnClient;
+}
 
 void APhantomPlayerController::BeginPlay()
 {
@@ -44,8 +90,6 @@ void APhantomPlayerController::SetupInputComponent()
 
 		// Attacking
 		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnAttackButtonPressed);
-
-		
 	}
 }
 
@@ -103,3 +147,31 @@ void APhantomPlayerController::OnAttackButtonPressed()
 		PhantomCharacter->Attack();
 }
 
+void APhantomPlayerController::ClientUpdateRandomSeed_Implementation(int32 RandomSeed)
+{
+	RandomStream.Initialize(RandomSeed);
+}
+
+void APhantomPlayerController::ServerRequestServerTime_Implementation(float ClientRequestedTime)
+{
+	const float ServerTime = GetWorld()->GetTimeSeconds();
+	ClientSendServerTime(ClientRequestedTime, ServerTime);
+}
+
+void APhantomPlayerController::ClientSendServerTime_Implementation(float ClientRequestedTime, float ServerTime)
+{
+	const float RoundTripTime = GetWorld()->GetTimeSeconds() - ClientRequestedTime;
+	const float CurrentServerTime = ServerTime + (RoundTripTime * 0.5f); // Server->Client의 TripTime을 대략적으로 반영합니다.
+	ServerTimeDeltaOnClient = CurrentServerTime - GetWorld()->GetTimeSeconds();
+
+
+	const float MAX_ROUNDTRIP_TIME_SAMPLES = 5;
+	while (RoundTripTimes.Num() >= MAX_ROUNDTRIP_TIME_SAMPLES)
+	{
+		RoundTripTimes.RemoveAt(0);
+	}
+	RoundTripTimes.Push(RoundTripTime);
+
+	const float Sum = Algo::Accumulate(RoundTripTimes, 0.0f);
+	AvgRoundTripTime = Sum / static_cast<float>(RoundTripTimes.Num());
+}
