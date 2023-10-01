@@ -21,7 +21,6 @@ AEnemy::AEnemy()
 
 void AEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 {
-	return;
 	if (UWorld* World = GetWorld())
 	{
 		DrawDebugSphere(World, HitResult.ImpactPoint, 10.0f, 12, FColor::Yellow, false, 2.0f);

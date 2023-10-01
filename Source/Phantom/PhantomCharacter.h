@@ -17,6 +17,21 @@ class UMotionWarpingComponent;
 class USphereComponent;
 class USpringArmComponent;
 
+USTRUCT(BlueprintType)
+struct FCharacterSnapshot
+{
+	GENERATED_BODY()
+
+	float Time;
+	ECharacterActionState CharacterActionState;
+	ECharacterMovementState CharacterMovementState;
+	uint8 AttackSequenceComboCount;
+	bool bCanCombo;
+	bool bIsCrouched;
+	
+};
+
+
 UCLASS(config=Game)
 class APhantomCharacter : public ACharacter
 {
@@ -53,6 +68,7 @@ public:
 
 	bool CanDodge() const;
 	bool CanAttack() const;
+	bool CanSnapShotAttack(const FCharacterSnapshot& Snapshot) const;
 	UFUNCTION(BlueprintCallable)
 	bool IsWalking() const;
 	UFUNCTION(BlueprintCallable)
@@ -96,7 +112,7 @@ private:
 
 	void LocalAttack(AEnemy* AttackTarget);
 	UFUNCTION(Server, Reliable)
-	void ServerAttack(AEnemy* AttackTarget);
+	void ServerAttack(AEnemy* AttackTarget, float RequestedTime);
 
 	// Server에서 Update된 AnimMontage정보를 Simulated Proxy에서 반영함
 	UFUNCTION()
@@ -153,12 +169,17 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AWeapon> DefaultWeaponClass;
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
 	AWeapon* Weapon;
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	int32 AttackSequenceComboCount = 0;
+	uint8 AttackSequenceComboCount = 0;
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	bool bCanCombo = false;
 	UPROPERTY(Transient)
 	FTimerHandle AttackComboTimer;
+
+
+	TDoubleLinkedList<FCharacterSnapshot> Snapshots;
+	UPROPERTY(EditDefaultsOnly)
+	float MaxRecordDuration = 4.0f;
 };

@@ -23,10 +23,11 @@ APhantomCharacter::APhantomCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
-	
+
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -120,7 +121,7 @@ void APhantomCharacter::BeginPlay()
 			ActorSpawnParameters.Owner = this;
 			ActorSpawnParameters.Instigator = this;
 			Weapon = World->SpawnActor<AWeapon>(DefaultWeaponClass, ActorSpawnParameters);
-			Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName("katana_r"));
+			Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName(TEXT("katana_r")));
 		}
 	}
 }
@@ -133,16 +134,59 @@ void APhantomCharacter::Tick(float DeltaSeconds)
 	{
 		CalculateNewTargetingEnemy();
 	}
-	
-	if(IsLocallyControlled())
+
+	if (IsLocallyControlled())
 	{
-		if(HasAuthority())
+		if (HasAuthority())
 		{
-			GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor::Red, FString::Printf(TEXT("Server: %f"), Cast<APhantomPlayerController>(Controller)->GetServerTime()));			
+			GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor::Red, FString::Printf(TEXT("Server: %f"), Cast<APhantomPlayerController>(Controller)->GetServerTime()));
 		}
 		else
 		{
 			GEngine->AddOnScreenDebugMessage(2, 5.0f, FColor::Blue, FString::Printf(TEXT("Client: %f"), Cast<APhantomPlayerController>(Controller)->GetServerTime()));
+		}
+	}
+
+
+	
+
+	if (HasAuthority())
+	{
+		FCharacterSnapshot CurrentSnapshot;
+		CurrentSnapshot.Time = GetWorld()->GetTimeSeconds();
+		CurrentSnapshot.CharacterActionState = CharacterActionState;
+		CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Stop;
+
+		if (IsWalking())
+		{
+			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Walking;
+		}
+		else if (IsRunning())
+		{
+			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Running;
+		}
+		else
+		{
+			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Sprinting;
+		}
+
+		CurrentSnapshot.AttackSequenceComboCount = AttackSequenceComboCount;
+		CurrentSnapshot.bCanCombo = bCanCombo;
+		CurrentSnapshot.bIsCrouched = bIsCrouched;
+
+		if (Snapshots.Num() <= 1)
+		{
+			Snapshots.AddHead(CurrentSnapshot);
+		}
+		else
+		{
+			float CurrentDuration = Snapshots.GetHead()->GetValue().Time - Snapshots.GetTail()->GetValue().Time;
+			while (CurrentDuration > MaxRecordDuration)
+			{
+				Snapshots.RemoveNode(Snapshots.GetTail());
+				CurrentDuration = Snapshots.GetHead()->GetValue().Time - Snapshots.GetTail()->GetValue().Time;
+			}
+			Snapshots.AddHead(CurrentSnapshot);
 		}
 	}
 }
@@ -233,7 +277,11 @@ void APhantomCharacter::Attack()
 		{
 			LocalAttack(CurrentTargetedEnemy);
 		}
-		ServerAttack(CurrentTargetedEnemy);
+		APhantomPlayerController* PhantomPlayerController = Cast<APhantomPlayerController>(Controller);
+		if (PhantomPlayerController)
+		{
+			ServerAttack(CurrentTargetedEnemy, PhantomPlayerController->GetServerTime());
+		}
 	}
 }
 
@@ -261,8 +309,8 @@ void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActi
 
 	if (CharacterActionState == ECharacterActionState::ECT_Attack)
 	{
-		// bCanCombo = false;
-		// AttackSequenceComboCount = 0;
+		bCanCombo = false;
+		AttackSequenceComboCount = 0;
 	}
 
 	CharacterActionState = NewActionState;
@@ -275,8 +323,8 @@ void APhantomCharacter::OnNotifyEnableCombo()
 
 void APhantomCharacter::OnNotifyDisableCombo()
 {
-	// bCanCombo = false;
-	// AttackSequenceComboCount = 0;
+	bCanCombo = false;
+	AttackSequenceComboCount = 0;
 }
 
 void APhantomCharacter::Move(const FInputActionValue& Value)
@@ -303,6 +351,12 @@ bool APhantomCharacter::CanDodge() const
 bool APhantomCharacter::CanAttack() const
 {
 	return (CharacterActionState != ECharacterActionState::ECT_Attack || bCanCombo) && !bIsCrouched && CharacterActionState !=
+		ECharacterActionState::ECT_Dodge;
+}
+
+bool APhantomCharacter::CanSnapShotAttack(const FCharacterSnapshot& Snapshot) const
+{
+	return (Snapshot.CharacterActionState != ECharacterActionState::ECT_Attack || Snapshot.bCanCombo) && !Snapshot.bIsCrouched && Snapshot.CharacterActionState !=
 		ECharacterActionState::ECT_Dodge;
 }
 
@@ -337,7 +391,7 @@ bool APhantomCharacter::IsRunning() const
 	{
 		return GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxRunSpeedCrouched;
 	}
-	
+
 	const float CurrentSpeed = GetCharacterMovement()->MaxWalkSpeed;
 	return CurrentSpeed >= MaxRunSpeed && CurrentSpeed < MaxSprintSpeed;
 }
@@ -356,6 +410,7 @@ void APhantomCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(APhantomCharacter, ReplicatedAnimMontage, COND_SimulatedOnly);
+	DOREPLIFETIME(APhantomCharacter, Weapon);
 }
 
 void APhantomCharacter::AuthUpdateReplicatedAnimMontage(float DeltaSeconds)
@@ -544,20 +599,6 @@ void APhantomCharacter::ServerDodge_Implementation()
 
 void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 {
-	APhantomPlayerController* PC = Cast<APhantomPlayerController>(Controller);
-	if(PC)
-	{
-		if(HasAuthority())
-		{
-			UE_LOG(LogPhantom, Warning, TEXT("Auth Attack"));	
-		}
-		else
-		{
-			UE_LOG(LogPhantom, Warning, TEXT("Local Attack"));
-		}
-		
-	}
-	
 	if (AttackMontage)
 	{
 		const int32 SectionCount = AttackMontage->GetNumSections();
@@ -565,22 +606,16 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 		{
 			AttackSequenceComboCount++;
 			AttackSequenceComboCount %= SectionCount;
-			//bCanCombo = false;
+			bCanCombo = false;
 		}
 
-		if(AttackSequenceComboCount == 0)
-		{
-//			UE_LOG(LogPhantom, Warning, TEXT("New Sequece"));
-		}
-		
-		
 		if (AttackTarget)
 		{
 			// Motion Warping할 Enemy가 있으면 Motion Warping를 하고,
 			// 없으면 Motion Warping을 하지 않음.
 			MotionWarping->AddOrUpdateWarpTargetFromTransform(MotionWarpAttackTargetName, AttackTarget->GetActorTransform());
 		}
-		
+
 		PlayAnimMontage(AttackMontage, 1.0f, AttackMontage->GetSectionName(AttackSequenceComboCount));
 		const float SectionDuration = AttackMontage->GetSectionLength(AttackSequenceComboCount);
 
@@ -595,12 +630,68 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 	}
 }
 
-void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget)
+void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget, float RequestedTime)
 {
+	const float OldestTime = Snapshots.GetTail()->GetValue().Time;
+	const float NewestTime = Snapshots.GetHead()->GetValue().Time;
+	FCharacterSnapshot SnapShotToCheck;
+
+	if (OldestTime > RequestedTime)
+	{
+		return;
+	}
+	if (FMath::IsNearlyEqual(OldestTime, RequestedTime))
+	{
+		SnapShotToCheck = Snapshots.GetTail()->GetValue();
+	}
+	if (NewestTime <= RequestedTime)
+	{
+		SnapShotToCheck = Snapshots.GetHead()->GetValue();
+	}
+
+	using SnapshotNode = TDoubleLinkedList<FCharacterSnapshot>::TDoubleLinkedListNode;
+	SnapshotNode* Young = Snapshots.GetHead();
+	SnapshotNode* Old = Young;
+	// 11 10 9 8 7 6 5 4 3 2 1
+	// Req = 5.5
+	SnapshotNode* Temp = nullptr;
+	while (Old->GetValue().Time > RequestedTime)
+	{
+		if (!Old->GetNextNode())
+		{
+			break;
+		}
+		Old = Old->GetNextNode();
+		if (Old->GetValue().Time > RequestedTime)
+		{
+			Young = Old;
+		}
+	}
+
+	if (!CanAttack())
+	{
+		if(CanSnapShotAttack(Old->GetValue()))
+		{
+			UE_LOG(LogPhantom, Warning, TEXT("SnapShot Attack!!"));	
+		}
+	}
+	
+	
 	// TODO: Lag Compensation
 	if (CanAttack())
 	{
 		LocalAttack(AttackTarget);
+	}
+	else
+	{
+		const UEnum* EnumPtr = StaticEnum<ECharacterActionState>();
+		const FString CurrentActionStateString = EnumPtr->GetDisplayNameTextByValue(static_cast<uint8>(CharacterActionState)).ToString();
+		UE_LOG(LogPhantom, Warning, TEXT("Cannot Attack!!"));
+		UE_LOG(LogPhantom, Warning, TEXT("Action State: %s"), *CurrentActionStateString);
+		UE_LOG(LogPhantom, Warning, TEXT("Attack Sequence Combo Count: %d"), AttackSequenceComboCount);
+		UE_LOG(LogPhantom, Warning, TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogPhantom, Warning, TEXT("Is Crouched: %s"), bIsCrouched ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogPhantom, Warning, TEXT("----------------------------------------"));
 	}
 }
 

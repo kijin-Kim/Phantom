@@ -18,7 +18,6 @@ class PHANTOM_API AWeapon : public AActor
 public:
 	AWeapon();
 	virtual void PostInitializeComponents() override;
-	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION(BlueprintCallable)
 	void OnNotifyEnableWeaponBoxCollision();
