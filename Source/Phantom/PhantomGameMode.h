@@ -6,8 +6,8 @@
 #include "GameFramework/GameMode.h"
 #include "PhantomGameMode.generated.h"
 
-UCLASS(minimalapi)
-class APhantomGameMode : public AGameMode
+UCLASS()
+class PHANTOM_API APhantomGameMode : public AGameMode
 {
 	GENERATED_BODY()
 

@@ -8,7 +8,7 @@
 
 
 USTRUCT()
-struct FRepAnimMontage
+struct PHANTOM_API FRepAnimMontage
 {
 	GENERATED_BODY()
 
@@ -27,7 +27,7 @@ struct FRepAnimMontage
 };
 
 USTRUCT()
-struct FLocalAnimMontage
+struct PHANTOM_API FLocalAnimMontage
 {
 	GENERATED_BODY()
 

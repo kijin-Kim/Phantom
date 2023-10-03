@@ -13,6 +13,7 @@
 #include "Phantom/Controller/PhantomPlayerController.h"
 #include "Phantom/Enemy/Enemy.h"
 #include "Engine/Canvas.h"
+#include "Phantom/Action/HeroActionComponent.h"
 #include "Phantom/Weapon/Weapon.h"
 
 
@@ -54,6 +55,7 @@ APhantomCharacter::APhantomCharacter()
 	CombatRangeSphere->SetupAttachment(RootComponent);
 
 	MotionWarping = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
+	HeroActionComponent = CreateDefaultSubobject<UHeroActionComponent>(TEXT("HeroAction"));
 }
 
 void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
@@ -65,12 +67,12 @@ void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& D
 	DisplayDebugManager.SetDrawColor(FColor::Yellow);
 	DisplayDebugManager.DrawString(TEXT("PHANTOM CHARACTER"));
 	DisplayDebugManager.SetDrawColor(FColor::White);
-	if (CharacterActionState == ECharacterActionState::ECT_Attack)
+	if (CharacterActionState == ECharacterActionState::Attack)
 	{
 		DisplayDebugManager.SetDrawColor(FColor::Green);
 	}
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("Is Attacking: %s"),
-	                                               CharacterActionState == ECharacterActionState::ECT_Attack ? TEXT("true") : TEXT("false")));
+	                                               CharacterActionState == ECharacterActionState::Attack ? TEXT("true") : TEXT("false")));
 	DisplayDebugManager.SetDrawColor(FColor::White);
 
 	if (bCanCombo)
@@ -84,8 +86,8 @@ void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& D
 
 	DisplayDebugManager.DrawString(TEXT("Action State"));
 
-	static ECharacterActionState PrevCharacterActionState = ECharacterActionState::ECT_MAX;
-	static ECharacterActionState CurrentCharacterActionStateCache = ECharacterActionState::ECT_MAX;
+	static ECharacterActionState PrevCharacterActionState = ECharacterActionState::Max;
+	static ECharacterActionState CurrentCharacterActionStateCache = ECharacterActionState::Max;
 	if (CharacterActionState != CurrentCharacterActionStateCache)
 	{
 		PrevCharacterActionState = CurrentCharacterActionStateCache;
@@ -106,6 +108,27 @@ void APhantomCharacter::PostInitializeComponents()
 	CombatRangeSphere->OnComponentEndOverlap.AddDynamic(this, &APhantomCharacter::OnCombatSphereEndOverlap);
 	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
 	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
+}
+
+void APhantomCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	HeroActionComponent->InitializeHeroActionActorInfo(this);
+	for (TSubclassOf<UHeroAction> HeroActionClass : StartupActionClasses)
+	{
+		FHeroActionDescriptor NewActionDescriptor = {HeroActionClass};
+		HeroActionComponent->AuthAddAction(NewActionDescriptor);
+	}
+}
+
+void APhantomCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	HeroActionComponent->InitializeHeroActionActorInfo(this);
+	for(const FHeroActionDescriptor& Descriptor : HeroActionComponent->GetHeroActionDescriptors())
+	{
+		HeroActionComponent->TryTriggerHeroAction(Descriptor.HeroActionDescriptorID);	
+	}
 }
 
 void APhantomCharacter::BeginPlay()
@@ -218,19 +241,25 @@ void APhantomCharacter::Attack()
 	{
 		if (!HasAuthority())
 		{
-			LocalAttack(CurrentTargetedEnemy);
+			LocalAttack(CurrentTargetedEnemy.Get());
 		}
 
 		if (const APhantomPlayerController* PhantomPlayerController = Cast<APhantomPlayerController>(Controller))
 		{
-			ServerAttack(CurrentTargetedEnemy, CurrentAttackSnapshot);
+			ServerAttack(CurrentTargetedEnemy.Get(), CurrentAttackSnapshot);
 		}
+	}
+	else
+	{
+		UE_LOG(LogPhantom, Warning, TEXT("Client Attack 실패"));
+		// 문제 Client는 Attack이후에 Attack이 인정되면 다음 Combo를 수행하는데 다음 어택의 클라이언트에서의
+		// 수행시간안에 Attack에 대한 인정 메시지가 안오면 Attack Combo를 이어나갈수가 없음.
 	}
 }
 
 bool APhantomCharacter::CanCrouch() const
 {
-	return Super::CanCrouch() && CharacterActionState != ECharacterActionState::ECT_Dodge;
+	return Super::CanCrouch() && CharacterActionState != ECharacterActionState::Dodge;
 }
 
 float APhantomCharacter::PlayAnimMontage(UAnimMontage* AnimMontage, float InPlayRate, FName StartSectionName)
@@ -250,7 +279,7 @@ void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActi
 		return;
 	}
 
-	if (CharacterActionState == ECharacterActionState::ECT_Attack)
+	if (CharacterActionState == ECharacterActionState::Attack)
 	{
 		bCanCombo = false;
 		AttackSequenceComboCount = 0;
@@ -259,13 +288,7 @@ void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActi
 		{
 			Weapon->SetHitBoxEnabled(ECollisionEnabled::NoCollision);
 		}
-
-		if(HasAuthority())
-		{
-			UE_LOG(LogPhantom, Warning, TEXT("ChangeState"));	
-		}
 	}
-
 
 	CharacterActionState = NewActionState;
 }
@@ -273,31 +296,17 @@ void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActi
 void APhantomCharacter::OnNotifyEnableCombo()
 {
 	bCanCombo = true;
+}
+
+void APhantomCharacter::OnNotifyDisableCombo()
+{
 	if (!HasAuthority())
 	{
 		Attack();
 		return;
 	}
-	else
-	{
-		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-		UAnimMontage* CurrentMontage = GetMesh()->GetAnimInstance()->GetCurrentActiveMontage();
-		if (CurrentMontage)
-		{
-			float Position = AnimInstance->Montage_GetPosition(CurrentMontage);
-			UE_LOG(LogPhantom, Warning, TEXT("sad"));
-		}
-	}
-}
-
-void APhantomCharacter::OnNotifyDisableCombo()
-{
 	bCanCombo = false;
 	AttackSequenceComboCount = 0;
-	if (HasAuthority())
-	{
-		UE_LOG(LogPhantom, Warning, TEXT("disabled"));
-	}
 }
 
 void APhantomCharacter::OnNotifyEnableWeaponBoxCollision()
@@ -334,7 +343,7 @@ void APhantomCharacter::Move(const FInputActionValue& Value)
 
 bool APhantomCharacter::CanDodge() const
 {
-	return CharacterActionState != ECharacterActionState::ECT_Dodge && !bIsCrouched;
+	return CharacterActionState != ECharacterActionState::Dodge && !bIsCrouched;
 }
 
 bool APhantomCharacter::CanAttack() const
@@ -347,14 +356,14 @@ bool APhantomCharacter::CanAttack() const
 		}
 	}
 
-	return (CharacterActionState != ECharacterActionState::ECT_Attack || bCanCombo) && !bIsCrouched && CharacterActionState !=
-		ECharacterActionState::ECT_Dodge;
+	return (CharacterActionState != ECharacterActionState::Attack || bCanCombo) && !bIsCrouched && CharacterActionState !=
+		ECharacterActionState::Dodge;
 }
 
 bool APhantomCharacter::CanSnapShotAttack(const FCharacterSnapshot& Snapshot) const
 {
-	return (Snapshot.CharacterActionState != ECharacterActionState::ECT_Attack || Snapshot.bCanCombo) && !Snapshot.bIsCrouched && Snapshot.CharacterActionState !=
-		ECharacterActionState::ECT_Dodge;
+	return (Snapshot.CharacterActionState != ECharacterActionState::Attack || Snapshot.bCanCombo) && !Snapshot.bIsCrouched && Snapshot.CharacterActionState !=
+		ECharacterActionState::Dodge;
 }
 
 bool APhantomCharacter::IsWalking() const
@@ -449,25 +458,30 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 	}
 
 	// 새로운 타겟팅 후보를 찾는다.
-	for (AEnemy* Enemy : EnemiesInCombatRange)
+	for (TWeakObjectPtr<AEnemy> Enemy : EnemiesInCombatRange)
 	{
+		if (!Enemy.IsValid())
+		{
+			continue;
+		}
+
 		FVector PhantomToEnemy = (Enemy->GetActorLocation() - GetActorLocation()).GetSafeNormal();
 		const float DotResult = FVector::DotProduct(PhantomToEnemy, DotRight);
 		if (MaxDot < DotResult)
 		{
 			MaxDot = DotResult;
-			NewTargetedCandidate = Enemy;
+			NewTargetedCandidate = Enemy.Get();
 		}
 
 		if (bDebugTargeting)
 		{
-			DrawDebugString(GetWorld(), FVector::ZeroVector, FString::Printf(TEXT("%f"), DotResult), Enemy, FColor::White, 0.0f, true);
+			DrawDebugString(GetWorld(), FVector::ZeroVector, FString::Printf(TEXT("%f"), DotResult), Enemy.Get(), FColor::White, 0.0f, true);
 		}
 	}
 
 	if (NewTargetedCandidate)
 	{
-		if (!CurrentTargetedEnemy)
+		if (!CurrentTargetedEnemy.IsValid())
 		{
 			CurrentTargetedEnemy = NewTargetedCandidate;
 		}
@@ -492,7 +506,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 			DrawDebugSphere(GetWorld(), NewTargetedCandidate->GetActorLocation(), 100.0f, 12, FColor::Blue, 0.0f, 0.0f);
 		}
 
-		if (CurrentTargetedEnemy)
+		if (CurrentTargetedEnemy.IsValid())
 		{
 			DrawDebugSphere(GetWorld(), CurrentTargetedEnemy->GetActorLocation(), 100.0f, 12, FColor::Red, 0.0f, 0.0f);
 		}
@@ -506,19 +520,19 @@ void APhantomCharacter::TakeSnapshots()
 		FCharacterSnapshot CurrentSnapshot;
 		CurrentSnapshot.Time = GetWorld()->GetTimeSeconds();
 		CurrentSnapshot.CharacterActionState = CharacterActionState;
-		CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Stop;
+		CurrentSnapshot.CharacterMovementState = ECharacterMovementState::Stop;
 
 		if (IsWalking())
 		{
-			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Walking;
+			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::Walking;
 		}
 		else if (IsRunning())
 		{
-			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Running;
+			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::Running;
 		}
 		else
 		{
-			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Sprinting;
+			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::Sprinting;
 		}
 
 		CurrentSnapshot.AttackSequenceComboCount = AttackSequenceComboCount;
@@ -615,14 +629,14 @@ void APhantomCharacter::LocalDodge()
 {
 	if (DodgeMontage)
 	{
-		ChangeCharacterActionState(ECharacterActionState::ECT_Dodge);
+		ChangeCharacterActionState(ECharacterActionState::Dodge);
 		const float Duration = PlayAnimMontage(DodgeMontage);
 		FTimerHandle DodgeEndTimer;
 		GetWorldTimerManager().SetTimer(DodgeEndTimer, [this]()
 		{
-			if (CharacterActionState == ECharacterActionState::ECT_Dodge)
+			if (CharacterActionState == ECharacterActionState::Dodge)
 			{
-				ChangeCharacterActionState(ECharacterActionState::ECT_Idle);
+				ChangeCharacterActionState(ECharacterActionState::Idle);
 			}
 		}, Duration, false);
 	}
@@ -644,6 +658,7 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 		if (!HasAuthority())
 		{
 			bServerAnswered = false;
+			UE_LOG(LogPhantom, Warning, TEXT("Consume Start"));
 			CurrentAttackSnapshot.Time = Cast<APhantomPlayerController>(Controller)->GetServerTime();
 			CurrentAttackSnapshot.CharacterActionState = CharacterActionState;
 			CurrentAttackSnapshot.AttackSequenceComboCount = AttackSequenceComboCount;
@@ -658,8 +673,6 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 				{
 					LastMontagePosition = AnimInstance->Montage_GetPosition(LastMontage);
 				}
-				UE_LOG(LogPhantom, Warning, TEXT("Client Sequence: %d"), AttackSequenceComboCount);
-				UE_LOG(LogPhantom, Warning, TEXT("Client Section: %s"), *AnimInstance->Montage_GetCurrentSection(LastMontage).ToString());
 			}
 		}
 
@@ -679,10 +692,6 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 			AttackSequenceComboCount++;
 			AttackSequenceComboCount %= SectionCount;
 			bCanCombo = false;
-			if(HasAuthority())
-			{
-				UE_LOG(LogPhantom, Warning, TEXT("Consume"));	
-			}
 		}
 
 		if (AttackTarget)
@@ -694,12 +703,12 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 
 		PlayAnimMontage(AttackMontage, 1.0f, AttackMontage->GetSectionName(AttackSequenceComboCount));
 		const float SectionDuration = AttackMontage->GetSectionLength(AttackSequenceComboCount);
-		ChangeCharacterActionState(ECharacterActionState::ECT_Attack);
+		ChangeCharacterActionState(ECharacterActionState::Attack);
 		GetWorldTimerManager().SetTimer(AttackComboTimer, [this]()
 		{
-			if (CharacterActionState == ECharacterActionState::ECT_Attack)
+			if (CharacterActionState == ECharacterActionState::Attack)
 			{
-				ChangeCharacterActionState(ECharacterActionState::ECT_Idle);
+				ChangeCharacterActionState(ECharacterActionState::Idle);
 			}
 		}, SectionDuration, false);
 	}
@@ -708,112 +717,104 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 
 void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget, FCharacterSnapshot ClientSnapshot)
 {
+	if (CanAttack())
+	{
+		LocalAttack(AttackTarget);
+		ClientAcceptAction();
+		return;
+	}
+
 	const float RequestedTime = ClientSnapshot.Time + Cast<APhantomPlayerController>(Controller)->GetAverageSingleTripTime();
 	const float OldestTime = Snapshots.GetTail()->GetValue().Time;
 	const float NewestTime = Snapshots.GetHead()->GetValue().Time;
-	FCharacterSnapshot SnapShotToCheck;
 	if (OldestTime > RequestedTime) // Too Late
 	{
-		ClientDenyAction();
+		UE_LOG(LogPhantom, Warning, TEXT("Request가 너무 늦게 도착했습니다."));
+		ClientDeclineAction();
 		return;
 	}
 
 	using SnapshotNode = TDoubleLinkedList<FCharacterSnapshot>::TDoubleLinkedListNode;
-	SnapshotNode* Young = Snapshots.GetHead();
-	SnapshotNode* Old = Young;
-
-	while (Old->GetValue().Time > RequestedTime)
+	SnapshotNode* Current = Snapshots.GetHead();
+	while (Current->GetValue().Time > RequestedTime)
 	{
-		if (!Old->GetNextNode())
+		if (!Current->GetNextNode())
 		{
 			break;
 		}
-		Old = Old->GetNextNode();
+		Current = Current->GetNextNode();
 	}
 
+	FCharacterSnapshot SnapShotToCheck;
 	if (FMath::IsNearlyEqual(NewestTime, RequestedTime) || NewestTime <= RequestedTime)
 	{
 		SnapShotToCheck = Snapshots.GetHead()->GetValue();
-		UE_LOG(LogPhantom, Warning, TEXT("Use this frame"));
 	}
 	else
 	{
-		SnapShotToCheck = Old->GetValue();
+		SnapShotToCheck = Current->GetValue();
 	}
 
 
 	if (CanSnapShotAttack(SnapShotToCheck) && SnapShotToCheck.IsEqual(ClientSnapshot))
 	{
-		CharacterActionState = SnapShotToCheck.CharacterActionState;
-		AttackSequenceComboCount = SnapShotToCheck.AttackSequenceComboCount;
-		bCanCombo = SnapShotToCheck.bCanCombo;
-		bIsCrouched = SnapShotToCheck.bIsCrouched;
-		UE_LOG(LogPhantom, Warning, TEXT("SnapShotAttack Confirmed"));
-	}
-	else if(!CanAttack())
-	{
-		// Too Early
-		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-		UAnimMontage* CurrentMontage = GetMesh()->GetAnimInstance()->GetCurrentActiveMontage();
-		if (CurrentMontage)
-		{
-			float Position = AnimInstance->Montage_GetPosition(CurrentMontage);
-			FAnimNotifyContext AnimNotifyContext;
-			CurrentMontage->GetAnimNotifies(Position, 1.0f, AnimNotifyContext);
-			FName CurrentSection = AnimInstance->Montage_GetCurrentSection(CurrentMontage);
-
-			for (auto& NotifiesRef : AnimNotifyContext.ActiveNotifies)
-			{
-				const FAnimNotifyEvent* AnimNotifyEvent = NotifiesRef.GetNotify();
-				if (AnimNotifyEvent && AnimNotifyEvent->NotifyName == FName(TEXT("EnableCombo")))
-				{
-					CharacterActionState = ClientSnapshot.CharacterActionState;
-					AttackSequenceComboCount = ClientSnapshot.AttackSequenceComboCount;
-					bCanCombo = ClientSnapshot.bCanCombo;
-					bIsCrouched = ClientSnapshot.bIsCrouched;
-					LocalAttack(AttackTarget);
-					float TriggerTime = AnimNotifyEvent->GetTriggerTime();
-					UE_LOG(LogPhantom, Warning, TEXT("Early Attack: %f"), TriggerTime - Position);
-					ClientAcceptAction();
-					return;
-				}
-			}
-			UE_LOG(LogPhantom, Warning, TEXT("All Failed"));
-			ClientDenyAction();
-		}
-	}
-
-	if (CanAttack() || CanSnapShotAttack(SnapShotToCheck))
-	{
+		AcceptSnapshot(ClientSnapshot);
 		LocalAttack(AttackTarget);
 		ClientAcceptAction();
+		return;
 	}
-	else
+
+	// Too Early
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	UAnimMontage* CurrentMontage = GetMesh()->GetAnimInstance()->GetCurrentActiveMontage();
+	if (CurrentMontage)
 	{
-		const UEnum* EnumPtr = StaticEnum<ECharacterActionState>();
-		const FString CurrentActionStateString = EnumPtr->GetDisplayNameTextByValue(static_cast<uint8>(CharacterActionState)).ToString();
-		UE_LOG(LogPhantom, Warning, TEXT("Cannot Attack!!"));
-		UE_LOG(LogPhantom, Warning, TEXT("Action State: %s"), *CurrentActionStateString);
-		UE_LOG(LogPhantom, Warning, TEXT("Attack Sequence Combo Count: %d"), AttackSequenceComboCount);
-		UE_LOG(LogPhantom, Warning, TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false"));
-		UE_LOG(LogPhantom, Warning, TEXT("Is Crouched: %s"), bIsCrouched ? TEXT("true") : TEXT("false"));
-		ClientDenyAction();
+		float Position = AnimInstance->Montage_GetPosition(CurrentMontage);
+		FAnimNotifyContext AnimNotifyContext;
+		CurrentMontage->GetAnimNotifies(Position, 1.0f, AnimNotifyContext);
+		FName CurrentSection = AnimInstance->Montage_GetCurrentSection(CurrentMontage);
+
+		for (auto& NotifiesRef : AnimNotifyContext.ActiveNotifies)
+		{
+			const FAnimNotifyEvent* AnimNotifyEvent = NotifiesRef.GetNotify();
+			if (AnimNotifyEvent && AnimNotifyEvent->NotifyName == FName(TEXT("EnableCombo")))
+			{
+				AcceptSnapshot(ClientSnapshot);
+				LocalAttack(AttackTarget);
+				ClientAcceptAction();
+				return;
+			}
+		}
 	}
+	UE_LOG(LogPhantom, Warning, TEXT("Server Reconciliation이 실패했습니다."));
+	ClientDeclineAction();
+	return;
+
+	// Deny
+	// 1. 너무 늦게 RPC가 왔을때
+	// 2. Server Reconciliation이 실패한 경우
+
+
+	const UEnum* EnumPtr = StaticEnum<ECharacterActionState>();
+	const FString CurrentActionStateString = EnumPtr->GetDisplayNameTextByValue(static_cast<uint8>(CharacterActionState)).ToString();
+	UE_LOG(LogPhantom, Warning, TEXT("Cannot Attack!!"));
+	UE_LOG(LogPhantom, Warning, TEXT("Action State: %s"), *CurrentActionStateString);
+	UE_LOG(LogPhantom, Warning, TEXT("Attack Sequence Combo Count: %d"), AttackSequenceComboCount);
+	UE_LOG(LogPhantom, Warning, TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogPhantom, Warning, TEXT("Is Crouched: %s"), bIsCrouched ? TEXT("true") : TEXT("false"));
 }
 
 void APhantomCharacter::ClientAcceptAction_Implementation()
 {
+	UE_LOG(LogPhantom, Warning, TEXT("Accept Action"));
 	bServerAnswered = true;
 }
 
-void APhantomCharacter::ClientDenyAction_Implementation()
+void APhantomCharacter::ClientDeclineAction_Implementation()
 {
+	UE_LOG(LogPhantom, Warning, TEXT("Deny Action"));
 	bServerAnswered = true;
-	CharacterActionState = CurrentAttackSnapshot.CharacterActionState;
-	AttackSequenceComboCount = CurrentAttackSnapshot.AttackSequenceComboCount;
-	bCanCombo = CurrentAttackSnapshot.bCanCombo;
-	bIsCrouched = CurrentAttackSnapshot.bIsCrouched;
-
+	AcceptSnapshot(CurrentAttackSnapshot);
 	if (LastMontage)
 	{
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
@@ -837,6 +838,14 @@ void APhantomCharacter::ClientDenyAction_Implementation()
 	{
 		StopAnimMontage();
 	}
+}
+
+void APhantomCharacter::AcceptSnapshot(const FCharacterSnapshot& Snapshot)
+{
+	CharacterActionState = Snapshot.CharacterActionState;
+	AttackSequenceComboCount = Snapshot.AttackSequenceComboCount;
+	bCanCombo = Snapshot.bCanCombo;
+	bIsCrouched = Snapshot.bIsCrouched;
 }
 
 void APhantomCharacter::OnRep_ReplicatedAnimMontage()

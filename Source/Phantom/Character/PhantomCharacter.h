@@ -10,6 +10,8 @@
 #include "PhantomCharacter.generated.h"
 
 
+class UHeroAction;
+class UHeroActionComponent;
 class AWeapon;
 class AEnemy;
 class UCameraComponent;
@@ -18,16 +20,16 @@ class USphereComponent;
 class USpringArmComponent;
 
 USTRUCT(BlueprintType)
-struct FCharacterSnapshot
+struct PHANTOM_API FCharacterSnapshot
 {
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
 	float Time = 0.0f;
 	UPROPERTY(Transient)
-	ECharacterActionState CharacterActionState = ECharacterActionState::ECT_MAX;
+	ECharacterActionState CharacterActionState = ECharacterActionState::Max;
 	UPROPERTY(Transient)
-	ECharacterMovementState CharacterMovementState = ECharacterMovementState::EMT_MAX;
+	ECharacterMovementState CharacterMovementState = ECharacterMovementState::Max;
 	UPROPERTY(Transient)
 	uint8 AttackSequenceComboCount = 0;
 	UPROPERTY(Transient)
@@ -47,7 +49,7 @@ struct FCharacterSnapshot
 
 
 UCLASS(config=Game)
-class APhantomCharacter : public APhantomCharacterBase
+class PHANTOM_API APhantomCharacter : public APhantomCharacterBase
 {
 	GENERATED_BODY()
 
@@ -55,6 +57,8 @@ public:
 	APhantomCharacter();
 	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
 	virtual void PostInitializeComponents() override;
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -94,9 +98,9 @@ public:
 	bool IsRunning() const;
 	bool IsSprinting() const;
 
-	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	FORCEINLINE UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-	FORCEINLINE AWeapon* GetWeapon() const { return Weapon; }
+	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	AWeapon* GetWeapon() const { return Weapon; }
 
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -137,7 +141,9 @@ private:
 	UFUNCTION(Client, Reliable)
 	void ClientAcceptAction();
 	UFUNCTION(Client, Reliable)
-	void ClientDenyAction();
+	void ClientDeclineAction();
+
+	void AcceptSnapshot(const FCharacterSnapshot& Snapshot);
 
 
 	// Server에서 Update된 AnimMontage정보를 Simulated Proxy에서 반영함
@@ -146,14 +152,16 @@ private:
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
-	USpringArmComponent* CameraBoom;
+	TObjectPtr<USpringArmComponent> CameraBoom;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* FollowCamera;
+	TObjectPtr<UCameraComponent> FollowCamera;
 	// 주변 Enemy를 감지하기 위한 SphereComponent.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	USphereComponent* CombatRangeSphere;
+	TObjectPtr<USphereComponent> CombatRangeSphere;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	UMotionWarpingComponent* MotionWarping;
+	TObjectPtr<UMotionWarpingComponent> MotionWarping;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hero Action", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UHeroActionComponent> HeroActionComponent;
 
 	// Server에서 Update되고 Simulated Proxy에 전달되는 AnimMontage에 대한 정보
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_ReplicatedAnimMontage)
@@ -163,9 +171,9 @@ private:
 	FLocalAnimMontage LocalAnimMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* DodgeMontage;
+	TObjectPtr<UAnimMontage> DodgeMontage;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* AttackMontage;
+	TObjectPtr<UAnimMontage> AttackMontage;
 
 	// 블루프린트에서 설정된 Max Walk Speed를 저장해놓는 변수.
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
@@ -182,21 +190,20 @@ private:
 	float MaxRunSpeedCrouched;
 
 	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-	ECharacterActionState CharacterActionState = ECharacterActionState::ECT_Idle;
+	ECharacterActionState CharacterActionState = ECharacterActionState::Idle;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	FName MotionWarpAttackTargetName;
+	
 	// 현재 타겟팅된 Enemy
-	UPROPERTY(Transient, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	AEnemy* CurrentTargetedEnemy;
+	TWeakObjectPtr<AEnemy> CurrentTargetedEnemy;
 	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	TArray<AEnemy*> EnemiesInCombatRange;
+	TArray<TWeakObjectPtr<AEnemy>> EnemiesInCombatRange;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AWeapon> DefaultWeaponClass;
 	UPROPERTY(Replicated, EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
-	AWeapon* Weapon;
+	TObjectPtr<AWeapon> Weapon;
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	uint8 AttackSequenceComboCount = 0;
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
@@ -212,6 +219,9 @@ private:
 	bool bServerAnswered = true;
 	FCharacterSnapshot CurrentAttackSnapshot;
 
-	UAnimMontage* LastMontage = nullptr;
+	TObjectPtr<UAnimMontage> LastMontage = nullptr;
 	float LastMontagePosition = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HeroAction", meta = (AllowPrivateAccess = "true"))
+	TArray<TSubclassOf<UHeroAction>> StartupActionClasses;
 };
