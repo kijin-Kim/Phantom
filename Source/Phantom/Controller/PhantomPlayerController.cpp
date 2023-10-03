@@ -6,9 +6,21 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
 #include "Algo/Accumulate.h"
-#include "GameFramework/PlayerState.h"
+#include "Engine/Canvas.h"
 #include "Phantom/Phantom.h"
-#include "Phantom/PhantomCharacter.h"
+#include "Phantom/Character/PhantomCharacter.h"
+
+void APhantomPlayerController::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
+{
+	Super::DisplayDebug(Canvas, DebugDisplay, YL, YPos);
+
+	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
+	DisplayDebugManager.SetFont(GEngine->GetSmallFont());
+	DisplayDebugManager.SetDrawColor(FColor::Yellow);
+	DisplayDebugManager.DrawString(TEXT("PHANTOM PLAYER CONTROLLER"));
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("Server Time: %f"), GetServerTime()));
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("Average Round Trip Time: %dms"), static_cast<int32>(GetAverageRoundTripTime() * 1000.0f)));
+}
 
 void APhantomPlayerController::ReceivedPlayer()
 {
@@ -147,6 +159,7 @@ void APhantomPlayerController::OnAttackButtonPressed()
 		PhantomCharacter->Attack();
 }
 
+
 void APhantomPlayerController::ClientUpdateRandomSeed_Implementation(int32 RandomSeed)
 {
 	RandomStream.Initialize(RandomSeed);
@@ -154,19 +167,32 @@ void APhantomPlayerController::ClientUpdateRandomSeed_Implementation(int32 Rando
 
 void APhantomPlayerController::ServerRequestServerTime_Implementation(float ClientRequestedTime)
 {
-	const float ServerTime = GetWorld()->GetTimeSeconds();
-	ClientSendServerTime(ClientRequestedTime, ServerTime);
+	ClientSendServerTime(ClientRequestedTime, GetWorld()->GetTimeSeconds());
 }
 
-void APhantomPlayerController::ClientSendServerTime_Implementation(float ClientRequestedTime, float ServerTime)
+void APhantomPlayerController::ClientSendServerTime_Implementation(float ClientRequestedTime, float ServerRequestedTime)
 {
+	ServerSendServerTime(ServerRequestedTime);
 	const float RoundTripTime = GetWorld()->GetTimeSeconds() - ClientRequestedTime;
-	const float CurrentServerTime = ServerTime + (RoundTripTime * 0.5f); // Server->Client의 TripTime을 대략적으로 반영합니다.
+	const float CurrentServerTime = ServerRequestedTime + (RoundTripTime * 0.5f); // Server->Client의 TripTime을 대략적으로 반영합니다.
 	ServerTimeDeltaOnClient = CurrentServerTime - GetWorld()->GetTimeSeconds();
 
+	const int32 MAX_RTT_SAMPLE_COUNT = 5;
+	while (RoundTripTimes.Num() >= MAX_RTT_SAMPLE_COUNT)
+	{
+		RoundTripTimes.RemoveAt(0);
+	}
+	RoundTripTimes.Push(RoundTripTime);
 
-	const float MAX_ROUNDTRIP_TIME_SAMPLES = 5;
-	while (RoundTripTimes.Num() >= MAX_ROUNDTRIP_TIME_SAMPLES)
+	const float Sum = Algo::Accumulate(RoundTripTimes, 0.0f);
+	AvgRoundTripTime = Sum / static_cast<float>(RoundTripTimes.Num());
+}
+
+void APhantomPlayerController::ServerSendServerTime_Implementation(float ServerRequestedTime)
+{
+	const float RoundTripTime = GetWorld()->GetTimeSeconds() - ServerRequestedTime;
+	const int32 MAX_RTT_SAMPLE_COUNT = 5;
+	while (RoundTripTimes.Num() >= MAX_RTT_SAMPLE_COUNT)
 	{
 		RoundTripTimes.RemoveAt(0);
 	}

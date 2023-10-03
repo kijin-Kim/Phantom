@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
 #include "InputActionValue.h"
-#include "PhantomTypes.h"
-#include "RepAnimMontage.h"
+#include "PhantomCharacterBase.h"
+#include "Phantom/PhantomTypes.h"
+#include "Phantom/RepAnimMontage.h"
 #include "PhantomCharacter.generated.h"
 
 
@@ -22,18 +22,32 @@ struct FCharacterSnapshot
 {
 	GENERATED_BODY()
 
-	float Time;
-	ECharacterActionState CharacterActionState;
-	ECharacterMovementState CharacterMovementState;
-	uint8 AttackSequenceComboCount;
-	bool bCanCombo;
-	bool bIsCrouched;
-	
+	UPROPERTY(Transient)
+	float Time = 0.0f;
+	UPROPERTY(Transient)
+	ECharacterActionState CharacterActionState = ECharacterActionState::ECT_MAX;
+	UPROPERTY(Transient)
+	ECharacterMovementState CharacterMovementState = ECharacterMovementState::EMT_MAX;
+	UPROPERTY(Transient)
+	uint8 AttackSequenceComboCount = 0;
+	UPROPERTY(Transient)
+	bool bCanCombo = false;
+	UPROPERTY(Transient)
+	bool bIsCrouched = false;
+
+	bool IsEqual(const FCharacterSnapshot& Other) const
+	{
+		return CharacterActionState == Other.CharacterActionState &&
+			// CharacterMovementState == Other.CharacterMovementState &&
+			AttackSequenceComboCount == Other.AttackSequenceComboCount &&
+			bCanCombo == Other.bCanCombo &&
+			bIsCrouched == Other.bIsCrouched;
+	}
 };
 
 
 UCLASS(config=Game)
-class APhantomCharacter : public ACharacter
+class APhantomCharacter : public APhantomCharacterBase
 {
 	GENERATED_BODY()
 
@@ -55,6 +69,11 @@ public:
 	void OnNotifyEnableCombo();
 	UFUNCTION(BlueprintCallable)
 	void OnNotifyDisableCombo();
+
+	UFUNCTION(BlueprintCallable)
+	void OnNotifyEnableWeaponBoxCollision();
+	UFUNCTION(BlueprintCallable)
+	void OnNotifyDisableWeaponBoxCollision();
 
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
@@ -88,6 +107,8 @@ private:
 	// 매 프레임마다 새로 타겟팅할 후보를 계산함.
 	void CalculateNewTargetingEnemy();
 
+	void TakeSnapshots();
+
 	UFUNCTION()
 	void OnCombatSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	                                int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -112,7 +133,12 @@ private:
 
 	void LocalAttack(AEnemy* AttackTarget);
 	UFUNCTION(Server, Reliable)
-	void ServerAttack(AEnemy* AttackTarget, float RequestedTime);
+	void ServerAttack(AEnemy* AttackTarget, FCharacterSnapshot ClientSnapshot);
+	UFUNCTION(Client, Reliable)
+	void ClientAcceptAction();
+	UFUNCTION(Client, Reliable)
+	void ClientDenyAction();
+
 
 	// Server에서 Update된 AnimMontage정보를 Simulated Proxy에서 반영함
 	UFUNCTION()
@@ -182,4 +208,10 @@ private:
 	TDoubleLinkedList<FCharacterSnapshot> Snapshots;
 	UPROPERTY(EditDefaultsOnly)
 	float MaxRecordDuration = 4.0f;
+
+	bool bServerAnswered = true;
+	FCharacterSnapshot CurrentAttackSnapshot;
+
+	UAnimMontage* LastMontage = nullptr;
+	float LastMontagePosition = 0.0f;
 };

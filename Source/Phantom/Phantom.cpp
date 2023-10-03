@@ -18,3 +18,10 @@ static TAutoConsoleVariable<bool> CVarPhantomTargetingDebug(
 	false,
 	TEXT("Targeting 관련 정보 출력"),
 	ECVF_Cheat);
+
+static TAutoConsoleVariable<bool> CVarPhantomHitDebug(
+	TEXT("Phantom.Debug.Hit"),
+	false,
+	TEXT("Hit 관련 정보 출력"),
+	ECVF_Cheat);
+

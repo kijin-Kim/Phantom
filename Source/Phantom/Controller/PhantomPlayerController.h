@@ -18,10 +18,14 @@ class PHANTOM_API APhantomPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
 	virtual void ReceivedPlayer() override;
 	void AuthInitializeRandomSeed();
 	float GetServerTime() const;
+	float GetLatestRoundTripTime() const { return RoundTripTimes.IsEmpty() ? 0.0f : RoundTripTimes.Last(); }
 	float GetAverageRoundTripTime() const { return AvgRoundTripTime; }
+	float GetLatestSingleTripTime() const { return GetLatestRoundTripTime() * 0.5f; }
+	float GetAverageSingleTripTime() const { return GetAverageRoundTripTime() * 0.5f; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -45,7 +49,9 @@ private:
 	UFUNCTION(Server, Reliable)
 	void ServerRequestServerTime(float ClientRequestedTime);
 	UFUNCTION(Client, Reliable)
-	void ClientSendServerTime(float ClientRequestedTime, float ServerTime);
+	void ClientSendServerTime(float ClientRequestedTime, float ServerRequestedTime);
+	UFUNCTION(Server, Reliable)
+	void ServerSendServerTime(float ServerRequestedTime);
 
 public:
 	UPROPERTY(Transient)

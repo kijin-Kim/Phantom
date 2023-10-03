@@ -5,7 +5,6 @@
 #include "Components/BoxComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Phantom/HitInterface.h"
-#include "Phantom/Phantom.h"
 
 
 // Sets default values
@@ -35,31 +34,29 @@ void AWeapon::PostInitializeComponents()
 	CollisionBox->OnComponentBeginOverlap.AddDynamic(this, &AWeapon::OnCollisionBoxBeginOverlap);
 }
 
-void AWeapon::OnNotifyEnableWeaponBoxCollision()
+void AWeapon::SetHitBoxEnabled(ECollisionEnabled::Type NewType)
 {
+	if (NewType == ECollisionEnabled::NoCollision)
+	{
+		AlreadyHitActors.Empty();
+		if (AActor* WeaponOwner = GetOwner())
+		{
+			AlreadyHitActors.AddUnique(WeaponOwner);
+		}
+	}
+	
 	if (CollisionBox)
 	{
-		CollisionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	}
-}
-
-void AWeapon::OnNotifyDisableWeaponBoxCollision()
-{
-	if (CollisionBox)
-	{
-		CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
-
-	AlreadyHitActors.Empty();
-	if (AActor* WeaponOwner = GetOwner())
-	{
-		AlreadyHitActors.AddUnique(WeaponOwner);
+		CollisionBox->SetCollisionEnabled(NewType);
 	}
 }
 
 void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
                                          int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Hit"));
+	const bool bDebugHit = CVar && CVar->GetValueOnGameThread();
+
 	const FVector Start = TraceStart->GetComponentLocation();
 	const FVector End = TraceEnd->GetComponentLocation();
 
@@ -73,7 +70,7 @@ void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponen
 		ETraceTypeQuery::TraceTypeQuery1,
 		false,
 		AlreadyHitActors,
-		EDrawDebugTrace::ForDuration,
+		bDebugHit ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None,
 		HitResult,
 		true
 	);

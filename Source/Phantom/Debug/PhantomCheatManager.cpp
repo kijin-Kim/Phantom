@@ -3,7 +3,7 @@
 
 #include "PhantomCheatManager.h"
 #include "EngineUtils.h"
-#include "Phantom/PhantomCharacter.h"
+#include "Phantom/Character/PhantomCharacter.h"
 
 void UPhantomCheatManager::PhantomWalk(const FString& TargetActorLabel)
 {

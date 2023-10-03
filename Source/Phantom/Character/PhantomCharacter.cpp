@@ -3,26 +3,25 @@
 #include "PhantomCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Net/UnrealNetwork.h"
-#include "Phantom.h"
+#include "Phantom/Phantom.h"
 #include "MotionWarpingComponent.h"
 #include "Components/SphereComponent.h"
-#include "Controller/PhantomPlayerController.h"
-#include "Enemy/Enemy.h"
+#include "Phantom/Controller/PhantomPlayerController.h"
+#include "Phantom/Enemy/Enemy.h"
 #include "Engine/Canvas.h"
-#include "GameFramework/GameStateBase.h"
-#include "Kismet/GameplayStatics.h"
-#include "Weapon/Weapon.h"
+#include "Phantom/Weapon/Weapon.h"
 
 
 APhantomCharacter::APhantomCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
+	NetUpdateFrequency = 1000.0f;
+	MinNetUpdateFrequency = 20.0f;
 
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -115,14 +114,11 @@ void APhantomCharacter::BeginPlay()
 
 	if (HasAuthority() && DefaultWeaponClass)
 	{
-		if (UWorld* World = GetWorld())
-		{
-			FActorSpawnParameters ActorSpawnParameters;
-			ActorSpawnParameters.Owner = this;
-			ActorSpawnParameters.Instigator = this;
-			Weapon = World->SpawnActor<AWeapon>(DefaultWeaponClass, ActorSpawnParameters);
-			Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName(TEXT("katana_r")));
-		}
+		FActorSpawnParameters ActorSpawnParameters;
+		ActorSpawnParameters.Owner = this;
+		ActorSpawnParameters.Instigator = this;
+		Weapon = GetWorld()->SpawnActor<AWeapon>(DefaultWeaponClass, ActorSpawnParameters);
+		Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName(TEXT("katana_r")));
 	}
 }
 
@@ -135,60 +131,7 @@ void APhantomCharacter::Tick(float DeltaSeconds)
 		CalculateNewTargetingEnemy();
 	}
 
-	if (IsLocallyControlled())
-	{
-		if (HasAuthority())
-		{
-			GEngine->AddOnScreenDebugMessage(1, 5.0f, FColor::Red, FString::Printf(TEXT("Server: %f"), Cast<APhantomPlayerController>(Controller)->GetServerTime()));
-		}
-		else
-		{
-			GEngine->AddOnScreenDebugMessage(2, 5.0f, FColor::Blue, FString::Printf(TEXT("Client: %f"), Cast<APhantomPlayerController>(Controller)->GetServerTime()));
-		}
-	}
-
-
-	
-
-	if (HasAuthority())
-	{
-		FCharacterSnapshot CurrentSnapshot;
-		CurrentSnapshot.Time = GetWorld()->GetTimeSeconds();
-		CurrentSnapshot.CharacterActionState = CharacterActionState;
-		CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Stop;
-
-		if (IsWalking())
-		{
-			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Walking;
-		}
-		else if (IsRunning())
-		{
-			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Running;
-		}
-		else
-		{
-			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Sprinting;
-		}
-
-		CurrentSnapshot.AttackSequenceComboCount = AttackSequenceComboCount;
-		CurrentSnapshot.bCanCombo = bCanCombo;
-		CurrentSnapshot.bIsCrouched = bIsCrouched;
-
-		if (Snapshots.Num() <= 1)
-		{
-			Snapshots.AddHead(CurrentSnapshot);
-		}
-		else
-		{
-			float CurrentDuration = Snapshots.GetHead()->GetValue().Time - Snapshots.GetTail()->GetValue().Time;
-			while (CurrentDuration > MaxRecordDuration)
-			{
-				Snapshots.RemoveNode(Snapshots.GetTail());
-				CurrentDuration = Snapshots.GetHead()->GetValue().Time - Snapshots.GetTail()->GetValue().Time;
-			}
-			Snapshots.AddHead(CurrentSnapshot);
-		}
-	}
+	TakeSnapshots();
 }
 
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
@@ -277,10 +220,10 @@ void APhantomCharacter::Attack()
 		{
 			LocalAttack(CurrentTargetedEnemy);
 		}
-		APhantomPlayerController* PhantomPlayerController = Cast<APhantomPlayerController>(Controller);
-		if (PhantomPlayerController)
+
+		if (const APhantomPlayerController* PhantomPlayerController = Cast<APhantomPlayerController>(Controller))
 		{
-			ServerAttack(CurrentTargetedEnemy, PhantomPlayerController->GetServerTime());
+			ServerAttack(CurrentTargetedEnemy, CurrentAttackSnapshot);
 		}
 	}
 }
@@ -311,7 +254,18 @@ void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActi
 	{
 		bCanCombo = false;
 		AttackSequenceComboCount = 0;
+
+		if (Weapon)
+		{
+			Weapon->SetHitBoxEnabled(ECollisionEnabled::NoCollision);
+		}
+
+		if(HasAuthority())
+		{
+			UE_LOG(LogPhantom, Warning, TEXT("ChangeState"));	
+		}
 	}
+
 
 	CharacterActionState = NewActionState;
 }
@@ -319,12 +273,47 @@ void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActi
 void APhantomCharacter::OnNotifyEnableCombo()
 {
 	bCanCombo = true;
+	if (!HasAuthority())
+	{
+		Attack();
+		return;
+	}
+	else
+	{
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		UAnimMontage* CurrentMontage = GetMesh()->GetAnimInstance()->GetCurrentActiveMontage();
+		if (CurrentMontage)
+		{
+			float Position = AnimInstance->Montage_GetPosition(CurrentMontage);
+			UE_LOG(LogPhantom, Warning, TEXT("sad"));
+		}
+	}
 }
 
 void APhantomCharacter::OnNotifyDisableCombo()
 {
 	bCanCombo = false;
 	AttackSequenceComboCount = 0;
+	if (HasAuthority())
+	{
+		UE_LOG(LogPhantom, Warning, TEXT("disabled"));
+	}
+}
+
+void APhantomCharacter::OnNotifyEnableWeaponBoxCollision()
+{
+	if (Weapon)
+	{
+		Weapon->SetHitBoxEnabled(ECollisionEnabled::QueryOnly);
+	}
+}
+
+void APhantomCharacter::OnNotifyDisableWeaponBoxCollision()
+{
+	if (Weapon)
+	{
+		Weapon->SetHitBoxEnabled(ECollisionEnabled::NoCollision);
+	}
 }
 
 void APhantomCharacter::Move(const FInputActionValue& Value)
@@ -350,6 +339,14 @@ bool APhantomCharacter::CanDodge() const
 
 bool APhantomCharacter::CanAttack() const
 {
+	if (!HasAuthority())
+	{
+		if (!bServerAnswered)
+		{
+			return false;
+		}
+	}
+
 	return (CharacterActionState != ECharacterActionState::ECT_Attack || bCanCombo) && !bIsCrouched && CharacterActionState !=
 		ECharacterActionState::ECT_Dodge;
 }
@@ -436,14 +433,20 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 		return;
 	}
 
+	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Targeting"));
+	const bool bDebugTargeting = CVar && CVar->GetValueOnGameThread();
+
 	float MaxDot = 0.0f;
 	AEnemy* NewTargetedCandidate = nullptr;
 	const FVector LastInputVector = GetCharacterMovement()->GetLastInputVector();
 	// 플레이어의 입력이 있으면 입력을 새로 타겟팅할 Enemy를 뽑는데 반영합니다
-	const FVector DotRight = LastInputVector.IsNearlyZero() ? FollowCamera->GetForwardVector() : LastInputVector;
+	const FVector ProjectedCameraForward = {FollowCamera->GetForwardVector().X, FollowCamera->GetForwardVector().Y, 0.0f};
+	const FVector DotRight = LastInputVector.IsNearlyZero() ? ProjectedCameraForward : LastInputVector;
 
-	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Targeting"));
-	const bool bDebugTargeting = CVar && CVar->GetValueOnGameThread();
+	if (bDebugTargeting)
+	{
+		DrawDebugDirectionalArrow(GetWorld(), GetActorLocation(), GetActorLocation() + DotRight * 100.0f, 100.0f, FColor::Magenta, false);
+	}
 
 	// 새로운 타겟팅 후보를 찾는다.
 	for (AEnemy* Enemy : EnemiesInCombatRange)
@@ -458,10 +461,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 
 		if (bDebugTargeting)
 		{
-			if (UWorld* World = GetWorld())
-			{
-				DrawDebugString(World, FVector::ZeroVector, FString::Printf(TEXT("%f"), DotResult), Enemy, FColor::White, 0.0f, true);
-			}
+			DrawDebugString(GetWorld(), FVector::ZeroVector, FString::Printf(TEXT("%f"), DotResult), Enemy, FColor::White, 0.0f, true);
 		}
 	}
 
@@ -487,17 +487,57 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 
 	if (bDebugTargeting)
 	{
-		if (UWorld* World = GetWorld())
+		if (NewTargetedCandidate && NewTargetedCandidate != CurrentTargetedEnemy)
 		{
-			if (NewTargetedCandidate && NewTargetedCandidate != CurrentTargetedEnemy)
-			{
-				DrawDebugSphere(World, NewTargetedCandidate->GetActorLocation(), 100.0f, 12, FColor::Blue, 0.0f, 0.0f);
-			}
+			DrawDebugSphere(GetWorld(), NewTargetedCandidate->GetActorLocation(), 100.0f, 12, FColor::Blue, 0.0f, 0.0f);
+		}
 
-			if (CurrentTargetedEnemy)
+		if (CurrentTargetedEnemy)
+		{
+			DrawDebugSphere(GetWorld(), CurrentTargetedEnemy->GetActorLocation(), 100.0f, 12, FColor::Red, 0.0f, 0.0f);
+		}
+	}
+}
+
+void APhantomCharacter::TakeSnapshots()
+{
+	if (HasAuthority())
+	{
+		FCharacterSnapshot CurrentSnapshot;
+		CurrentSnapshot.Time = GetWorld()->GetTimeSeconds();
+		CurrentSnapshot.CharacterActionState = CharacterActionState;
+		CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Stop;
+
+		if (IsWalking())
+		{
+			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Walking;
+		}
+		else if (IsRunning())
+		{
+			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Running;
+		}
+		else
+		{
+			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::EMT_Sprinting;
+		}
+
+		CurrentSnapshot.AttackSequenceComboCount = AttackSequenceComboCount;
+		CurrentSnapshot.bCanCombo = bCanCombo;
+		CurrentSnapshot.bIsCrouched = bIsCrouched;
+
+		if (Snapshots.Num() <= 1)
+		{
+			Snapshots.AddHead(CurrentSnapshot);
+		}
+		else
+		{
+			float CurrentDuration = Snapshots.GetHead()->GetValue().Time - Snapshots.GetTail()->GetValue().Time;
+			while (CurrentDuration > MaxRecordDuration)
 			{
-				DrawDebugSphere(World, CurrentTargetedEnemy->GetActorLocation(), 100.0f, 12, FColor::Red, 0.0f, 0.0f);
+				Snapshots.RemoveNode(Snapshots.GetTail());
+				CurrentDuration = Snapshots.GetHead()->GetValue().Time - Snapshots.GetTail()->GetValue().Time;
 			}
+			Snapshots.AddHead(CurrentSnapshot);
 		}
 	}
 }
@@ -601,12 +641,48 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 {
 	if (AttackMontage)
 	{
+		if (!HasAuthority())
+		{
+			bServerAnswered = false;
+			CurrentAttackSnapshot.Time = Cast<APhantomPlayerController>(Controller)->GetServerTime();
+			CurrentAttackSnapshot.CharacterActionState = CharacterActionState;
+			CurrentAttackSnapshot.AttackSequenceComboCount = AttackSequenceComboCount;
+			CurrentAttackSnapshot.bCanCombo = bCanCombo;
+			CurrentAttackSnapshot.bIsCrouched = bIsCrouched;
+
+			UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+			if (AnimInstance)
+			{
+				LastMontage = AnimInstance->GetCurrentActiveMontage();
+				if (LastMontage)
+				{
+					LastMontagePosition = AnimInstance->Montage_GetPosition(LastMontage);
+				}
+				UE_LOG(LogPhantom, Warning, TEXT("Client Sequence: %d"), AttackSequenceComboCount);
+				UE_LOG(LogPhantom, Warning, TEXT("Client Section: %s"), *AnimInstance->Montage_GetCurrentSection(LastMontage).ToString());
+			}
+		}
+
+		if (HasAuthority())
+		{
+			GEngine->AddOnScreenDebugMessage(10, 2.0f, FColor::Red, FString::Printf(TEXT("Server: %d"), AttackSequenceComboCount));
+		}
+		else
+		{
+			GEngine->AddOnScreenDebugMessage(11, 2.0f, FColor::Blue, FString::Printf(TEXT("Client: %d"), AttackSequenceComboCount));
+		}
+
+
 		const int32 SectionCount = AttackMontage->GetNumSections();
 		if (bCanCombo)
 		{
 			AttackSequenceComboCount++;
 			AttackSequenceComboCount %= SectionCount;
 			bCanCombo = false;
+			if(HasAuthority())
+			{
+				UE_LOG(LogPhantom, Warning, TEXT("Consume"));	
+			}
 		}
 
 		if (AttackTarget)
@@ -618,7 +694,6 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 
 		PlayAnimMontage(AttackMontage, 1.0f, AttackMontage->GetSectionName(AttackSequenceComboCount));
 		const float SectionDuration = AttackMontage->GetSectionLength(AttackSequenceComboCount);
-
 		ChangeCharacterActionState(ECharacterActionState::ECT_Attack);
 		GetWorldTimerManager().SetTimer(AttackComboTimer, [this]()
 		{
@@ -630,31 +705,23 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 	}
 }
 
-void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget, float RequestedTime)
+
+void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget, FCharacterSnapshot ClientSnapshot)
 {
+	const float RequestedTime = ClientSnapshot.Time + Cast<APhantomPlayerController>(Controller)->GetAverageSingleTripTime();
 	const float OldestTime = Snapshots.GetTail()->GetValue().Time;
 	const float NewestTime = Snapshots.GetHead()->GetValue().Time;
 	FCharacterSnapshot SnapShotToCheck;
-
-	if (OldestTime > RequestedTime)
+	if (OldestTime > RequestedTime) // Too Late
 	{
+		ClientDenyAction();
 		return;
-	}
-	if (FMath::IsNearlyEqual(OldestTime, RequestedTime))
-	{
-		SnapShotToCheck = Snapshots.GetTail()->GetValue();
-	}
-	if (NewestTime <= RequestedTime)
-	{
-		SnapShotToCheck = Snapshots.GetHead()->GetValue();
 	}
 
 	using SnapshotNode = TDoubleLinkedList<FCharacterSnapshot>::TDoubleLinkedListNode;
 	SnapshotNode* Young = Snapshots.GetHead();
 	SnapshotNode* Old = Young;
-	// 11 10 9 8 7 6 5 4 3 2 1
-	// Req = 5.5
-	SnapshotNode* Temp = nullptr;
+
 	while (Old->GetValue().Time > RequestedTime)
 	{
 		if (!Old->GetNextNode())
@@ -662,25 +729,64 @@ void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget, float 
 			break;
 		}
 		Old = Old->GetNextNode();
-		if (Old->GetValue().Time > RequestedTime)
+	}
+
+	if (FMath::IsNearlyEqual(NewestTime, RequestedTime) || NewestTime <= RequestedTime)
+	{
+		SnapShotToCheck = Snapshots.GetHead()->GetValue();
+		UE_LOG(LogPhantom, Warning, TEXT("Use this frame"));
+	}
+	else
+	{
+		SnapShotToCheck = Old->GetValue();
+	}
+
+
+	if (CanSnapShotAttack(SnapShotToCheck) && SnapShotToCheck.IsEqual(ClientSnapshot))
+	{
+		CharacterActionState = SnapShotToCheck.CharacterActionState;
+		AttackSequenceComboCount = SnapShotToCheck.AttackSequenceComboCount;
+		bCanCombo = SnapShotToCheck.bCanCombo;
+		bIsCrouched = SnapShotToCheck.bIsCrouched;
+		UE_LOG(LogPhantom, Warning, TEXT("SnapShotAttack Confirmed"));
+	}
+	else if(!CanAttack())
+	{
+		// Too Early
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		UAnimMontage* CurrentMontage = GetMesh()->GetAnimInstance()->GetCurrentActiveMontage();
+		if (CurrentMontage)
 		{
-			Young = Old;
+			float Position = AnimInstance->Montage_GetPosition(CurrentMontage);
+			FAnimNotifyContext AnimNotifyContext;
+			CurrentMontage->GetAnimNotifies(Position, 1.0f, AnimNotifyContext);
+			FName CurrentSection = AnimInstance->Montage_GetCurrentSection(CurrentMontage);
+
+			for (auto& NotifiesRef : AnimNotifyContext.ActiveNotifies)
+			{
+				const FAnimNotifyEvent* AnimNotifyEvent = NotifiesRef.GetNotify();
+				if (AnimNotifyEvent && AnimNotifyEvent->NotifyName == FName(TEXT("EnableCombo")))
+				{
+					CharacterActionState = ClientSnapshot.CharacterActionState;
+					AttackSequenceComboCount = ClientSnapshot.AttackSequenceComboCount;
+					bCanCombo = ClientSnapshot.bCanCombo;
+					bIsCrouched = ClientSnapshot.bIsCrouched;
+					LocalAttack(AttackTarget);
+					float TriggerTime = AnimNotifyEvent->GetTriggerTime();
+					UE_LOG(LogPhantom, Warning, TEXT("Early Attack: %f"), TriggerTime - Position);
+					ClientAcceptAction();
+					return;
+				}
+			}
+			UE_LOG(LogPhantom, Warning, TEXT("All Failed"));
+			ClientDenyAction();
 		}
 	}
 
-	if (!CanAttack())
-	{
-		if(CanSnapShotAttack(Old->GetValue()))
-		{
-			UE_LOG(LogPhantom, Warning, TEXT("SnapShot Attack!!"));	
-		}
-	}
-	
-	
-	// TODO: Lag Compensation
-	if (CanAttack())
+	if (CanAttack() || CanSnapShotAttack(SnapShotToCheck))
 	{
 		LocalAttack(AttackTarget);
+		ClientAcceptAction();
 	}
 	else
 	{
@@ -691,7 +797,45 @@ void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget, float 
 		UE_LOG(LogPhantom, Warning, TEXT("Attack Sequence Combo Count: %d"), AttackSequenceComboCount);
 		UE_LOG(LogPhantom, Warning, TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false"));
 		UE_LOG(LogPhantom, Warning, TEXT("Is Crouched: %s"), bIsCrouched ? TEXT("true") : TEXT("false"));
-		UE_LOG(LogPhantom, Warning, TEXT("----------------------------------------"));
+		ClientDenyAction();
+	}
+}
+
+void APhantomCharacter::ClientAcceptAction_Implementation()
+{
+	bServerAnswered = true;
+}
+
+void APhantomCharacter::ClientDenyAction_Implementation()
+{
+	bServerAnswered = true;
+	CharacterActionState = CurrentAttackSnapshot.CharacterActionState;
+	AttackSequenceComboCount = CurrentAttackSnapshot.AttackSequenceComboCount;
+	bCanCombo = CurrentAttackSnapshot.bCanCombo;
+	bIsCrouched = CurrentAttackSnapshot.bIsCrouched;
+
+	if (LastMontage)
+	{
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance)
+		{
+			float DeltaTime = Cast<APhantomPlayerController>(Controller)->GetServerTime() - CurrentAttackSnapshot.Time;
+			float NewPosition = LastMontagePosition + DeltaTime; //(* Rate)
+			int32 SectionIndex = LastMontage->GetSectionIndexFromPosition(NewPosition);
+			if (SectionIndex != INDEX_NONE)
+			{
+				FAlphaBlendArgs Blend;
+				Blend.BlendTime = 0.0f;
+				if (AnimInstance->GetCurrentActiveMontage())
+					AnimInstance->Montage_StopWithBlendOut(Blend, AnimInstance->GetCurrentActiveMontage());
+				AnimInstance->Montage_PlayWithBlendIn(LastMontage, Blend, 1.0f);
+				AnimInstance->Montage_SetPosition(LastMontage, NewPosition);
+			}
+		}
+	}
+	else
+	{
+		StopAnimMontage();
 	}
 }
 

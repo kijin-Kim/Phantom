@@ -18,11 +18,7 @@ class PHANTOM_API AWeapon : public AActor
 public:
 	AWeapon();
 	virtual void PostInitializeComponents() override;
-
-	UFUNCTION(BlueprintCallable)
-	void OnNotifyEnableWeaponBoxCollision();
-	UFUNCTION(BlueprintCallable)
-	void OnNotifyDisableWeaponBoxCollision();
+	void SetHitBoxEnabled(ECollisionEnabled::Type NewType);
 
 private:
 	UFUNCTION()

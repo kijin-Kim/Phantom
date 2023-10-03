@@ -4,9 +4,6 @@
 #include "Enemy.h"
 
 #include "Components/CapsuleComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "Kismet/GameplayStatics.h"
-#include "Phantom/Phantom.h"
 
 
 // Sets default values
@@ -21,9 +18,11 @@ AEnemy::AEnemy()
 
 void AEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 {
-	if (UWorld* World = GetWorld())
+	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Hit"));
+	const bool bDebugHit = CVar && CVar->GetValueOnGameThread();
+	if (bDebugHit)
 	{
-		DrawDebugSphere(World, HitResult.ImpactPoint, 10.0f, 12, FColor::Yellow, false, 2.0f);
+		DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 10.0f, 12, FColor::Yellow, false, 2.0f);
 	}
 
 	if (APawn* HitterInstigator = Hitter->GetInstigator())
@@ -42,40 +41,37 @@ void AEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 			{
 				Degree *= -1.0f;
 			}
-			
+
 			FName HitMontageSectionName = FName("HitB");
-			if(Degree >= -22.5f && Degree < 22.5f)
+			if (Degree >= -22.5f && Degree < 22.5f)
 			{
 				HitMontageSectionName = FName("HitF");
 			}
-			else if(Degree >= 22.5f && Degree < 45.0f)
+			else if (Degree >= 22.5f && Degree < 45.0f)
 			{
 				HitMontageSectionName = FName("HitFR");
 			}
-			else if(Degree >= 45.0f && Degree < 135.0f)
+			else if (Degree >= 45.0f && Degree < 135.0f)
 			{
 				HitMontageSectionName = FName("HitR");
 			}
-			else if((Degree >= -135.0f && Degree < -45.0f))
+			else if ((Degree >= -135.0f && Degree < -45.0f))
 			{
 				HitMontageSectionName = FName("HitL");
 			}
-			else if((Degree >= -45.0f && Degree < -22.5f))
+			else if ((Degree >= -45.0f && Degree < -22.5f))
 			{
 				HitMontageSectionName = FName("HitFL");
 			}
-
-			UE_LOG(LogPhantom, Warning, TEXT("Degree: %f MontageSection: %s"), Degree, *HitMontageSectionName.ToString());
 			
-			if (UWorld* World = GetWorld())
+			if (bDebugHit)
 			{
-				DrawDebugDirectionalArrow(World, Location, Location + ForwardVector * 100.0f, 30.0f, FColor::Red, false, 2.0f);
-				DrawDebugDirectionalArrow(World, Location, Location + ToHitterInstigator * 100.0f, 30.0f, FColor::Green, false, 2.0f);
-				DrawDebugDirectionalArrow(World, Location, Location + UpVector * 100.0f, 30.0f, FColor::Blue, false, 2.0f);
+				DrawDebugDirectionalArrow(GetWorld(), Location, Location + ForwardVector * 100.0f, 30.0f, FColor::Red, false, 2.0f);
+				DrawDebugDirectionalArrow(GetWorld(), Location, Location + ToHitterInstigator * 100.0f, 30.0f, FColor::Green, false, 2.0f);
+				DrawDebugDirectionalArrow(GetWorld(), Location, Location + UpVector * 100.0f, 30.0f, FColor::Blue, false, 2.0f);
 			}
-
-			PlayAnimMontage(HitMontage, 1.0f, HitMontageSectionName);
 			
+			PlayAnimMontage(HitMontage, 1.0f, HitMontageSectionName);
 		}
 	}
 }

@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
 #include "Phantom/HitInterface.h"
+#include "Phantom/Character/PhantomCharacterBase.h"
 #include "Enemy.generated.h"
 
 UCLASS()
-class PHANTOM_API AEnemy : public ACharacter, public IHitInterface
+class PHANTOM_API AEnemy : public APhantomCharacterBase, public IHitInterface
 {
 	GENERATED_BODY()
 
