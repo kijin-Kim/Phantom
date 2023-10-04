@@ -160,8 +160,6 @@ private:
 	TObjectPtr<USphereComponent> CombatRangeSphere;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMotionWarpingComponent> MotionWarping;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hero Action", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UHeroActionComponent> HeroActionComponent;
 
 	// Server에서 Update되고 Simulated Proxy에 전달되는 AnimMontage에 대한 정보
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_ReplicatedAnimMontage)

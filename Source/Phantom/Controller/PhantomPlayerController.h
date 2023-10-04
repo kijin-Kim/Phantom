@@ -3,12 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ADPCMAudioInfo.h"
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
+#include "Phantom/Action/HeroAction.h"
 #include "PhantomPlayerController.generated.h"
 
 class UInputAction;
 class UInputMappingContext;
+class UPhantomInputConfig;
 
 
 /**
@@ -43,6 +46,7 @@ private:
 	void OnStealthButtonPressed();
 	void OnStealthButtonReleased();
 	void OnAttackButtonPressed();
+	void OnHeroActionInputEvent(TSubclassOf<UHeroAction> HeroActionClass);
 
 
 	UFUNCTION(Client, Reliable)
@@ -61,29 +65,32 @@ public:
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* StartRunAction;
+	TObjectPtr<UPhantomInputConfig> PhantomInputConfig; 
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* EndRunAction;
+	TObjectPtr<UInputAction> StartRunAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* WalkFRAction;
+	TObjectPtr<UInputAction> EndRunAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* WalkBLAction;
+	TObjectPtr<UInputAction> WalkFRAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* LookAction;
+	TObjectPtr<UInputAction> WalkBLAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* SprintAction;
+	TObjectPtr<UInputAction> LookAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* DodgeAction;
+	TObjectPtr<UInputAction> SprintAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* StealthAction;
+	TObjectPtr<UInputAction> DodgeAction;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> StealthAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputAction* AttackAction;
+	TObjectPtr<UInputAction> AttackAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputMappingContext* NormalMovementMappingContext;
+	TObjectPtr<UInputMappingContext> NormalMovementMappingContext;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	UInputMappingContext* CombatMappingContext;
+	TObjectPtr<UInputMappingContext> CombatMappingContext;
 
 	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float ServerTimeDeltaOnClient;

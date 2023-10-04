@@ -4,25 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Phantom/Action/HeroActionInterface.h"
 #include "PhantomCharacterBase.generated.h"
+class UHeroActionComponent;
 
 UCLASS()
-class PHANTOM_API APhantomCharacterBase : public ACharacter
+class PHANTOM_API APhantomCharacterBase : public ACharacter, public IHeroActionInterface
 {
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
 	APhantomCharacterBase();
-
+	virtual UHeroActionComponent* GetHeroActionComponent() const override;
 protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
-public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hero Action", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UHeroActionComponent> HeroActionComponent;
 };

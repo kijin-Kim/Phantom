@@ -2,31 +2,17 @@
 
 
 #include "PhantomCharacterBase.h"
+#include "Phantom/Action/HeroActionComponent.h"
 
 
 // Sets default values
 APhantomCharacterBase::APhantomCharacterBase()
 {
-	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
+	HeroActionComponent = CreateDefaultSubobject<UHeroActionComponent>(TEXT("HeroAction"));
 }
 
-// Called when the game starts or when spawned
-void APhantomCharacterBase::BeginPlay()
+UHeroActionComponent* APhantomCharacterBase::GetHeroActionComponent() const
 {
-	Super::BeginPlay();
-	
+	return HeroActionComponent;
 }
-
-// Called every frame
-void APhantomCharacterBase::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
-
-// Called to bind functionality to input
-void APhantomCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-}
-

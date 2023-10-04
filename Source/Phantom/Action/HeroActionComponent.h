@@ -7,6 +7,7 @@
 #include "Components/ActorComponent.h"
 #include "HeroActionComponent.generated.h"
 
+class UInputAction;
 class UHeroAction;
 
 
@@ -23,9 +24,11 @@ public:
 	bool CanTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
 	
 	void TryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
-	FHeroActionDescriptorID AuthAddAction(const FHeroActionDescriptor& HeroActionDescriptor);
+	void TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
+	FHeroActionDescriptorID AuthAddHeroAction(const FHeroActionDescriptor& HeroActionDescriptor);
 
 	FHeroActionDescriptor* FindHeroActionDescriptor(FHeroActionDescriptorID ID);
+	FHeroActionDescriptor* FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	TArray<FHeroActionDescriptor>& GetHeroActionDescriptors() { return HeroActionDescriptors; }
 	
 protected:

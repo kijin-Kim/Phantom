@@ -13,8 +13,8 @@
 #include "Phantom/Controller/PhantomPlayerController.h"
 #include "Phantom/Enemy/Enemy.h"
 #include "Engine/Canvas.h"
-#include "Phantom/Action/HeroActionComponent.h"
 #include "Phantom/Weapon/Weapon.h"
+#include "Phantom/Action/HeroActionComponent.h"
 
 
 APhantomCharacter::APhantomCharacter()
@@ -55,7 +55,6 @@ APhantomCharacter::APhantomCharacter()
 	CombatRangeSphere->SetupAttachment(RootComponent);
 
 	MotionWarping = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
-	HeroActionComponent = CreateDefaultSubobject<UHeroActionComponent>(TEXT("HeroAction"));
 }
 
 void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
@@ -117,7 +116,7 @@ void APhantomCharacter::PossessedBy(AController* NewController)
 	for (TSubclassOf<UHeroAction> HeroActionClass : StartupActionClasses)
 	{
 		FHeroActionDescriptor NewActionDescriptor = {HeroActionClass};
-		HeroActionComponent->AuthAddAction(NewActionDescriptor);
+		HeroActionComponent->AuthAddHeroAction(NewActionDescriptor);
 	}
 }
 
@@ -125,10 +124,6 @@ void APhantomCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
 	HeroActionComponent->InitializeHeroActionActorInfo(this);
-	for(const FHeroActionDescriptor& Descriptor : HeroActionComponent->GetHeroActionDescriptors())
-	{
-		HeroActionComponent->TryTriggerHeroAction(Descriptor.HeroActionDescriptorID);	
-	}
 }
 
 void APhantomCharacter::BeginPlay()

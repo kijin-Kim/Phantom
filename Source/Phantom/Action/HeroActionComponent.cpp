@@ -39,11 +39,15 @@ bool UHeroActionComponent::CanTriggerHeroAction(FHeroActionDescriptorID HeroActi
 
 void UHeroActionComponent::TryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID)
 {
-	UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction;
-	if (!HeroAction)
+	const FHeroActionDescriptor* HeroActionDescriptor = FindHeroActionDescriptor(HeroActionDescriptorID);
+	if(!ensure(HeroActionDescriptor))
 	{
+		UE_LOG(LogPhantom, Warning, TEXT("HeroAction을 소유하지 않아 실행할 수 없습니다."));
 		return;
 	}
+
+	const UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction;
+	check(HeroAction)
 
 	const bool bHasAuthority = HeroActionActorInfo.IsOwnerHasAuthority();
 	const bool bIsLocal = HeroActionActorInfo.IsSourceLocallyControlled();
@@ -102,7 +106,16 @@ void UHeroActionComponent::TryTriggerHeroAction(FHeroActionDescriptorID HeroActi
 	}
 }
 
-FHeroActionDescriptorID UHeroActionComponent::AuthAddAction(const FHeroActionDescriptor& HeroActionDescriptor)
+void UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
+{
+	FHeroActionDescriptor* HeroActionDescriptor = FindHeroActionByClass(HeroActionClass);
+	if(ensure(HeroActionDescriptor))
+	{
+		TryTriggerHeroAction(HeroActionDescriptor->HeroActionDescriptorID);		
+	}
+}
+
+FHeroActionDescriptorID UHeroActionComponent::AuthAddHeroAction(const FHeroActionDescriptor& HeroActionDescriptor)
 {
 	if (!HeroActionActorInfo.IsOwnerHasAuthority())
 	{
@@ -111,6 +124,12 @@ FHeroActionDescriptorID UHeroActionComponent::AuthAddAction(const FHeroActionDes
 
 	if (!IsValid(HeroActionDescriptor.HeroAction))
 	{
+		return {};
+	}
+	
+	if(FindHeroActionByClass(HeroActionDescriptor.HeroAction->StaticClass()))
+	{
+		UE_LOG(LogPhantom, Warning, TEXT("이미 HeroAction이 존재합니다."))
 		return {};
 	}
 
@@ -123,6 +142,18 @@ FHeroActionDescriptor* UHeroActionComponent::FindHeroActionDescriptor(FHeroActio
 	for (FHeroActionDescriptor& Descriptor : HeroActionDescriptors)
 	{
 		if (Descriptor.HeroActionDescriptorID == ID)
+		{
+			return &Descriptor;
+		}
+	}
+	return nullptr;
+}
+
+FHeroActionDescriptor* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
+{
+	for (FHeroActionDescriptor& Descriptor : HeroActionDescriptors)
+	{
+		if (Descriptor.HeroAction.IsA(HeroActionClass))
 		{
 			return &Descriptor;
 		}
