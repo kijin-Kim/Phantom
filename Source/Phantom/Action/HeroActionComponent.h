@@ -19,22 +19,21 @@ public:
 	UHeroActionComponent();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	void InitializeHeroActionActorInfo(AActor* SourceActor);
+
+	bool CanTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
 	
 	void TryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
 	FHeroActionDescriptorID AuthAddAction(const FHeroActionDescriptor& HeroActionDescriptor);
 
 	FHeroActionDescriptor* FindHeroActionDescriptor(FHeroActionDescriptorID ID);
 	TArray<FHeroActionDescriptor>& GetHeroActionDescriptors() { return HeroActionDescriptors; }
+	
 protected:
-	
-	
+	void TriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
 	UFUNCTION(Server, Reliable)
 	void ServerTryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
 	UFUNCTION(Client, Reliable)
-	void ClientTryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
-	
-private:
-	void LocalTryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
+	void ClientTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
 	
 protected:
 	FHeroActionActorInfo HeroActionActorInfo;

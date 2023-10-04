@@ -3,12 +3,13 @@
 
 #include "HeroAction.h"
 
-bool UHeroAction::CanTriggerHeroAction(const FHeroActionActorInfo& HeroActionActorInfo)
+bool UHeroAction::CanTriggerHeroAction_Implementation(const FHeroActionActorInfo& HeroActionActorInfo)
 {
 	return true;
 }
 
-void UHeroAction::TriggerHeroAction(const FHeroActionActorInfo& HeroActionActorInfo)
+
+void UHeroAction::TriggerHeroAction_Implementation(const FHeroActionActorInfo& HeroActionActorInfo)
 {
 	if(HeroActionActorInfo.IsOwnerHasAuthority())
 	{
@@ -20,6 +21,6 @@ void UHeroAction::TriggerHeroAction(const FHeroActionActorInfo& HeroActionActorI
 	}
 }
 
-void UHeroAction::CancelHeroAction(const FHeroActionActorInfo& HeroActionActorInfo)
+void UHeroAction::CancelHeroAction_Implementation(const FHeroActionActorInfo& HeroActionActorInfo)
 {
 }

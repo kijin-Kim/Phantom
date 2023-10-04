@@ -17,12 +17,17 @@ class PHANTOM_API UHeroAction : public UObject
 {
 	GENERATED_BODY()
 public:
-	virtual bool CanTriggerHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
-	virtual void TriggerHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
-	virtual void CancelHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	bool CanTriggerHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void TriggerHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void CancelHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
+	
 
 	EHeroActionNetMethod GetHeroActionNetMethod() const { return HeroActionNetMethod; }
+
 private:
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Replication", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Replication", meta = (AllowPrivateAccess = "true"))
 	EHeroActionNetMethod HeroActionNetMethod;
 };

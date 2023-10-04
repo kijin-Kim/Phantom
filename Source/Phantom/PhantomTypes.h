@@ -12,7 +12,7 @@ enum class ECharacterActionState : uint8
 	Execute UMETA(DisplayName = "Execute"),
 	HitReact UMETA(DisplayName = "HitReact"),
 	Dead UMETA(DisplayName = "Dead"),
-	Max UMETA(DisplayName = "MAX")
+	Max UMETA(hidden)
 };
 
 UENUM(BlueprintType)
@@ -22,5 +22,5 @@ enum class ECharacterMovementState : uint8
 	Walking UMETA(DisplayName = "Walking"),
 	Running UMETA(DisplayName = "Running"),
 	Sprinting UMETA(DisplayName = "Sprinting"),
-	Max UMETA(DisplayName = "MAX")
+	Max UMETA(hidden)
 };

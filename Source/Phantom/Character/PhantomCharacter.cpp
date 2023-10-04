@@ -653,7 +653,7 @@ void APhantomCharacter::ServerDodge_Implementation()
 
 void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 {
-	if (AttackMontage)
+	if (ensure(AttackMontage))
 	{
 		if (!HasAuthority())
 		{

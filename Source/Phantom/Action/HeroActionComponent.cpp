@@ -4,6 +4,7 @@
 #include "HeroActionComponent.h"
 #include "HeroAction.h"
 #include "Net/UnrealNetwork.h"
+#include "Phantom/Phantom.h"
 
 
 // Sets default values for this component's properties
@@ -30,24 +31,75 @@ void UHeroActionComponent::InitializeHeroActionActorInfo(AActor* SourceActor)
 	}
 }
 
+bool UHeroActionComponent::CanTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID)
+{
+	UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction;
+	return HeroAction && HeroAction->CanTriggerHeroAction(HeroActionActorInfo);
+}
+
 void UHeroActionComponent::TryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID)
 {
-	if (!HeroActionActorInfo.IsSourceLocallyControlled())
-	{
-		return;
-	}
-
 	UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction;
 	if (!HeroAction)
 	{
 		return;
 	}
 
-	if (!HeroActionActorInfo.IsOwnerHasAuthority() && HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ClientSidePredicted)
+	const bool bHasAuthority = HeroActionActorInfo.IsOwnerHasAuthority();
+	const bool bIsLocal = HeroActionActorInfo.IsSourceLocallyControlled();
+	const EHeroActionNetMethod NetMethod = HeroAction->GetHeroActionNetMethod();
+	check(NetMethod != EHeroActionNetMethod::Max);
+
+	if (!bIsLocal && (NetMethod == EHeroActionNetMethod::LocalOnly || NetMethod == EHeroActionNetMethod::LocalPredicted))
 	{
-		ClientTryTriggerHeroAction(HeroActionDescriptorID);
+		ensure(false);
+		UE_LOG(LogPhantom, Error, TEXT("Local이 아닌곳에서는 실행할 수 없는 Action입니다."));
+		return;
 	}
-	ServerTryTriggerHeroAction(HeroActionDescriptorID);
+
+	if (!bHasAuthority && (NetMethod == EHeroActionNetMethod::ServerOnly || NetMethod == EHeroActionNetMethod::ServerOriginated))
+	{
+		// 서버에게 실행해달라고 부탁.
+		ServerTryTriggerHeroAction(HeroActionDescriptorID);
+		return;
+	}
+
+
+	if (!bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted)
+	{
+		// Flush Server Moves
+		// Server Trigger
+		// Local Trigger
+		if (CanTriggerHeroAction(HeroActionDescriptorID))
+		{
+			ServerTryTriggerHeroAction(HeroActionDescriptorID);
+			TriggerHeroAction(HeroActionDescriptorID);
+		}
+		return;
+	}
+
+	if (NetMethod == EHeroActionNetMethod::LocalOnly
+		|| NetMethod == EHeroActionNetMethod::ServerOnly
+		|| (bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted))
+	{
+		if (CanTriggerHeroAction(HeroActionDescriptorID))
+		{
+			TriggerHeroAction(HeroActionDescriptorID);
+		}
+		return;
+	}
+
+	if (NetMethod == EHeroActionNetMethod::ServerOriginated)
+	{
+		// Client Trigger
+		// Local Trigger
+		if (CanTriggerHeroAction(HeroActionDescriptorID))
+		{
+			ClientTriggerHeroAction(HeroActionDescriptorID);
+			TriggerHeroAction(HeroActionDescriptorID);
+		}
+		return;
+	}
 }
 
 FHeroActionDescriptorID UHeroActionComponent::AuthAddAction(const FHeroActionDescriptor& HeroActionDescriptor)
@@ -61,7 +113,7 @@ FHeroActionDescriptorID UHeroActionComponent::AuthAddAction(const FHeroActionDes
 	{
 		return {};
 	}
-	
+
 	HeroActionDescriptors.Add(HeroActionDescriptor);
 	return HeroActionDescriptor.HeroActionDescriptorID;
 }
@@ -78,21 +130,28 @@ FHeroActionDescriptor* UHeroActionComponent::FindHeroActionDescriptor(FHeroActio
 	return nullptr;
 }
 
-void UHeroActionComponent::ClientTryTriggerHeroAction_Implementation(FHeroActionDescriptorID HeroActionDescriptorID)
+void UHeroActionComponent::TriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID)
 {
-	LocalTryTriggerHeroAction(HeroActionDescriptorID);
+	if (UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction)
+	{
+		HeroAction->TriggerHeroAction(HeroActionActorInfo);
+	}
 }
 
 void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(FHeroActionDescriptorID HeroActionDescriptorID)
 {
-	LocalTryTriggerHeroAction(HeroActionDescriptorID);
+	if (CanTriggerHeroAction(HeroActionDescriptorID))
+	{
+		TriggerHeroAction(HeroActionDescriptorID);
+		const UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction;
+		if (HeroAction && HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
+		{
+			ClientTriggerHeroAction(HeroActionDescriptorID);
+		}
+	}
 }
 
-void UHeroActionComponent::LocalTryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID)
+void UHeroActionComponent::ClientTriggerHeroAction_Implementation(FHeroActionDescriptorID HeroActionDescriptorID)
 {
-	UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction;
-	if (HeroAction && HeroAction->CanTriggerHeroAction(HeroActionActorInfo))
-	{
-		HeroAction->TriggerHeroAction(HeroActionActorInfo);
-	}
+	TriggerHeroAction(HeroActionDescriptorID);
 }
