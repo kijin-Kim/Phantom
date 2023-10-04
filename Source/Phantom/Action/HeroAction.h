@@ -17,11 +17,11 @@ class PHANTOM_API UHeroAction : public UObject
 {
 	GENERATED_BODY()
 public:
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	UFUNCTION(BlueprintNativeEvent)
 	bool CanTriggerHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	UFUNCTION(BlueprintNativeEvent)
 	void TriggerHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	UFUNCTION(BlueprintNativeEvent)
 	void CancelHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
 	
 

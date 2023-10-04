@@ -4,14 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "Engine/CancellableAsyncAction.h"
-#include "HeroActionAsync.generated.h"
+#include "HeroActionJob.generated.h"
 
+class UHeroActionComponent;
+class UHeroAction;
 /**
  * 
  */
 UCLASS()
-class PHANTOM_API UHeroActionAsync : public UCancellableAsyncAction
+class PHANTOM_API UHeroActionJob : public UCancellableAsyncAction
 {
 	GENERATED_BODY()
-	
+
+protected:
+	TObjectPtr<UHeroAction> HeroAction;
 };
