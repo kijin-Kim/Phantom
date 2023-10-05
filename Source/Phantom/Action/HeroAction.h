@@ -27,13 +27,16 @@ public:
 	}
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	virtual bool CanTriggerHeroAction() const;
+	virtual void TriggerHeroAction();
+	UFUNCTION(BlueprintCallable, Category = "Hero Action")
+	void EndHeroAction();
 	
-	UFUNCTION(BlueprintNativeEvent)
-	bool CanTriggerHeroAction();
-	UFUNCTION(BlueprintNativeEvent)
-	void TriggerHeroAction();
-	UFUNCTION(BlueprintNativeEvent)
-	void CancelHeroAction();
+	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Can Trigger Hero Action"))
+	bool BP_CanTriggerHeroAction() const;
+	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Trigger Hero Action"))
+	void BP_TriggerHeroAction();
 	
 	EHeroActionNetMethod GetHeroActionNetMethod() const { return HeroActionNetMethod; }
 	const FHeroActionActorInfo& GetHeroActionActorInfo() const { return HeroActionActorInfo; }
@@ -44,6 +47,13 @@ private:
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Replication")
 	EHeroActionNetMethod HeroActionNetMethod;
-	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Replication")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Triggering")
+	EHeroActionRetriggeringMethod HeroActionRetriggeringMethod;
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "ActorInfo")
 	FHeroActionActorInfo HeroActionActorInfo;
+
+	
+
+private:
+	bool bIsTriggering = false;
 };

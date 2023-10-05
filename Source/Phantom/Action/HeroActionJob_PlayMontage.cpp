@@ -32,7 +32,6 @@ void UHeroActionJob_PlayMontage::Activate()
 		UE_LOG(LogPhantom, Warning, TEXT("Animation Montage [%s]를 실행하는데 실패하였습니다"), *GetNameSafe(AnimMontage))
 		return;
 	}
-
 	
 	const FHeroActionActorInfo& HeroActionActorInfo = HeroAction->GetHeroActionActorInfo();
 	if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())

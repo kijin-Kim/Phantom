@@ -21,12 +21,25 @@ enum class EHeroActionNetMethod
 	Max UMETA(hidden)
 };
 
+UENUM(BlueprintType)
+enum class EHeroActionRetriggeringMethod
+{
+	// Retrigger 불가능
+	Block UMETA(DisplayName = "Block"),
+	// Retrigger시 Cancel
+	Cancel UMETA(DisplayName = "Cancel"),
+	Retrigger UMETA(DisplayName = "Retrigger"),
+	// Retrigger시 Cancel후 Retrigger
+	CancelAndRetrigger UMETA(DisplayName = "Cancel And Retrigger"),
+	Max UMETA(hidden)
+};
+
 USTRUCT(BlueprintType)
 struct PHANTOM_API FHeroActionActorInfo
 {
 	GENERATED_BODY()
 
-	
+
 	UPROPERTY(BlueprintReadOnly)
 	TWeakObjectPtr<AActor> Owner;
 	UPROPERTY(BlueprintReadOnly)
@@ -40,6 +53,3 @@ struct PHANTOM_API FHeroActionActorInfo
 	bool IsSourceLocallyControlled() const;
 	bool IsOwnerHasAuthority() const;
 };
-
-
-

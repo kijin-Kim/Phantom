@@ -220,6 +220,6 @@ private:
 	TObjectPtr<UAnimMontage> LastMontage = nullptr;
 	float LastMontagePosition = 0.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HeroAction", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hero Action", meta = (AllowPrivateAccess = "true"))
 	TArray<TSubclassOf<UHeroAction>> StartupActionClasses;
 };

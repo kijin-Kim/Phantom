@@ -11,28 +11,46 @@ void UHeroAction::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME_CONDITION(UHeroAction, HeroActionActorInfo, COND_InitialOnly);
 }
 
-void UHeroAction::InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo)
+bool UHeroAction::CanTriggerHeroAction() const
 {
-	HeroActionActorInfo = InHeroActionActorInfo;
-}
+	if (bIsTriggering)
+	{
+		return HeroActionRetriggeringMethod != EHeroActionRetriggeringMethod::Block;
+	}
+	
+	static FName FuncName = FName(TEXT("BP_CanTriggerHeroAction"));
+	UFunction* Function = GetClass()->FindFunctionByName(FuncName);
+	bool bIsImplemented = Function && Function->GetOuter() && Function->GetOuter()->IsA(UBlueprintGeneratedClass::StaticClass());
+	if (bIsImplemented)
+	{
+		return BP_CanTriggerHeroAction();
+	}
 
-bool UHeroAction::CanTriggerHeroAction_Implementation()
-{
 	return true;
 }
 
-void UHeroAction::TriggerHeroAction_Implementation()
+void UHeroAction::TriggerHeroAction()
 {
-	if (HeroActionActorInfo.IsOwnerHasAuthority())
+	if (bIsTriggering)
 	{
-		GEngine->AddOnScreenDebugMessage(10, 2, FColor::Red, FString::Printf(TEXT("Server Trigger Action")));
+		check(HeroActionRetriggeringMethod != EHeroActionRetriggeringMethod::Block);
+		EndHeroAction();
+		if (HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::CancelAndRetrigger)
+		{
+			TriggerHeroAction();
+		}
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(11, 2, FColor::Blue, FString::Printf(TEXT("Client Trigger Action")));
-	}
+	bIsTriggering = true;
+
+	BP_TriggerHeroAction();
 }
 
-void UHeroAction::CancelHeroAction_Implementation()
+void UHeroAction::EndHeroAction()
 {
+	bIsTriggering = false;
+}
+
+void UHeroAction::InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo)
+{
+	HeroActionActorInfo = InHeroActionActorInfo;
 }
