@@ -173,7 +173,7 @@ void APhantomPlayerController::OnHeroActionInputEvent(TSubclassOf<UHeroAction> H
 	UHeroActionComponent* HeroActionComponent = HeroActionInterface->GetHeroActionComponent();
 	if (ensure(HeroActionComponent))
 	{
-		HeroActionComponent->TryTriggerHeroActionByClass(HeroActionClass);
+		HeroActionComponent->TryTriggerHeroAction(HeroActionClass);
 	}
 }
 

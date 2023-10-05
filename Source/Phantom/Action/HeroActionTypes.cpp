@@ -3,6 +3,15 @@
 #include "HeroAction.h"
 #include "GameFramework/PlayerController.h"
 
+UAnimInstance* FHeroActionActorInfo::GetAnimInstance() const
+{
+	if(SkeletalMeshComponent.IsValid())
+	{
+		return SkeletalMeshComponent.Get()->GetAnimInstance();
+	}
+	return nullptr;
+}
+
 bool FHeroActionActorInfo::IsSourceLocallyControlled() const
 {
 	if (APlayerController* PC = PlayerController.Get())
@@ -15,21 +24,4 @@ bool FHeroActionActorInfo::IsSourceLocallyControlled() const
 bool FHeroActionActorInfo::IsOwnerHasAuthority() const
 {
 	return Owner.Get() && Owner.Get()->HasAuthority();
-}
-
-void FHeroActionDescriptorID::CreateNewID()
-{
-	static int32 Counter = 1;
-	ID = Counter++;
-}
-
-FHeroActionDescriptor::FHeroActionDescriptor()
-	: HeroAction(nullptr)
-{
-}
-
-FHeroActionDescriptor::FHeroActionDescriptor(TSubclassOf<UHeroAction> HeroActionClass)
-	: HeroAction(HeroActionClass ? HeroActionClass.GetDefaultObject() : nullptr)
-{
-	HeroActionDescriptorID.CreateNewID();
 }

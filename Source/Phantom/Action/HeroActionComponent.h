@@ -18,28 +18,29 @@ class PHANTOM_API UHeroActionComponent : public UActorComponent
 
 public:
 	UHeroActionComponent();
+	virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	void InitializeHeroActionActorInfo(AActor* SourceActor);
-
-	bool CanTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
 	
-	void TryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
-	void TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
-	FHeroActionDescriptorID AuthAddHeroAction(const FHeroActionDescriptor& HeroActionDescriptor);
-
-	FHeroActionDescriptor* FindHeroActionDescriptor(FHeroActionDescriptorID ID);
-	FHeroActionDescriptor* FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
-	TArray<FHeroActionDescriptor>& GetHeroActionDescriptors() { return HeroActionDescriptors; }
+	
+	void TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroActionClass);
+	void AuthAddHeroAction(TSubclassOf<UHeroAction> HeroActionClass);
+	bool CanTriggerHeroAction(UHeroAction* HeroAction);
+	bool PlayAnimationMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection = NAME_None,
+	                                    float PlayRate = 1.0f, float StartTime = 0.0f);
+	
+	UHeroAction* FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	
 protected:
-	void TriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
+	void InternalTryTriggerHeroAction(UHeroAction* HeroAction);
+	void TriggerHeroAction(UHeroAction* HeroAction);
 	UFUNCTION(Server, Reliable)
-	void ServerTryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
+	void ServerTryTriggerHeroAction(UHeroAction* HeroAction);
 	UFUNCTION(Client, Reliable)
-	void ClientTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID);
-	
+	void ClientTriggerHeroAction(UHeroAction* HeroAction);
+
 protected:
 	FHeroActionActorInfo HeroActionActorInfo;
 	UPROPERTY(Replicated)
-	TArray<FHeroActionDescriptor> HeroActionDescriptors;
+	TArray<TObjectPtr<UHeroAction>> AvailableHeroActions;
 };

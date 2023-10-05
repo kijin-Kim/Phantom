@@ -6,17 +6,14 @@
 #include "HeroAction.h"
 #include "Phantom/Phantom.h"
 
-UHeroActionJob_PlayMontage* UHeroActionJob_PlayMontage::CreateHeroActionJobPlayMontage(UHeroAction* InHeroAction, USkeletalMeshComponent* InSkeletalMesh,
-                                                                                       UAnimMontage* InAnimMontage, FName InStartSection, float InPlayRate, float InStartTime)
+UHeroActionJob_PlayMontage* UHeroActionJob_PlayMontage::CreateHeroActionJobPlayMontage(UHeroAction* InHeroAction, UAnimMontage* InAnimMontage, FName InStartSection, float InPlayRate, float InStartTime)
 {
 	if (!InAnimMontage)
 	{
 		return nullptr;
 	}
 
-	UHeroActionJob_PlayMontage* MyObj = NewObject<UHeroActionJob_PlayMontage>();
-	MyObj->HeroAction = InHeroAction;
-	MyObj->SkeletalMesh = InSkeletalMesh;
+	UHeroActionJob_PlayMontage* MyObj = NewHeroActionJob<UHeroActionJob_PlayMontage>(InHeroAction);
 	MyObj->AnimMontage = InAnimMontage;
 	MyObj->StartSection = InStartSection;
 	MyObj->PlayRate = InPlayRate;
@@ -27,23 +24,28 @@ UHeroActionJob_PlayMontage* UHeroActionJob_PlayMontage::CreateHeroActionJobPlayM
 void UHeroActionJob_PlayMontage::Activate()
 {
 	Super::Activate();
+	check(HeroAction.IsValid() && HeroActionComponent.IsValid());
 
-	if (!SkeletalMesh.IsValid() || !AnimMontage.IsValid())
+	UHeroActionComponent* HAC = HeroActionComponent.Get();
+	if(!HAC->PlayAnimationMontageReplicates(HeroAction.Get(), AnimMontage, StartSection, PlayRate, StartTime))
 	{
-		Cancel();
+		UE_LOG(LogPhantom, Warning, TEXT("Animation Montage [%s]를 실행하는데 실패하였습니다"), *GetNameSafe(AnimMontage))
+		return;
 	}
 
-	if (UAnimInstance* AnimInstance = SkeletalMesh->GetAnimInstance())
+	
+	const FHeroActionActorInfo& HeroActionActorInfo = HeroAction->GetHeroActionActorInfo();
+	if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
 	{
-		AnimInstance->Montage_Play(AnimMontage.Get(), PlayRate, EMontagePlayReturnType::MontageLength, StartTime);
+		AnimInstance->Montage_Play(AnimMontage, PlayRate, EMontagePlayReturnType::MontageLength, StartTime);
 
 		FOnMontageEnded OnMontageEnded;
 		OnMontageEnded.BindUObject(this, &UHeroActionJob_PlayMontage::OnMontageEnded);
-		AnimInstance->Montage_SetEndDelegate(OnMontageEnded, AnimMontage.Get());
+		AnimInstance->Montage_SetEndDelegate(OnMontageEnded, AnimMontage);
 
 		FOnMontageBlendingOutStarted OnMontageBlendingOutStarted;
 		OnMontageBlendingOutStarted.BindUObject(this, &UHeroActionJob_PlayMontage::OnMontageBlendingOutStarted);
-		AnimInstance->Montage_SetBlendingOutDelegate(OnMontageBlendingOutStarted, AnimMontage.Get());
+		AnimInstance->Montage_SetBlendingOutDelegate(OnMontageBlendingOutStarted, AnimMontage);
 	}
 }
 
@@ -55,7 +57,7 @@ void UHeroActionJob_PlayMontage::Cancel()
 
 void UHeroActionJob_PlayMontage::OnMontageEnded(UAnimMontage* InAnimMontage, bool bInterrupted)
 {
-	if (!bInterrupted && OnCompleted.IsBound())
+	if (ShouldBroadcastDelegates() && !bInterrupted && OnCompleted.IsBound())
 	{
 		OnCompleted.Broadcast();
 	}
@@ -65,13 +67,16 @@ void UHeroActionJob_PlayMontage::OnMontageEnded(UAnimMontage* InAnimMontage, boo
 
 void UHeroActionJob_PlayMontage::OnMontageBlendingOutStarted(UAnimMontage* InAnimMontage, bool bInterrupted)
 {
-	if (bInterrupted && OnInterrupted.IsBound())
+	if (ShouldBroadcastDelegates())
 	{
-		OnInterrupted.Broadcast();
-	}
+		if (bInterrupted && OnInterrupted.IsBound())
+		{
+			OnInterrupted.Broadcast();
+		}
 
-	if (OnBlendingOut.IsBound())
-	{
-		OnBlendingOut.Broadcast();
+		if (OnBlendingOut.IsBound())
+		{
+			OnBlendingOut.Broadcast();
+		}
 	}
 }

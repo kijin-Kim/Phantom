@@ -3,17 +3,29 @@
 
 #include "HeroAction.h"
 
-bool UHeroAction::CanTriggerHeroAction_Implementation(const FHeroActionActorInfo& HeroActionActorInfo)
+#include "Net/UnrealNetwork.h"
+
+void UHeroAction::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(UHeroAction, HeroActionActorInfo, COND_InitialOnly);
+}
+
+void UHeroAction::InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo)
+{
+	HeroActionActorInfo = InHeroActionActorInfo;
+}
+
+bool UHeroAction::CanTriggerHeroAction_Implementation()
 {
 	return true;
 }
 
-
-void UHeroAction::TriggerHeroAction_Implementation(const FHeroActionActorInfo& HeroActionActorInfo)
+void UHeroAction::TriggerHeroAction_Implementation()
 {
-	if(HeroActionActorInfo.IsOwnerHasAuthority())
+	if (HeroActionActorInfo.IsOwnerHasAuthority())
 	{
-		GEngine->AddOnScreenDebugMessage(10, 2, FColor::Red, FString::Printf(TEXT("Server Trigger Action")));	
+		GEngine->AddOnScreenDebugMessage(10, 2, FColor::Red, FString::Printf(TEXT("Server Trigger Action")));
 	}
 	else
 	{
@@ -21,6 +33,6 @@ void UHeroAction::TriggerHeroAction_Implementation(const FHeroActionActorInfo& H
 	}
 }
 
-void UHeroAction::CancelHeroAction_Implementation(const FHeroActionActorInfo& HeroActionActorInfo)
+void UHeroAction::CancelHeroAction_Implementation()
 {
 }

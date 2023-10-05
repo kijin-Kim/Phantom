@@ -26,65 +26,20 @@ struct PHANTOM_API FHeroActionActorInfo
 {
 	GENERATED_BODY()
 
+	
 	UPROPERTY(BlueprintReadOnly)
 	TWeakObjectPtr<AActor> Owner;
 	UPROPERTY(BlueprintReadOnly)
 	TWeakObjectPtr<AActor> SourceActor;
 	UPROPERTY(BlueprintReadOnly)
 	TWeakObjectPtr<APlayerController> PlayerController;
+	UPROPERTY(BlueprintReadOnly)
+	TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
 
+	UAnimInstance* GetAnimInstance() const;
 	bool IsSourceLocallyControlled() const;
 	bool IsOwnerHasAuthority() const;
 };
 
-USTRUCT(BlueprintType)
-struct FHeroActionDescriptorID
-{
-	GENERATED_BODY()
-
-	FHeroActionDescriptorID()
-		: ID(INDEX_NONE)
-	{
-	}
-
-	bool IsValid() const
-	{
-		return ID != INDEX_NONE;
-	}
-	
-	void CreateNewID();
-
-	bool operator==(const FHeroActionDescriptorID& Other) const
-	{
-		return ID == Other.ID;
-	}
-
-	bool operator!=(const FHeroActionDescriptorID& Other) const
-	{
-		return ID != Other.ID;
-	}
-
-	friend uint32 GetTypeHash(const FHeroActionDescriptorID& ActionID)
-	{
-		return ::GetTypeHash(ActionID.ID);
-	}
-	
-private:
-	UPROPERTY()
-	int32 ID;
-};
 
 
-USTRUCT()
-struct PHANTOM_API FHeroActionDescriptor
-{
-	GENERATED_BODY()
-
-	FHeroActionDescriptor();
-	FHeroActionDescriptor(TSubclassOf<UHeroAction> HeroActionClass);
-
-	UPROPERTY()
-	FHeroActionDescriptorID HeroActionDescriptorID;
-	UPROPERTY()
-	TObjectPtr<UHeroAction> HeroAction;
-};

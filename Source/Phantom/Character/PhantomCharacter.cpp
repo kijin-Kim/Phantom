@@ -113,10 +113,9 @@ void APhantomCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 	HeroActionComponent->InitializeHeroActionActorInfo(this);
-	for (TSubclassOf<UHeroAction> HeroActionClass : StartupActionClasses)
+	for (const TSubclassOf<UHeroAction> HeroActionClass : StartupActionClasses)
 	{
-		FHeroActionDescriptor NewActionDescriptor = {HeroActionClass};
-		HeroActionComponent->AuthAddHeroAction(NewActionDescriptor);
+		HeroActionComponent->AuthAddHeroAction(HeroActionClass);
 	}
 }
 
@@ -138,6 +137,7 @@ void APhantomCharacter::BeginPlay()
 		Weapon = GetWorld()->SpawnActor<AWeapon>(DefaultWeaponClass, ActorSpawnParameters);
 		Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName(TEXT("katana_r")));
 	}
+
 }
 
 void APhantomCharacter::Tick(float DeltaSeconds)

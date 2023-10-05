@@ -11,7 +11,9 @@ class UAnimMontage;
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayAnimationMontageCompletedDelegate);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayAnimationMontageBlendingOutDelegate);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayAnimationMontageInterruptedDelegate);
 
 /**
@@ -25,7 +27,7 @@ class PHANTOM_API UHeroActionJob_PlayMontage : public UHeroActionJob
 public:
 	UFUNCTION(BlueprintCallable, Category = "Action|Job",
 		meta = (DisplayName = "Play Animation Montage", HidePin = "HeroAction", DefaultToSelf = "HeroAction", BlueprintInternalUseOnly = "true"))
-	static UHeroActionJob_PlayMontage* CreateHeroActionJobPlayMontage(UHeroAction* HeroAction, USkeletalMeshComponent* SkeletalMesh, UAnimMontage* AnimMontage,
+	static UHeroActionJob_PlayMontage* CreateHeroActionJobPlayMontage(UHeroAction* HeroAction, UAnimMontage* AnimMontage,
 	                                                                  FName StartSection = NAME_None, float PlayRate = 1.0f, float StartTime = 0.0f);
 	virtual void Activate() override;
 	virtual void Cancel() override;
@@ -43,8 +45,8 @@ public:
 	FOnPlayAnimationMontageInterruptedDelegate OnInterrupted;
 
 private:
-	TWeakObjectPtr<USkeletalMeshComponent> SkeletalMesh;
-	TWeakObjectPtr<UAnimMontage> AnimMontage;
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> AnimMontage;
 	FName StartSection = NAME_None;
 	float PlayRate = 1.0f;
 	float StartTime = 0.0f;

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "HeroActionTypes.h"
+#include "Phantom/ReplicatedObject.h"
 #include "HeroAction.generated.h"
 
 
@@ -13,21 +14,36 @@
  * 
  */
 UCLASS(Blueprintable, BlueprintType)
-class PHANTOM_API UHeroAction : public UObject
+class PHANTOM_API UHeroAction : public UReplicatedObject
 {
 	GENERATED_BODY()
 public:
-	UFUNCTION(BlueprintNativeEvent)
-	bool CanTriggerHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
-	UFUNCTION(BlueprintNativeEvent)
-	void TriggerHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
-	UFUNCTION(BlueprintNativeEvent)
-	void CancelHeroAction(const FHeroActionActorInfo& HeroActionActorInfo);
-	
+	template <class T>
+	static T* NewHeroAction(AActor* ReplicationOwner, const UClass* Class, const FHeroActionActorInfo& HeroActionActorInfo)
+	{
+		T* MyObj = NewObject<T>(ReplicationOwner, Class);
+		MyObj->InitHeroAction(HeroActionActorInfo);
+		return MyObj;
+	}
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	
+	UFUNCTION(BlueprintNativeEvent)
+	bool CanTriggerHeroAction();
+	UFUNCTION(BlueprintNativeEvent)
+	void TriggerHeroAction();
+	UFUNCTION(BlueprintNativeEvent)
+	void CancelHeroAction();
+	
 	EHeroActionNetMethod GetHeroActionNetMethod() const { return HeroActionNetMethod; }
+	const FHeroActionActorInfo& GetHeroActionActorInfo() const { return HeroActionActorInfo; }
 
 private:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Replication", meta = (AllowPrivateAccess = "true"))
+	void InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo);
+	
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Replication")
 	EHeroActionNetMethod HeroActionNetMethod;
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Replication")
+	FHeroActionActorInfo HeroActionActorInfo;
 };

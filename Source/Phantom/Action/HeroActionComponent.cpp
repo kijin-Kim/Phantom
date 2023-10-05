@@ -3,6 +3,8 @@
 
 #include "HeroActionComponent.h"
 #include "HeroAction.h"
+#include "../../../../../../Program Files/Epic Games/UE_5.2/Engine/Plugins/Experimental/NNE/Source/ThirdParty/onnxruntime/Dependencies/gsl/gsl-lite.hpp"
+#include "Engine/ActorChannel.h"
 #include "Net/UnrealNetwork.h"
 #include "Phantom/Phantom.h"
 
@@ -14,14 +16,32 @@ UHeroActionComponent::UHeroActionComponent()
 	SetIsReplicatedByDefault(true);
 }
 
+bool UHeroActionComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags)
+{
+	bool bWroteSomething = Super::ReplicateSubobjects(Channel, Bunch, RepFlags);
+
+	for (UHeroAction* HeroAction : AvailableHeroActions)
+	{
+		if (IsValid(HeroAction))
+		{
+			bWroteSomething |= Channel->ReplicateSubobject(HeroAction, *Bunch, *RepFlags);
+		}
+	}
+
+	return bWroteSomething;
+}
+
 void UHeroActionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME_CONDITION(UHeroActionComponent, HeroActionDescriptors, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UHeroActionComponent, AvailableHeroActions, COND_OwnerOnly);
 }
 
 void UHeroActionComponent::InitializeHeroActionActorInfo(AActor* SourceActor)
 {
+	check(SourceActor);
+	check(GetOwner());
+	
 	HeroActionActorInfo.Owner = GetOwner();
 	HeroActionActorInfo.SourceActor = SourceActor;
 	APawn* SourceActorAsPawn = Cast<APawn>(SourceActor);
@@ -29,24 +49,78 @@ void UHeroActionComponent::InitializeHeroActionActorInfo(AActor* SourceActor)
 	{
 		HeroActionActorInfo.PlayerController = Cast<APlayerController>(SourceActorAsPawn->GetController());
 	}
+
+	HeroActionActorInfo.SkeletalMeshComponent = SourceActor->FindComponentByClass<USkeletalMeshComponent>();
 }
 
-bool UHeroActionComponent::CanTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID)
+bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction)
 {
-	UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction;
-	return HeroAction && HeroAction->CanTriggerHeroAction(HeroActionActorInfo);
+	return HeroAction && HeroAction->CanTriggerHeroAction();
 }
 
-void UHeroActionComponent::TryTriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID)
+void UHeroActionComponent::TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroActionClass)
 {
-	const FHeroActionDescriptor* HeroActionDescriptor = FindHeroActionDescriptor(HeroActionDescriptorID);
-	if(!ensure(HeroActionDescriptor))
+	UHeroAction* HeroAction = FindHeroActionByClass(HeroActionClass);
+	if (ensure(HeroAction))
 	{
-		UE_LOG(LogPhantom, Warning, TEXT("HeroAction을 소유하지 않아 실행할 수 없습니다."));
+		InternalTryTriggerHeroAction(HeroAction);
 		return;
 	}
 
-	const UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction;
+	UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroActionClass));
+}
+
+void UHeroActionComponent::AuthAddHeroAction(TSubclassOf<UHeroAction> HeroActionClass)
+{
+	if (!ensure(HeroActionClass))
+	{
+		return;
+	}
+
+	if (!HeroActionActorInfo.IsOwnerHasAuthority())
+	{
+		UE_LOG(LogPhantom, Warning, TEXT("HeroAction을 [%s]추가하는데 실패하였습니다. Authority가 없습니다."), *GetNameSafe(HeroActionClass));
+		return;
+	}
+
+	if (FindHeroActionByClass(HeroActionClass))
+	{
+		UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]을 추가하는데 실패하였습니다. 이미 같은 HeroAction이 존재합니다."), *GetNameSafe(HeroActionClass));
+		return;
+	}
+	
+	UHeroAction* Action = UHeroAction::NewHeroAction<UHeroAction>(GetOwner(), HeroActionClass, HeroActionActorInfo);
+	check(Action);
+	AvailableHeroActions.Add(Action);
+}
+
+bool UHeroActionComponent::PlayAnimationMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection,
+                                                          float PlayRate, float StartTime)
+{
+	if(AnimMontage)
+	{
+		if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
+		{
+			return AnimInstance->Montage_Play(AnimMontage, PlayRate, EMontagePlayReturnType::MontageLength, StartTime) > 0.0f;
+		}
+	}
+	return false;
+}
+
+UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
+{
+	for (UHeroAction* HeroAction : AvailableHeroActions)
+	{
+		if (HeroAction->GetClass() == HeroActionClass)
+		{
+			return HeroAction;
+		}
+	}
+	return nullptr;
+}
+
+void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
+{
 	check(HeroAction)
 
 	const bool bHasAuthority = HeroActionActorInfo.IsOwnerHasAuthority();
@@ -64,7 +138,7 @@ void UHeroActionComponent::TryTriggerHeroAction(FHeroActionDescriptorID HeroActi
 	if (!bHasAuthority && (NetMethod == EHeroActionNetMethod::ServerOnly || NetMethod == EHeroActionNetMethod::ServerOriginated))
 	{
 		// 서버에게 실행해달라고 부탁.
-		ServerTryTriggerHeroAction(HeroActionDescriptorID);
+		ServerTryTriggerHeroAction(HeroAction);
 		return;
 	}
 
@@ -74,10 +148,10 @@ void UHeroActionComponent::TryTriggerHeroAction(FHeroActionDescriptorID HeroActi
 		// Flush Server Moves
 		// Server Trigger
 		// Local Trigger
-		if (CanTriggerHeroAction(HeroActionDescriptorID))
+		if (CanTriggerHeroAction(HeroAction))
 		{
-			ServerTryTriggerHeroAction(HeroActionDescriptorID);
-			TriggerHeroAction(HeroActionDescriptorID);
+			ServerTryTriggerHeroAction(HeroAction);
+			TriggerHeroAction(HeroAction);
 		}
 		return;
 	}
@@ -86,9 +160,9 @@ void UHeroActionComponent::TryTriggerHeroAction(FHeroActionDescriptorID HeroActi
 		|| NetMethod == EHeroActionNetMethod::ServerOnly
 		|| (bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted))
 	{
-		if (CanTriggerHeroAction(HeroActionDescriptorID))
+		if (CanTriggerHeroAction(HeroAction))
 		{
-			TriggerHeroAction(HeroActionDescriptorID);
+			TriggerHeroAction(HeroAction);
 		}
 		return;
 	}
@@ -97,92 +171,41 @@ void UHeroActionComponent::TryTriggerHeroAction(FHeroActionDescriptorID HeroActi
 	{
 		// Client Trigger
 		// Local Trigger
-		if (CanTriggerHeroAction(HeroActionDescriptorID))
+		if (CanTriggerHeroAction(HeroAction))
 		{
-			ClientTriggerHeroAction(HeroActionDescriptorID);
-			TriggerHeroAction(HeroActionDescriptorID);
+			ClientTriggerHeroAction(HeroAction);
+			TriggerHeroAction(HeroAction);
 		}
 		return;
 	}
 }
 
-void UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
+void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)
 {
-	FHeroActionDescriptor* HeroActionDescriptor = FindHeroActionByClass(HeroActionClass);
-	if(ensure(HeroActionDescriptor))
+	if (ensure(HeroAction))
 	{
-		TryTriggerHeroAction(HeroActionDescriptor->HeroActionDescriptorID);		
+		HeroAction->TriggerHeroAction();
 	}
 }
 
-FHeroActionDescriptorID UHeroActionComponent::AuthAddHeroAction(const FHeroActionDescriptor& HeroActionDescriptor)
+void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction* HeroAction)
 {
-	if (!HeroActionActorInfo.IsOwnerHasAuthority())
+	if(!ensure(HeroAction))
 	{
-		return {};
-	}
-
-	if (!IsValid(HeroActionDescriptor.HeroAction))
-	{
-		return {};
+		return;
 	}
 	
-	if(FindHeroActionByClass(HeroActionDescriptor.HeroAction->StaticClass()))
+	if (CanTriggerHeroAction(HeroAction))
 	{
-		UE_LOG(LogPhantom, Warning, TEXT("이미 HeroAction이 존재합니다."))
-		return {};
-	}
-
-	HeroActionDescriptors.Add(HeroActionDescriptor);
-	return HeroActionDescriptor.HeroActionDescriptorID;
-}
-
-FHeroActionDescriptor* UHeroActionComponent::FindHeroActionDescriptor(FHeroActionDescriptorID ID)
-{
-	for (FHeroActionDescriptor& Descriptor : HeroActionDescriptors)
-	{
-		if (Descriptor.HeroActionDescriptorID == ID)
+		TriggerHeroAction(HeroAction);
+		if (HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
 		{
-			return &Descriptor;
-		}
-	}
-	return nullptr;
-}
-
-FHeroActionDescriptor* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
-{
-	for (FHeroActionDescriptor& Descriptor : HeroActionDescriptors)
-	{
-		if (Descriptor.HeroAction.IsA(HeroActionClass))
-		{
-			return &Descriptor;
-		}
-	}
-	return nullptr;
-}
-
-void UHeroActionComponent::TriggerHeroAction(FHeroActionDescriptorID HeroActionDescriptorID)
-{
-	if (UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction)
-	{
-		HeroAction->TriggerHeroAction(HeroActionActorInfo);
-	}
-}
-
-void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(FHeroActionDescriptorID HeroActionDescriptorID)
-{
-	if (CanTriggerHeroAction(HeroActionDescriptorID))
-	{
-		TriggerHeroAction(HeroActionDescriptorID);
-		const UHeroAction* HeroAction = FindHeroActionDescriptor(HeroActionDescriptorID)->HeroAction;
-		if (HeroAction && HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
-		{
-			ClientTriggerHeroAction(HeroActionDescriptorID);
+			ClientTriggerHeroAction(HeroAction);
 		}
 	}
 }
 
-void UHeroActionComponent::ClientTriggerHeroAction_Implementation(FHeroActionDescriptorID HeroActionDescriptorID)
+void UHeroActionComponent::ClientTriggerHeroAction_Implementation(UHeroAction* HeroAction)
 {
-	TriggerHeroAction(HeroActionDescriptorID);
+	TriggerHeroAction(HeroAction);
 }
