@@ -9,6 +9,7 @@
 #include "HeroAction.generated.h"
 
 
+DECLARE_MULTICAST_DELEGATE(FOnHeroActionEndSignature)
 
 /**
  * 
@@ -43,6 +44,10 @@ public:
 
 private:
 	void InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo);
+
+
+public:
+	FOnHeroActionEndSignature OnHeroActionEnd;
 	
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Replication")
@@ -52,7 +57,6 @@ protected:
 	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "ActorInfo")
 	FHeroActionActorInfo HeroActionActorInfo;
 
-	
 
 private:
 	bool bIsTriggering = false;

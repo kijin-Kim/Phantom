@@ -30,7 +30,7 @@ void UHeroActionJob_PlayMontage::Activate()
 	if(!HAC->PlayAnimationMontageReplicates(HeroAction.Get(), AnimMontage, StartSection, PlayRate, StartTime))
 	{
 		UE_LOG(LogPhantom, Warning, TEXT("Animation Montage [%s]를 실행하는데 실패하였습니다"), *GetNameSafe(AnimMontage))
-		return;
+		Cancel();
 	}
 	
 	const FHeroActionActorInfo& HeroActionActorInfo = HeroAction->GetHeroActionActorInfo();
@@ -46,12 +46,6 @@ void UHeroActionJob_PlayMontage::Activate()
 		OnMontageBlendingOutStarted.BindUObject(this, &UHeroActionJob_PlayMontage::OnMontageBlendingOutStarted);
 		AnimInstance->Montage_SetBlendingOutDelegate(OnMontageBlendingOutStarted, AnimMontage);
 	}
-}
-
-void UHeroActionJob_PlayMontage::Cancel()
-{
-	Super::Cancel();
-	UE_LOG(LogPhantom, Warning, TEXT("Cancel Called"));
 }
 
 void UHeroActionJob_PlayMontage::OnMontageEnded(UAnimMontage* InAnimMontage, bool bInterrupted)

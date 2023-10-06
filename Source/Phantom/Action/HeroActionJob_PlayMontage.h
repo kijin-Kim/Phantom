@@ -30,7 +30,6 @@ public:
 	static UHeroActionJob_PlayMontage* CreateHeroActionJobPlayMontage(UHeroAction* HeroAction, UAnimMontage* AnimMontage,
 	                                                                  FName StartSection = NAME_None, float PlayRate = 1.0f, float StartTime = 0.0f);
 	virtual void Activate() override;
-	virtual void Cancel() override;
 
 private:
 	void OnMontageEnded(UAnimMontage* InAnimMontage, bool bInterrupted);

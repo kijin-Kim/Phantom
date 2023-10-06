@@ -37,37 +37,52 @@ void UHeroActionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	DOREPLIFETIME_CONDITION(UHeroActionComponent, AvailableHeroActions, COND_OwnerOnly);
 }
 
+void UHeroActionComponent::OnUnregister()
+{
+	Super::OnUnregister();
+	for(UHeroAction* HeroAction : AvailableHeroActions)
+	{
+		HeroAction->EndHeroAction();
+	}
+
+	
+	if(HeroActionActorInfo.IsOwnerHasAuthority())
+	{
+		AvailableHeroActions.Empty();
+	}
+}
+
+void UHeroActionComponent::GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const
+{
+	TagContainer.Reset();
+	TagContainer.AppendTags(OwningTags);
+}
+
+void UHeroActionComponent::AddTag(const FGameplayTag& Tag)
+{
+	OwningTags.AddTag(Tag);
+}
+
+void UHeroActionComponent::RemoveTag(const FGameplayTag& Tag)
+{
+	OwningTags.RemoveTag(Tag);
+}
+
 void UHeroActionComponent::InitializeHeroActionActorInfo(AActor* SourceActor)
 {
 	check(SourceActor);
 	check(GetOwner());
-	
+
 	HeroActionActorInfo.Owner = GetOwner();
 	HeroActionActorInfo.SourceActor = SourceActor;
-	APawn* SourceActorAsPawn = Cast<APawn>(SourceActor);
+	HeroActionActorInfo.HeroActionComponent = this;
+	const APawn* SourceActorAsPawn = Cast<APawn>(SourceActor);
 	if (SourceActorAsPawn && SourceActorAsPawn->IsPlayerControlled())
 	{
 		HeroActionActorInfo.PlayerController = Cast<APlayerController>(SourceActorAsPawn->GetController());
 	}
 
 	HeroActionActorInfo.SkeletalMeshComponent = SourceActor->FindComponentByClass<USkeletalMeshComponent>();
-}
-
-bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction)
-{
-	return HeroAction && HeroAction->CanTriggerHeroAction();
-}
-
-void UHeroActionComponent::TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroActionClass)
-{
-	UHeroAction* HeroAction = FindHeroActionByClass(HeroActionClass);
-	if (ensure(HeroAction))
-	{
-		InternalTryTriggerHeroAction(HeroAction);
-		return;
-	}
-
-	UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroActionClass));
 }
 
 void UHeroActionComponent::AuthAddHeroAction(TSubclassOf<UHeroAction> HeroActionClass)
@@ -88,23 +103,27 @@ void UHeroActionComponent::AuthAddHeroAction(TSubclassOf<UHeroAction> HeroAction
 		UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]을 추가하는데 실패하였습니다. 이미 같은 HeroAction이 존재합니다."), *GetNameSafe(HeroActionClass));
 		return;
 	}
-	
+
 	UHeroAction* Action = UHeroAction::NewHeroAction<UHeroAction>(GetOwner(), HeroActionClass, HeroActionActorInfo);
 	check(Action);
 	AvailableHeroActions.Add(Action);
 }
 
-bool UHeroActionComponent::PlayAnimationMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection,
-                                                          float PlayRate, float StartTime)
+bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction)
 {
-	if(AnimMontage)
+	return HeroAction && HeroAction->CanTriggerHeroAction();
+}
+
+void UHeroActionComponent::TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroActionClass)
+{
+	UHeroAction* HeroAction = FindHeroActionByClass(HeroActionClass);
+	if (ensure(HeroAction))
 	{
-		if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
-		{
-			return AnimInstance->Montage_Play(AnimMontage, PlayRate, EMontagePlayReturnType::MontageLength, StartTime) > 0.0f;
-		}
+		InternalTryTriggerHeroAction(HeroAction);
+		return;
 	}
-	return false;
+
+	UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroActionClass));
 }
 
 UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
@@ -117,6 +136,19 @@ UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction
 		}
 	}
 	return nullptr;
+}
+
+bool UHeroActionComponent::PlayAnimationMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection,
+                                                          float PlayRate, float StartTime)
+{
+	if (AnimMontage)
+	{
+		if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
+		{
+			return AnimInstance->Montage_Play(AnimMontage, PlayRate, EMontagePlayReturnType::MontageLength, StartTime) > 0.0f;
+		}
+	}
+	return false;
 }
 
 void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
@@ -190,11 +222,11 @@ void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)
 
 void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction* HeroAction)
 {
-	if(!ensure(HeroAction))
+	if (!ensure(HeroAction))
 	{
 		return;
 	}
-	
+
 	if (CanTriggerHeroAction(HeroAction))
 	{
 		TriggerHeroAction(HeroAction);

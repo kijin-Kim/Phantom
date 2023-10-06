@@ -48,6 +48,10 @@ void UHeroAction::TriggerHeroAction()
 void UHeroAction::EndHeroAction()
 {
 	bIsTriggering = false;
+	if(OnHeroActionEnd.IsBound())
+	{
+		OnHeroActionEnd.Broadcast();
+	}
 }
 
 void UHeroAction::InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo)

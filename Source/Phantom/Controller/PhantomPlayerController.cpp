@@ -95,7 +95,7 @@ void APhantomPlayerController::SetupInputComponent()
 	// Sprinting
 	EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnSprintButtonPressed);
 	// Dodging
-	EnhancedInputComponent->BindAction(DodgeAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnDodgeButtonPressed);
+	//EnhancedInputComponent->BindAction(DodgeAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnDodgeButtonPressed);
 
 	// Stealthing
 	EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Started, this, &APhantomPlayerController::OnStealthButtonPressed);

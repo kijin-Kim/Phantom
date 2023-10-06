@@ -29,6 +29,7 @@ public:
 	}
 	
 	virtual bool ShouldBroadcastDelegates() const override;
+	virtual void SetReadyToDestroy() override;
 	
 private:
 	void InitHeroActionJob(UHeroAction* InHeroAction);
@@ -36,4 +37,7 @@ private:
 protected:
 	TWeakObjectPtr<UHeroAction> HeroAction;
 	TWeakObjectPtr<UHeroActionComponent> HeroActionComponent;
+
+private:
+	FDelegateHandle HeroActionEndDelegateHandle;
 };

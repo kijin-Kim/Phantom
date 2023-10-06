@@ -13,6 +13,7 @@
 #include "Phantom/Controller/PhantomPlayerController.h"
 #include "Phantom/Enemy/Enemy.h"
 #include "Engine/Canvas.h"
+#include "Phantom/PhantomGameplayTags.h"
 #include "Phantom/Weapon/Weapon.h"
 #include "Phantom/Action/HeroActionComponent.h"
 
@@ -155,15 +156,28 @@ void APhantomCharacter::Tick(float DeltaSeconds)
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
-	// Capsule크기가 작아지면서 Capsule에 부착된 SpringArm, Camera가 같이 내려가는것을 원래 위치를 유지하도록 보정함.
-	CameraBoom->TargetOffset.Z += ScaledHalfHeightAdjust;
+
+	GetHeroActionComponent()->AddTag(PhantomGameplayTags::Character_Locomotion_Crouched);
+
+	if(IsLocallyControlled())
+	{
+		// Capsule크기가 작아지면서 Capsule에 부착된 SpringArm, Camera가 같이 내려가는것을 원래 위치를 유지하도록 보정함.
+		CameraBoom->TargetOffset.Z += ScaledHalfHeightAdjust;	
+	}
+	
 }
 
 void APhantomCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
-	// Capsule크기가 작아지면서 Capsule에 부착된 SpringArm, Camera가 같이 내려가는것을 원래 위치를 유지하도록 보정함.
-	CameraBoom->TargetOffset.Z -= ScaledHalfHeightAdjust;
+
+	GetHeroActionComponent()->RemoveTag(PhantomGameplayTags::Character_Locomotion_Crouched);
+	
+	if(IsLocallyControlled())
+	{
+		// Capsule크기가 작아지면서 Capsule에 부착된 SpringArm, Camera가 같이 내려가는것을 원래 위치를 유지하도록 보정함.
+		CameraBoom->TargetOffset.Z -= ScaledHalfHeightAdjust;	
+	}
 }
 
 void APhantomCharacter::Look(const FInputActionValue& Value)
