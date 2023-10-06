@@ -3,6 +3,7 @@
 
 // This Types are mostly impressed by GAS
 
+class UCharacterMovementComponent;
 class UHeroActionComponent;
 class UHeroAction;
 class APlayerController;
@@ -50,6 +51,8 @@ struct PHANTOM_API FHeroActionActorInfo
 	TWeakObjectPtr<APlayerController> PlayerController;
 	UPROPERTY(BlueprintReadOnly)
 	TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
+	UPROPERTY(BlueprintReadOnly)
+	TWeakObjectPtr<UCharacterMovementComponent> CharacterMovementComponent;
 	
 	UAnimInstance* GetAnimInstance() const;
 	bool IsSourceLocallyControlled() const;

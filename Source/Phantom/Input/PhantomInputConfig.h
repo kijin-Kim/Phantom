@@ -3,12 +3,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Engine/DataAsset.h"
 #include "PhantomInputConfig.generated.h"
 
 
+class UInputMappingContext;
 class UHeroAction;
 class UInputAction;
+
+USTRUCT(BlueprintType)
+struct FHeroActionData
+{
+	GENERATED_BODY()
+	UPROPERTY(EditDefaultsOnly, meta = (InlineEditConditionToggle))
+	bool bWantsToBind;
+	UPROPERTY(EditDefaultsOnly, meta = (EditCondition = "bWantsToBind"))
+	TSubclassOf<UHeroAction> HeroActionClass;
+};
 
 USTRUCT(BlueprintType)
 struct FInputHeroActionBinding
@@ -18,7 +30,7 @@ struct FInputHeroActionBinding
 	UPROPERTY(EditDefaultsOnly)
 	UInputAction* InputAction;
 	UPROPERTY(EditDefaultsOnly)
-	TSubclassOf<UHeroAction> HeroActionClass;
+	FHeroActionData HeroActionData;
 };
 
 

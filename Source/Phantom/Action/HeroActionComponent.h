@@ -13,6 +13,7 @@ class UHeroAction;
 
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTagMovedSignature, const FGameplayTag& /*Tag*/, bool /*bIsAdded*/);
+DECLARE_MULTICAST_DELEGATE(FOnInputActionTriggeredSignature);
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -44,6 +45,7 @@ public:
 	void AuthAddHeroAction(TSubclassOf<UHeroAction> HeroActionClass);
 	bool CanTriggerHeroAction(UHeroAction* HeroAction);
 	void TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroActionClass);
+	void HandleInputActionTriggered(UInputAction* InputAction);
 	UHeroAction* FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	
 	
@@ -51,6 +53,7 @@ public:
 	                                    float PlayRate = 1.0f, float StartTime = 0.0f);
 
 	FOnTagMovedSignature& GetOnTagMovedDelegate(const FGameplayTag& Tag);
+	FOnInputActionTriggeredSignature& GetOnInputActionTriggeredDelegate(UInputAction* InputAction);
 	
 protected:
 	void InternalTryTriggerHeroAction(UHeroAction* HeroAction);
@@ -71,4 +74,5 @@ protected:
 
 private:
 	TMap<FGameplayTag, FOnTagMovedSignature> OnTagMovedDelegates;
+	TMap<UInputAction*, FOnInputActionTriggeredSignature> OnInputActionTriggeredDelegates;
 };

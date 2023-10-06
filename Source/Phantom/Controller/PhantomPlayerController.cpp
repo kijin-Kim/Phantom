@@ -5,6 +5,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
+#include "InputMappingContext.h"
 #include "Algo/Accumulate.h"
 #include "Engine/Canvas.h"
 #include "Phantom/Action/HeroActionComponent.h"
@@ -71,11 +72,14 @@ void APhantomPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
-	if (Subsystem)
+	if (IsLocalController())
 	{
-		Subsystem->AddMappingContext(NormalMovementMappingContext, 1);
-		Subsystem->AddMappingContext(CombatMappingContext, 0);
+		UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+		if(Subsystem)
+		{
+			Subsystem->AddMappingContext(NormalMovementMappingContext, 1);
+			Subsystem->AddMappingContext(CombatMappingContext, 0);
+		}
 	}
 }
 
@@ -90,10 +94,10 @@ void APhantomPlayerController::SetupInputComponent()
 	// Looking
 	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnLook);
 	// Running
-	EnhancedInputComponent->BindAction(StartRunAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnRunButtonPressed);
-	EnhancedInputComponent->BindAction(EndRunAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnRunButtonReleased);
+	//EnhancedInputComponent->BindAction(StartRunAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnRunButtonPressed);
+	//EnhancedInputComponent->BindAction(EndRunAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnRunButtonReleased);
 	// Sprinting
-	EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnSprintButtonPressed);
+	//EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnSprintButtonPressed);
 	// Dodging
 	//EnhancedInputComponent->BindAction(DodgeAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnDodgeButtonPressed);
 
@@ -109,10 +113,11 @@ void APhantomPlayerController::SetupInputComponent()
 	// 누르고 땟을때 Trigger
 	// 
 	ensure(PhantomInputConfig);
-	for (auto [InputAction, HeroActionClass] : PhantomInputConfig->InputHeroActionBinding)
+	for (auto& [InputAction, HeroActionData] : PhantomInputConfig->InputHeroActionBinding)
 	{
-		EnhancedInputComponent->BindAction(InputAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnHeroActionInputEvent, HeroActionClass);
+		EnhancedInputComponent->BindAction(InputAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnHeroActionInputEvent, HeroActionData.HeroActionClass, InputAction);
 	}
+	
 }
 
 void APhantomPlayerController::OnMove(const FInputActionValue& Value)
@@ -169,7 +174,7 @@ void APhantomPlayerController::OnAttackButtonPressed()
 		PhantomCharacter->Attack();
 }
 
-void APhantomPlayerController::OnHeroActionInputEvent(TSubclassOf<UHeroAction> HeroActionClass)
+void APhantomPlayerController::OnHeroActionInputEvent(TSubclassOf<UHeroAction> HeroActionClass, UInputAction* InputAction)
 {
 	IHeroActionInterface* HeroActionInterface = GetPawn<IHeroActionInterface>();
 	check(HeroActionInterface);
@@ -177,8 +182,10 @@ void APhantomPlayerController::OnHeroActionInputEvent(TSubclassOf<UHeroAction> H
 	if (ensure(HeroActionComponent))
 	{
 		HeroActionComponent->TryTriggerHeroAction(HeroActionClass);
+		HeroActionComponent->HandleInputActionTriggered(InputAction);
 	}
 }
+
 
 void APhantomPlayerController::ClientUpdateRandomSeed_Implementation(int32 RandomSeed)
 {

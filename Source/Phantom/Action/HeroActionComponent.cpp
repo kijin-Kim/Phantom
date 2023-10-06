@@ -5,6 +5,7 @@
 #include "HeroAction.h"
 #include "../../../../../../Program Files/Epic Games/UE_5.2/Engine/Plugins/Experimental/NNE/Source/ThirdParty/onnxruntime/Dependencies/gsl/gsl-lite.hpp"
 #include "Engine/ActorChannel.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Phantom/Phantom.h"
 
@@ -103,6 +104,7 @@ void UHeroActionComponent::InitializeHeroActionActorInfo(AActor* SourceActor)
 	}
 
 	HeroActionActorInfo.SkeletalMeshComponent = SourceActor->FindComponentByClass<USkeletalMeshComponent>();
+	HeroActionActorInfo.CharacterMovementComponent = SourceActor->FindComponentByClass<UCharacterMovementComponent>();
 }
 
 void UHeroActionComponent::AuthAddHeroAction(TSubclassOf<UHeroAction> HeroActionClass)
@@ -136,14 +138,23 @@ bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction)
 
 void UHeroActionComponent::TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroActionClass)
 {
-	UHeroAction* HeroAction = FindHeroActionByClass(HeroActionClass);
-	if (ensure(HeroAction))
+	if (UHeroAction* HeroAction = FindHeroActionByClass(HeroActionClass))
 	{
 		InternalTryTriggerHeroAction(HeroAction);
 		return;
 	}
 
 	UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroActionClass));
+}
+
+void UHeroActionComponent::HandleInputActionTriggered(UInputAction* InputAction)
+{
+	check(InputAction);
+	FOnInputActionTriggeredSignature& OnInputActionTriggered = GetOnInputActionTriggeredDelegate(InputAction);
+	if (OnInputActionTriggered.IsBound())
+	{
+		OnInputActionTriggered.Broadcast();
+	}
 }
 
 UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
@@ -176,6 +187,11 @@ FOnTagMovedSignature& UHeroActionComponent::GetOnTagMovedDelegate(const FGamepla
 	return OnTagMovedDelegates.FindOrAdd(Tag);
 }
 
+FOnInputActionTriggeredSignature& UHeroActionComponent::GetOnInputActionTriggeredDelegate(UInputAction* InputAction)
+{
+	return OnInputActionTriggeredDelegates.FindOrAdd(InputAction);
+}
+
 void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 {
 	check(HeroAction)
@@ -198,7 +214,6 @@ void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		ServerTryTriggerHeroAction(HeroAction);
 		return;
 	}
-
 
 	if (!bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted)
 	{

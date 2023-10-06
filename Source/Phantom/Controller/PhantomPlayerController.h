@@ -46,8 +46,7 @@ private:
 	void OnStealthButtonPressed();
 	void OnStealthButtonReleased();
 	void OnAttackButtonPressed();
-	void OnHeroActionInputEvent(TSubclassOf<UHeroAction> HeroActionClass);
-
+	void OnHeroActionInputEvent(TSubclassOf<UHeroAction> HeroActionClass, UInputAction* InputAction);
 
 	UFUNCTION(Client, Reliable)
 	void ClientUpdateRandomSeed(int32 NewRandomSeed);
@@ -91,7 +90,6 @@ private:
 	TObjectPtr<UInputMappingContext> NormalMovementMappingContext;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputMappingContext> CombatMappingContext;
-
 	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float ServerTimeDeltaOnClient;
 	UPROPERTY(Transient, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))

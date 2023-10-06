@@ -19,13 +19,19 @@ namespace PhantomGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_HitReact);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Dead);
 	
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_BeginStealth);
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_EndStealth);
-
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement_Walking);
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement_Running);
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Movement_Sprinting);
-
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_BeginStealth_End);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Run_Enter);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Run_Leave);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Sprint);
 	
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Stealth_Enter);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Stealth_Leave);
+	
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Walking);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Running);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Sprinting);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Stealth);
+
+
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_MappingContext_NormalMovement);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_MappingContext_Combat);
 }

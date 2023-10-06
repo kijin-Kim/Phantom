@@ -14,13 +14,20 @@ namespace PhantomGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Execute, "HeroAction.Execute");
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_HitReact, "HeroAction.HitReact");
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Dead, "HeroAction.Dead");
-
-	UE_DEFINE_GAMEPLAY_TAG(HeroAction_BeginStealth, "HeroAction.BeginStealth");
-	UE_DEFINE_GAMEPLAY_TAG(HeroAction_EndStealth, "HeroAction.EndStealth");
-
-	UE_DEFINE_GAMEPLAY_TAG(Movement_Walking, "Movement.Walking");
-	UE_DEFINE_GAMEPLAY_TAG(Movement_Running, "Movement.Running");
-	UE_DEFINE_GAMEPLAY_TAG(Movement_Sprinting, "Movement.Sprinting");
 	
-	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_BeginStealth_End, "Event.HeroAction.BeginStealth.End");
+	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Run_Enter, "HeroAction.Run.Enter");
+	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Run_Leave, "HeroAction.Run.Leave");
+	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Sprint, "HeroAction.Sprint");
+	
+	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Stealth_Enter, "HeroAction.Stealth.Enter");
+	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Stealth_Leave, "HeroAction.Stealth.Leave");
+	
+	UE_DEFINE_GAMEPLAY_TAG(State_Walking, "State.Walking");
+	UE_DEFINE_GAMEPLAY_TAG(State_Running, "State.Running");
+	UE_DEFINE_GAMEPLAY_TAG(State_Sprinting, "State.Sprinting");
+	UE_DEFINE_GAMEPLAY_TAG(State_Stealth, "State.Stealth");
+
+	
+	UE_DEFINE_GAMEPLAY_TAG(Input_MappingContext_NormalMovement, "Input.MappingContext.NormalMovement");
+	UE_DEFINE_GAMEPLAY_TAG(Input_MappingContext_Combat, "Input.MappingContext.Combat");
 }
