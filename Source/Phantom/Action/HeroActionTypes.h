@@ -29,7 +29,6 @@ enum class EHeroActionRetriggeringMethod
 	Block UMETA(DisplayName = "Block"),
 	// Retrigger시 Cancel
 	Cancel UMETA(DisplayName = "Cancel"),
-	Retrigger UMETA(DisplayName = "Retrigger"),
 	// Retrigger시 Cancel후 Retrigger
 	CancelAndRetrigger UMETA(DisplayName = "Cancel And Retrigger"),
 	Max UMETA(hidden)

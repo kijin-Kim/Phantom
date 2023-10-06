@@ -98,13 +98,16 @@ void APhantomPlayerController::SetupInputComponent()
 	//EnhancedInputComponent->BindAction(DodgeAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnDodgeButtonPressed);
 
 	// Stealthing
-	EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Started, this, &APhantomPlayerController::OnStealthButtonPressed);
-	EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Completed, this, &APhantomPlayerController::OnStealthButtonReleased);
+	//EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Started, this, &APhantomPlayerController::OnStealthButtonPressed);
+	//EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Completed, this, &APhantomPlayerController::OnStealthButtonReleased);
 
 	// Attacking
 	//EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnAttackButtonPressed);
 
-
+	// 눌렀을때 트리거
+	// 땟을때 EndAction
+	// 누르고 땟을때 Trigger
+	// 
 	ensure(PhantomInputConfig);
 	for (auto [InputAction, HeroActionClass] : PhantomInputConfig->InputHeroActionBinding)
 	{

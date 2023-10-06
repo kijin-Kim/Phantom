@@ -156,9 +156,6 @@ void APhantomCharacter::Tick(float DeltaSeconds)
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
-
-	GetHeroActionComponent()->AddTag(PhantomGameplayTags::Character_Locomotion_Crouched);
-
 	if(IsLocallyControlled())
 	{
 		// Capsule크기가 작아지면서 Capsule에 부착된 SpringArm, Camera가 같이 내려가는것을 원래 위치를 유지하도록 보정함.
@@ -170,9 +167,6 @@ void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHe
 void APhantomCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
-
-	GetHeroActionComponent()->RemoveTag(PhantomGameplayTags::Character_Locomotion_Crouched);
-	
 	if(IsLocallyControlled())
 	{
 		// Capsule크기가 작아지면서 Capsule에 부착된 SpringArm, Camera가 같이 내려가는것을 원래 위치를 유지하도록 보정함.
@@ -264,11 +258,6 @@ void APhantomCharacter::Attack()
 		// 문제 Client는 Attack이후에 Attack이 인정되면 다음 Combo를 수행하는데 다음 어택의 클라이언트에서의
 		// 수행시간안에 Attack에 대한 인정 메시지가 안오면 Attack Combo를 이어나갈수가 없음.
 	}
-}
-
-bool APhantomCharacter::CanCrouch() const
-{
-	return Super::CanCrouch() && CharacterActionState != ECharacterActionState::Dodge;
 }
 
 float APhantomCharacter::PlayAnimMontage(UAnimMontage* AnimMontage, float InPlayRate, FName StartSectionName)

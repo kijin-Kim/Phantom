@@ -28,6 +28,6 @@ void UHeroActionJob::InitHeroActionJob(UHeroAction* InHeroAction)
 	{
 		HeroActionComponent = UPhantomBlueprintLibrary::GetHeroActionComponent(HeroActionActorInfo.SourceActor.Get());
 	}
-
+	
 	HeroActionEndDelegateHandle = InHeroAction->OnHeroActionEnd.AddUObject(this, &UCancellableAsyncAction::Cancel);
 }

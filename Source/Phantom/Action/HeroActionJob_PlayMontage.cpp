@@ -6,7 +6,8 @@
 #include "HeroAction.h"
 #include "Phantom/Phantom.h"
 
-UHeroActionJob_PlayMontage* UHeroActionJob_PlayMontage::CreateHeroActionJobPlayMontage(UHeroAction* InHeroAction, UAnimMontage* InAnimMontage, FName InStartSection, float InPlayRate, float InStartTime)
+UHeroActionJob_PlayMontage* UHeroActionJob_PlayMontage::CreateHeroActionJobPlayMontage(UHeroAction* InHeroAction, UAnimMontage* InAnimMontage, FName InStartSection,
+                                                                                       float InPlayRate, float InStartTime)
 {
 	if (!InAnimMontage)
 	{
@@ -27,24 +28,42 @@ void UHeroActionJob_PlayMontage::Activate()
 	check(HeroAction.IsValid() && HeroActionComponent.IsValid());
 
 	UHeroActionComponent* HAC = HeroActionComponent.Get();
-	if(!HAC->PlayAnimationMontageReplicates(HeroAction.Get(), AnimMontage, StartSection, PlayRate, StartTime))
+	if (!HAC->PlayAnimationMontageReplicates(HeroAction.Get(), AnimMontage, StartSection, PlayRate, StartTime))
 	{
 		UE_LOG(LogPhantom, Warning, TEXT("Animation Montage [%s]를 실행하는데 실패하였습니다"), *GetNameSafe(AnimMontage))
 		Cancel();
 	}
-	
+
 	const FHeroActionActorInfo& HeroActionActorInfo = HeroAction->GetHeroActionActorInfo();
 	if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
 	{
-		AnimInstance->Montage_Play(AnimMontage, PlayRate, EMontagePlayReturnType::MontageLength, StartTime);
+		FOnMontageEnded MontageEndedDelegate;
+		MontageEndedDelegate.BindUObject(this, &UHeroActionJob_PlayMontage::OnMontageEnded);
+		AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, AnimMontage);
+		
+		FOnMontageBlendingOutStarted MontageBlendingOutStartedDelegate;
+		MontageBlendingOutStartedDelegate.BindUObject(this, &UHeroActionJob_PlayMontage::OnMontageBlendingOutStarted);
+		AnimInstance->Montage_SetBlendingOutDelegate(MontageBlendingOutStartedDelegate, AnimMontage);
+	}
+}
 
-		FOnMontageEnded OnMontageEnded;
-		OnMontageEnded.BindUObject(this, &UHeroActionJob_PlayMontage::OnMontageEnded);
-		AnimInstance->Montage_SetEndDelegate(OnMontageEnded, AnimMontage);
+void UHeroActionJob_PlayMontage::SetReadyToDestroy()
+{
+	Super::SetReadyToDestroy();
+	
+	if (HeroAction.IsValid())
+	{
+		const FHeroActionActorInfo& HeroActionActorInfo = HeroAction->GetHeroActionActorInfo();
+		if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
+		{
+			// Delegate Unbind합니다.
+			FOnMontageEnded MontageEndedDelegate;
+			AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, AnimMontage);
+			FOnMontageBlendingOutStarted MontageBlendingOutStartedDelegate;
+			AnimInstance->Montage_SetBlendingOutDelegate(MontageBlendingOutStartedDelegate, AnimMontage);
 
-		FOnMontageBlendingOutStarted OnMontageBlendingOutStarted;
-		OnMontageBlendingOutStarted.BindUObject(this, &UHeroActionJob_PlayMontage::OnMontageBlendingOutStarted);
-		AnimInstance->Montage_SetBlendingOutDelegate(OnMontageBlendingOutStarted, AnimMontage);
+			AnimInstance->Montage_Stop(0.0f, AnimMontage);
+		}
 	}
 }
 

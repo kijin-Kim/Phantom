@@ -30,7 +30,7 @@ public:
 	static UHeroActionJob_PlayMontage* CreateHeroActionJobPlayMontage(UHeroAction* HeroAction, UAnimMontage* AnimMontage,
 	                                                                  FName StartSection = NAME_None, float PlayRate = 1.0f, float StartTime = 0.0f);
 	virtual void Activate() override;
-
+	virtual void SetReadyToDestroy() override;
 private:
 	void OnMontageEnded(UAnimMontage* InAnimMontage, bool bInterrupted);
 	void OnMontageBlendingOutStarted(UAnimMontage* InAnimMontage, bool bInterrupted);
@@ -49,4 +49,7 @@ private:
 	FName StartSection = NAME_None;
 	float PlayRate = 1.0f;
 	float StartTime = 0.0f;
+
+
+
 };

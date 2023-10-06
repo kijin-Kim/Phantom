@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "UObject/Object.h"
 #include "HeroActionTypes.h"
 #include "Phantom/ReplicatedObject.h"
@@ -28,7 +29,6 @@ public:
 	}
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
 	virtual bool CanTriggerHeroAction() const;
 	virtual void TriggerHeroAction();
 	UFUNCTION(BlueprintCallable, Category = "Hero Action")
@@ -44,6 +44,8 @@ public:
 
 private:
 	void InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo);
+	void HandleTagOnTrigger();
+	void HandleTagOnEnd();
 
 
 public:
@@ -54,8 +56,26 @@ protected:
 	EHeroActionNetMethod HeroActionNetMethod;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Triggering")
 	EHeroActionRetriggeringMethod HeroActionRetriggeringMethod;
-	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "ActorInfo")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "ActorInfo")
 	FHeroActionActorInfo HeroActionActorInfo;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameplayTag|Condition")
+	FGameplayTagContainer RequiredTags;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameplayTag|Condition")
+	FGameplayTagContainer BlockedTags;
+
+
+	// Trigger-End사이에 부여되는 Tag. Remove시 EndAction이 불림.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameplayTag|Triggered")
+	FGameplayTag LifeTag;
+	FDelegateHandle LifeTagRemovalDelegateHandle;
+	// Trigger시 Remove하는 Tag.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameplayTag|Triggered")
+	FGameplayTagContainer ConsumeTags;
+
+	// End시 부여되는 Tag (영구).
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameplayTag|End")
+	FGameplayTagContainer FarewellTags;
 
 
 private:

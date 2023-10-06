@@ -40,13 +40,13 @@ void UHeroActionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 void UHeroActionComponent::OnUnregister()
 {
 	Super::OnUnregister();
-	for(UHeroAction* HeroAction : AvailableHeroActions)
+	for (UHeroAction* HeroAction : AvailableHeroActions)
 	{
 		HeroAction->EndHeroAction();
 	}
 
-	
-	if(HeroActionActorInfo.IsOwnerHasAuthority())
+
+	if (HeroActionActorInfo.IsOwnerHasAuthority())
 	{
 		AvailableHeroActions.Empty();
 	}
@@ -61,11 +61,31 @@ void UHeroActionComponent::GetOwnedGameplayTags(FGameplayTagContainer& TagContai
 void UHeroActionComponent::AddTag(const FGameplayTag& Tag)
 {
 	OwningTags.AddTag(Tag);
+	BroadcastTagMoved(Tag, true);
+}
+
+void UHeroActionComponent::AppendTags(const FGameplayTagContainer& GameplayTagContainer)
+{
+	OwningTags.AppendTags(GameplayTagContainer);
+	for (const FGameplayTag& Tag : GameplayTagContainer)
+	{
+		BroadcastTagMoved(Tag, true);
+	}
 }
 
 void UHeroActionComponent::RemoveTag(const FGameplayTag& Tag)
 {
 	OwningTags.RemoveTag(Tag);
+	BroadcastTagMoved(Tag, false);
+}
+
+void UHeroActionComponent::RemoveTags(const FGameplayTagContainer& GameplayTagContainer)
+{
+	OwningTags.RemoveTags(GameplayTagContainer);
+	for (const FGameplayTag& Tag : GameplayTagContainer)
+	{
+		BroadcastTagMoved(Tag, false);
+	}
 }
 
 void UHeroActionComponent::InitializeHeroActionActorInfo(AActor* SourceActor)
@@ -151,6 +171,11 @@ bool UHeroActionComponent::PlayAnimationMontageReplicates(UHeroAction* HeroActio
 	return false;
 }
 
+FOnTagMovedSignature& UHeroActionComponent::GetOnTagMovedDelegate(const FGameplayTag& Tag)
+{
+	return OnTagMovedDelegates.FindOrAdd(Tag);
+}
+
 void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 {
 	check(HeroAction)
@@ -217,6 +242,15 @@ void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)
 	if (ensure(HeroAction))
 	{
 		HeroAction->TriggerHeroAction();
+	}
+}
+
+void UHeroActionComponent::BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded)
+{
+	const FOnTagMovedSignature& OnTagMoved = GetOnTagMovedDelegate(Tag);
+	if (OnTagMoved.IsBound())
+	{
+		OnTagMoved.Broadcast(Tag, bIsAdded);
 	}
 }
 
