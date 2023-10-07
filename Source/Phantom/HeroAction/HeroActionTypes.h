@@ -1,4 +1,5 @@
 #pragma once
+#include "GameplayTagContainer.h"
 #include "HeroActionTypes.generated.h"
 
 // This Types are mostly impressed by GAS
@@ -57,4 +58,16 @@ struct PHANTOM_API FHeroActionActorInfo
 	UAnimInstance* GetAnimInstance() const;
 	bool IsSourceLocallyControlled() const;
 	bool IsOwnerHasAuthority() const;
+};
+
+
+USTRUCT(BlueprintType)
+struct PHANTOM_API FHeroActionEventData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
+	TObjectPtr<AActor> EventInstigator;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
+	TObjectPtr<AActor> EventTarget;
 };

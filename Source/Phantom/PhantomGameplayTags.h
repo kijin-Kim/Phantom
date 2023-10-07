@@ -22,4 +22,6 @@ namespace PhantomGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Run);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Sprint);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Stealth);
+	
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Run_Trigger);
 }

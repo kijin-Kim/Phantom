@@ -3,7 +3,7 @@
 
 #include "PhantomBlueprintLibrary.h"
 
-#include "Action/HeroActionInterface.h"
+#include "HeroAction/HeroActionInterface.h"
 
 UHeroActionComponent* UPhantomBlueprintLibrary::GetHeroActionComponent(AActor* Actor)
 {

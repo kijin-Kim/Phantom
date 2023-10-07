@@ -2,7 +2,7 @@
 
 
 #include "PhantomCharacterBase.h"
-#include "Phantom/Action/HeroActionComponent.h"
+#include "Phantom/HeroAction/HeroActionComponent.h"
 
 
 // Sets default values

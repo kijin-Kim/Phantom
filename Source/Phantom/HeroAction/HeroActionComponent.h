@@ -14,9 +14,10 @@ class UHeroAction;
 class UReplicatedObject;
 
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTagMovedSignature, const FGameplayTag& /*Tag*/, bool /*bIsAdded*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHeroActionTagMovedSignature, const FGameplayTag& /*Tag*/, bool /*bIsAdded*/);
 DECLARE_MULTICAST_DELEGATE(FOnInputActionTriggeredSignature);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputActionTriggeredReplicatedSignature, bool);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHeroActionEventSignature, const FHeroActionEventData& /*EventData*/);
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -38,16 +39,23 @@ public:
 	// IGameplayTagAssetInterface
 	// ----------------------------------------------------
 	virtual void GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const override;
-	void AddTag(const FGameplayTag& Tag);
+
+
+	UFUNCTION(BlueprintCallable, Category = "HeroAction|Tag")
+	void AddTag(FGameplayTag Tag);
+	UFUNCTION(BlueprintCallable, Category = "HeroAction|Tag")
 	void AppendTags(const FGameplayTagContainer& GameplayTagContainer);
-	void RemoveTag(const FGameplayTag& Tag);
+	UFUNCTION(BlueprintCallable, Category = "HeroAction|Tag")
+	void RemoveTag(FGameplayTag Tag);
+	UFUNCTION(BlueprintCallable, Category = "HeroAction|Tag")
 	void RemoveTags(const FGameplayTagContainer& GameplayTagContainer);
 
 	
 	void InitializeHeroActionActorInfo(AActor* SourceActor);
-	void AuthAddHeroAction(TSubclassOf<UHeroAction> HeroActionClass);
+	void AuthAddHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	bool CanTriggerHeroAction(UHeroAction* HeroAction);
-	void TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroActionClass);
+	void TryTriggerHeroAction(UHeroAction* HeroAction);
+	void TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	UHeroAction* FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	
 	
@@ -84,8 +92,10 @@ public:
     FOnInputActionTriggeredReplicatedSignature& GetOnInputActionTriggeredReplicatedDelegate(UInputAction* InputAction);
 
 	
-	FOnTagMovedSignature& GetOnTagMovedDelegate(const FGameplayTag& Tag);
-
+	void  BroadcastHeroActionEventDelegate(const FGameplayTag& Tag, const FHeroActionEventData& Data);
+	FOnHeroActionTagMovedSignature& GetOnTagMovedDelegate(const FGameplayTag& Tag);
+	FOnHeroActionEventSignature& GetOnHeroActionEventDelegate(const FGameplayTag& Tag);
+	
 
 protected:
 	void InternalTryTriggerHeroAction(UHeroAction* HeroAction);
@@ -107,7 +117,9 @@ protected:
 
 private:
 	// Tag가 추가/삭제 될 때, 호출하는 Delegates
-	TMap<FGameplayTag, FOnTagMovedSignature> OnTagMovedDelegates;
+	TMap<FGameplayTag, FOnHeroActionTagMovedSignature> OnTagMovedDelegates;
+	// Dispatch Event함수에 의하여 호출되는 Delegates
+	TMap<FGameplayTag, FOnHeroActionEventSignature> OnHeroActionEventDelegates;
 	// Autonomous Proxy에서 InputAction이 Trigger되면 호출하는 Delegates 
 	TMap<UInputAction*, FOnInputActionTriggeredSignature> OnInputActionTriggeredDelegates;
 	/* Non-Authoritative Autonomous Proxy에서 호출되는 Delegates. 서버로부터 Client RPC를 통해 InputActionTriggered에 대한 결과를 받음.

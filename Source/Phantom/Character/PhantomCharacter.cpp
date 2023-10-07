@@ -15,7 +15,7 @@
 #include "Engine/Canvas.h"
 #include "Phantom/PhantomGameplayTags.h"
 #include "Phantom/Weapon/Weapon.h"
-#include "Phantom/Action/HeroActionComponent.h"
+#include "Phantom/HeroAction/HeroActionComponent.h"
 
 
 APhantomCharacter::APhantomCharacter()
@@ -116,7 +116,7 @@ void APhantomCharacter::PossessedBy(AController* NewController)
 	HeroActionComponent->InitializeHeroActionActorInfo(this);
 	for (const TSubclassOf<UHeroAction> HeroActionClass : StartupActionClasses)
 	{
-		HeroActionComponent->AuthAddHeroAction(HeroActionClass);
+		HeroActionComponent->AuthAddHeroActionByClass(HeroActionClass);
 	}
 }
 

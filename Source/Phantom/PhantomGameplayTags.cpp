@@ -20,4 +20,5 @@ namespace PhantomGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Stealth, "HeroAction.Stealth");
 	
 
+	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Run_Trigger, "Event.HeroAction.Run.Trigger");
 }

@@ -57,7 +57,7 @@ void UHeroActionComponent::GetOwnedGameplayTags(FGameplayTagContainer& TagContai
 	TagContainer.AppendTags(OwningTags);
 }
 
-void UHeroActionComponent::AddTag(const FGameplayTag& Tag)
+void UHeroActionComponent::AddTag(FGameplayTag Tag)
 {
 	OwningTags.AddTag(Tag);
 	BroadcastTagMoved(Tag, true);
@@ -72,7 +72,7 @@ void UHeroActionComponent::AppendTags(const FGameplayTagContainer& GameplayTagCo
 	}
 }
 
-void UHeroActionComponent::RemoveTag(const FGameplayTag& Tag)
+void UHeroActionComponent::RemoveTag(FGameplayTag Tag)
 {
 	OwningTags.RemoveTag(Tag);
 	BroadcastTagMoved(Tag, false);
@@ -105,7 +105,7 @@ void UHeroActionComponent::InitializeHeroActionActorInfo(AActor* SourceActor)
 	HeroActionActorInfo.CharacterMovementComponent = SourceActor->FindComponentByClass<UCharacterMovementComponent>();
 }
 
-void UHeroActionComponent::AuthAddHeroAction(TSubclassOf<UHeroAction> HeroActionClass)
+void UHeroActionComponent::AuthAddHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
 {
 	if (!ensure(HeroActionClass))
 	{
@@ -134,7 +134,12 @@ bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction)
 	return HeroAction && HeroAction->CanTriggerHeroAction();
 }
 
-void UHeroActionComponent::TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroActionClass)
+void UHeroActionComponent::TryTriggerHeroAction(UHeroAction* HeroAction)
+{
+	TryTriggerHeroActionByClass(HeroAction->GetClass());
+}
+
+void UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
 {
 	if (UHeroAction* HeroAction = FindHeroActionByClass(HeroActionClass))
 	{
@@ -144,7 +149,6 @@ void UHeroActionComponent::TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroAct
 
 	UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroActionClass));
 }
-
 
 UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
 {
@@ -247,9 +251,24 @@ FOnInputActionTriggeredReplicatedSignature& UHeroActionComponent::GetOnInputActi
 	return OnInputActionTriggeredReplicatedDelegates.FindOrAdd(InputAction);
 }
 
-FOnTagMovedSignature& UHeroActionComponent::GetOnTagMovedDelegate(const FGameplayTag& Tag)
+void UHeroActionComponent::BroadcastHeroActionEventDelegate(const FGameplayTag& Tag, const FHeroActionEventData& Data)
+{
+	FOnHeroActionEventSignature& Delegate = HeroActionActorInfo.HeroActionComponent->GetOnHeroActionEventDelegate(Tag);
+	if (Delegate.IsBound())
+	{
+		Delegate.Broadcast(Data);
+		Delegate.Clear();
+	}
+}
+
+FOnHeroActionTagMovedSignature& UHeroActionComponent::GetOnTagMovedDelegate(const FGameplayTag& Tag)
 {
 	return OnTagMovedDelegates.FindOrAdd(Tag);
+}
+
+FOnHeroActionEventSignature& UHeroActionComponent::GetOnHeroActionEventDelegate(const FGameplayTag& Tag)
+{
+	return OnHeroActionEventDelegates.FindOrAdd(Tag);
 }
 
 void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
@@ -268,7 +287,7 @@ void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		return;
 	}
 
-	if(!bHasAuthority && NetMethod == EHeroActionNetMethod::ServerOnly)
+	if (!bHasAuthority && NetMethod == EHeroActionNetMethod::ServerOnly)
 	{
 		ensure(false);
 		UE_LOG(LogPhantom, Error, TEXT("Server가 아닌곳에서는 실행할 수 없는 Action입니다."));
@@ -281,7 +300,7 @@ void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		ServerTryTriggerHeroAction(HeroAction);
 		return;
 	}
-	
+
 	if (!bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted)
 	{
 		// Flush Server Moves
@@ -326,10 +345,9 @@ void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)
 	}
 }
 
-
 void UHeroActionComponent::BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded)
 {
-	const FOnTagMovedSignature& OnTagMoved = GetOnTagMovedDelegate(Tag);
+	const FOnHeroActionTagMovedSignature& OnTagMoved = GetOnTagMovedDelegate(Tag);
 	if (OnTagMoved.IsBound())
 	{
 		OnTagMoved.Broadcast(Tag, bIsAdded);

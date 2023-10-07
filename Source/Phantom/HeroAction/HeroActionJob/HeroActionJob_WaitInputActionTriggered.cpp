@@ -78,7 +78,7 @@ void UHeroActionJob_WaitInputActionTriggered::BindOnInputActionTriggeredDelegate
 
 void UHeroActionJob_WaitInputActionTriggered::BroadcastOnInputActionTriggered()
 {
-	if (OnInputActionTriggered.IsBound())
+	if (ShouldBroadcastDelegates() && OnInputActionTriggered.IsBound())
 	{
 		OnInputActionTriggered.Broadcast();
 	}

@@ -5,10 +5,9 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputAction.h"
-#include "InputMappingContext.h"
 #include "Algo/Accumulate.h"
 #include "Engine/Canvas.h"
-#include "Phantom/Action/HeroActionComponent.h"
+#include "Phantom/HeroAction/HeroActionComponent.h"
 #include "Phantom/Character/PhantomCharacter.h"
 #include "Phantom/Input/PhantomInputConfig.h"
 
@@ -181,7 +180,7 @@ void APhantomPlayerController::OnHeroActionInputEvent(TSubclassOf<UHeroAction> H
 	UHeroActionComponent* HeroActionComponent = HeroActionInterface->GetHeroActionComponent();
 	if (ensure(HeroActionComponent))
 	{
-		HeroActionComponent->TryTriggerHeroAction(HeroActionClass);
+		HeroActionComponent->TryTriggerHeroActionByClass(HeroActionClass);
 		HeroActionComponent->HandleInputActionTriggered(InputAction);
 	}
 }

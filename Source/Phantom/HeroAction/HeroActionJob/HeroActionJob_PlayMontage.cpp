@@ -3,7 +3,7 @@
 
 #include "HeroActionJob_PlayMontage.h"
 #include "Animation/AnimMontage.h"
-#include "HeroAction.h"
+#include "Phantom/HeroAction/HeroAction.h"
 #include "Phantom/Phantom.h"
 
 UHeroActionJob_PlayMontage* UHeroActionJob_PlayMontage::CreateHeroActionJobPlayMontage(UHeroAction* InHeroAction, UAnimMontage* InAnimMontage, FName InStartSection,
