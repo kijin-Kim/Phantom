@@ -147,7 +147,10 @@ void UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> 
 		return;
 	}
 
-	UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroActionClass));
+	if (IsValid(HeroActionClass))
+	{
+		UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroActionClass));
+	}
 }
 
 UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)

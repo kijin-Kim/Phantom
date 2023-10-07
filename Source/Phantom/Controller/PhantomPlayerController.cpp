@@ -74,7 +74,7 @@ void APhantomPlayerController::BeginPlay()
 	if (IsLocalController())
 	{
 		UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
-		if(Subsystem)
+		if (Subsystem)
 		{
 			Subsystem->AddMappingContext(NormalMovementMappingContext, 1);
 			Subsystem->AddMappingContext(CombatMappingContext, 0);
@@ -92,31 +92,13 @@ void APhantomPlayerController::SetupInputComponent()
 	EnhancedInputComponent->BindAction(WalkBLAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnMove);
 	// Looking
 	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnLook);
-	// Running
-	//EnhancedInputComponent->BindAction(StartRunAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnRunButtonPressed);
-	//EnhancedInputComponent->BindAction(EndRunAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnRunButtonReleased);
-	// Sprinting
-	//EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnSprintButtonPressed);
-	// Dodging
-	//EnhancedInputComponent->BindAction(DodgeAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnDodgeButtonPressed);
 
-	// Stealthing
-	//EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Started, this, &APhantomPlayerController::OnStealthButtonPressed);
-	//EnhancedInputComponent->BindAction(StealthAction, ETriggerEvent::Completed, this, &APhantomPlayerController::OnStealthButtonReleased);
-
-	// Attacking
-	//EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnAttackButtonPressed);
-
-	// 눌렀을때 트리거
-	// 땟을때 EndAction
-	// 누르고 땟을때 Trigger
-	// 
 	ensure(PhantomInputConfig);
 	for (auto& [InputAction, HeroActionData] : PhantomInputConfig->InputHeroActionBinding)
 	{
-		EnhancedInputComponent->BindAction(InputAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnHeroActionInputEvent, HeroActionData.HeroActionClass, InputAction);
+		EnhancedInputComponent->BindAction(InputAction, ETriggerEvent::Triggered, this, &APhantomPlayerController::OnHeroActionInputEvent, HeroActionData.HeroActionClass,
+		                                   InputAction);
 	}
-	
 }
 
 void APhantomPlayerController::OnMove(const FInputActionValue& Value)
@@ -129,48 +111,6 @@ void APhantomPlayerController::OnLook(const FInputActionValue& Value)
 {
 	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
 		PhantomCharacter->Look(Value);
-}
-
-void APhantomPlayerController::OnRunButtonPressed()
-{
-	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-		PhantomCharacter->Run();
-}
-
-void APhantomPlayerController::OnRunButtonReleased()
-{
-	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-		PhantomCharacter->Walk();
-}
-
-void APhantomPlayerController::OnSprintButtonPressed()
-{
-	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-		PhantomCharacter->Sprint();
-}
-
-void APhantomPlayerController::OnDodgeButtonPressed()
-{
-	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-		PhantomCharacter->Dodge();
-}
-
-void APhantomPlayerController::OnStealthButtonPressed()
-{
-	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-		PhantomCharacter->EnterStealthMode();
-}
-
-void APhantomPlayerController::OnStealthButtonReleased()
-{
-	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-		PhantomCharacter->LeaveStealthMode();
-}
-
-void APhantomPlayerController::OnAttackButtonPressed()
-{
-	if (APhantomCharacter* PhantomCharacter = GetPawn<APhantomCharacter>())
-		PhantomCharacter->Attack();
 }
 
 void APhantomPlayerController::OnHeroActionInputEvent(TSubclassOf<UHeroAction> HeroActionClass, UInputAction* InputAction)

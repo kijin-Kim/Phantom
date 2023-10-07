@@ -80,22 +80,11 @@ public:
 
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
-	void Walk();
-	void Run();
-	void Sprint();
-	void Dodge();
-	void EnterStealthMode();
-	void LeaveStealthMode();
 	void Attack();
 
 	bool CanDodge() const;
 	bool CanAttack() const;
 	bool CanSnapShotAttack(const FCharacterSnapshot& Snapshot) const;
-	UFUNCTION(BlueprintCallable)
-	bool IsWalking() const;
-	UFUNCTION(BlueprintCallable)
-	bool IsRunning() const;
-	bool IsSprinting() const;
 
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UCameraComponent* GetFollowCamera() const { return FollowCamera; }
@@ -117,22 +106,7 @@ private:
 	                                int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	UFUNCTION()
 	void OnCombatSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
-
-	void LocalWalk();
-	UFUNCTION(Server, Reliable)
-	void ServerWalk();
-
-	void LocalRun();
-	UFUNCTION(Server, Reliable)
-	void ServerRun();
-
-	void LocalSprint();
-	UFUNCTION(Server, Reliable)
-	void ServerSprint();
-
-	void LocalDodge();
-	UFUNCTION(Server, Reliable)
-	void ServerDodge();
+	
 
 	void LocalAttack(AEnemy* AttackTarget);
 	UFUNCTION(Server, Reliable)

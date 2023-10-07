@@ -185,59 +185,6 @@ void APhantomCharacter::Look(const FInputActionValue& Value)
 	}
 }
 
-void APhantomCharacter::Walk()
-{
-	if (!HasAuthority())
-	{
-		LocalWalk();
-	}
-	ServerWalk();
-}
-
-void APhantomCharacter::Run()
-{
-	if (!HasAuthority())
-	{
-		LocalRun();
-	}
-	ServerRun();
-}
-
-void APhantomCharacter::Sprint()
-{
-	if (!HasAuthority())
-	{
-		LocalSprint();
-	}
-	ServerSprint();
-}
-
-void APhantomCharacter::Dodge()
-{
-	if (CanDodge())
-	{
-		if (!HasAuthority())
-		{
-			LocalDodge();
-		}
-		ServerDodge();
-	}
-}
-
-void APhantomCharacter::EnterStealthMode()
-{
-	if (IsSprinting()) // Stealth(Crouch)상태에서는 Sprint를 할 수가 없으므로, Run상태로 진입.
-	{
-		Run();
-	}
-	Crouch();
-}
-
-void APhantomCharacter::LeaveStealthMode()
-{
-	UnCrouch();
-}
-
 void APhantomCharacter::Attack()
 {
 	if (CanAttack())
@@ -364,52 +311,6 @@ bool APhantomCharacter::CanSnapShotAttack(const FCharacterSnapshot& Snapshot) co
 		ECharacterActionState::Dodge;
 }
 
-bool APhantomCharacter::IsWalking() const
-{
-	if (GetVelocity().IsNearlyZero())
-	{
-		return false;
-	}
-
-	// WalkSpeed <= 현재 속도 < MaxRunSpeed이면 Walking
-	if (bIsCrouched)
-	{
-		const float CurrentCrouchedSpeed = GetCharacterMovement()->MaxWalkSpeedCrouched;
-		return CurrentCrouchedSpeed >= MaxWalkSpeedCrouchedCache && CurrentCrouchedSpeed < MaxRunSpeedCrouched;
-	}
-
-	const float CurrentSpeed = GetCharacterMovement()->MaxWalkSpeed;
-	return CurrentSpeed >= MaxWalkSpeedCache && CurrentSpeed < MaxRunSpeed;
-}
-
-bool APhantomCharacter::IsRunning() const
-{
-	if (GetVelocity().IsNearlyZero())
-	{
-		return false;
-	}
-
-	// Crouch시에는 현재속도가 Crouch Run Speed보다 빠르면되고,
-	// UnCrouch시에는 Run Speed보다 빠르고 Sprint Speed보다 느려야함. (Crouch는 Sprint가 없음)
-	if (bIsCrouched)
-	{
-		return GetCharacterMovement()->MaxWalkSpeedCrouched >= MaxRunSpeedCrouched;
-	}
-
-	const float CurrentSpeed = GetCharacterMovement()->MaxWalkSpeed;
-	return CurrentSpeed >= MaxRunSpeed && CurrentSpeed < MaxSprintSpeed;
-}
-
-bool APhantomCharacter::IsSprinting() const
-{
-	if (GetVelocity().IsNearlyZero())
-	{
-		return false;
-	}
-
-	return !bIsCrouched ? GetCharacterMovement()->MaxWalkSpeed >= MaxSprintSpeed : false;
-}
-
 void APhantomCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -518,21 +419,6 @@ void APhantomCharacter::TakeSnapshots()
 		FCharacterSnapshot CurrentSnapshot;
 		CurrentSnapshot.Time = GetWorld()->GetTimeSeconds();
 		CurrentSnapshot.CharacterActionState = CharacterActionState;
-		CurrentSnapshot.CharacterMovementState = ECharacterMovementState::Stop;
-
-		if (IsWalking())
-		{
-			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::Walking;
-		}
-		else if (IsRunning())
-		{
-			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::Running;
-		}
-		else
-		{
-			CurrentSnapshot.CharacterMovementState = ECharacterMovementState::Sprinting;
-		}
-
 		CurrentSnapshot.AttackSequenceComboCount = AttackSequenceComboCount;
 		CurrentSnapshot.bCanCombo = bCanCombo;
 		CurrentSnapshot.bIsCrouched = bIsCrouched;
@@ -584,70 +470,6 @@ void APhantomCharacter::OnCombatSphereEndOverlap(UPrimitiveComponent* Overlapped
 	}
 }
 
-void APhantomCharacter::LocalWalk()
-{
-	GetCharacterMovement()->MaxWalkSpeed = MaxWalkSpeedCache;
-	GetCharacterMovement()->MaxWalkSpeedCrouched = MaxWalkSpeedCrouchedCache;
-}
-
-void APhantomCharacter::ServerWalk_Implementation()
-{
-	LocalWalk();
-}
-
-void APhantomCharacter::LocalRun()
-{
-	GetCharacterMovement()->MaxWalkSpeed = MaxRunSpeed;
-	GetCharacterMovement()->MaxWalkSpeedCrouched = MaxRunSpeedCrouched;
-}
-
-void APhantomCharacter::ServerRun_Implementation()
-{
-	LocalRun();
-}
-
-void APhantomCharacter::LocalSprint()
-{
-	if (IsRunning()) // 현재 캐릭터가 Run하고 있을 때만 Sprint상태에 진입할 수 있다.
-	{
-		GetCharacterMovement()->MaxWalkSpeed = MaxSprintSpeed;
-		if (bIsCrouched) // Crouch상태에서 Sprint상태에 진입하면 UnCrouch한다.
-		{
-			UnCrouch();
-		}
-	}
-}
-
-void APhantomCharacter::ServerSprint_Implementation()
-{
-	LocalSprint();
-}
-
-void APhantomCharacter::LocalDodge()
-{
-	if (DodgeMontage)
-	{
-		ChangeCharacterActionState(ECharacterActionState::Dodge);
-		const float Duration = PlayAnimMontage(DodgeMontage);
-		FTimerHandle DodgeEndTimer;
-		GetWorldTimerManager().SetTimer(DodgeEndTimer, [this]()
-		{
-			if (CharacterActionState == ECharacterActionState::Dodge)
-			{
-				ChangeCharacterActionState(ECharacterActionState::Idle);
-			}
-		}, Duration, false);
-	}
-}
-
-void APhantomCharacter::ServerDodge_Implementation()
-{
-	// TODO: Lag Compensation
-	if (CanDodge())
-	{
-		LocalDodge();
-	}
-}
 
 void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 {

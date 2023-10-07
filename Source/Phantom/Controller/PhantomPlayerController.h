@@ -38,13 +38,6 @@ protected:
 private:
 	void OnMove(const FInputActionValue& Value);
 	void OnLook(const FInputActionValue& Value);
-	void OnRunButtonPressed();
-	void OnRunButtonReleased();
-	void OnSprintButtonPressed();
-	void OnDodgeButtonPressed();
-	void OnStealthButtonPressed();
-	void OnStealthButtonReleased();
-	void OnAttackButtonPressed();
 	void OnHeroActionInputEvent(TSubclassOf<UHeroAction> HeroActionClass, UInputAction* InputAction);
 
 	UFUNCTION(Client, Reliable)
