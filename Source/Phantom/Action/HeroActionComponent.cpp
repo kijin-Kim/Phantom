@@ -3,7 +3,7 @@
 
 #include "HeroActionComponent.h"
 #include "HeroAction.h"
-#include "../../../../../../Program Files/Epic Games/UE_5.2/Engine/Plugins/Experimental/NNE/Source/ThirdParty/onnxruntime/Dependencies/gsl/gsl-lite.hpp"
+#include "HeroActionJob.h"
 #include "Engine/ActorChannel.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
@@ -45,8 +45,7 @@ void UHeroActionComponent::OnUnregister()
 	{
 		HeroAction->EndHeroAction();
 	}
-
-
+	
 	if (HeroActionActorInfo.IsOwnerHasAuthority())
 	{
 		AvailableHeroActions.Empty();
@@ -147,14 +146,16 @@ void UHeroActionComponent::TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroAct
 	UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroActionClass));
 }
 
-void UHeroActionComponent::HandleInputActionTriggered(UInputAction* InputAction)
+bool UHeroActionComponent::HandleInputActionTriggered(UInputAction* InputAction)
 {
 	check(InputAction);
 	FOnInputActionTriggeredSignature& OnInputActionTriggered = GetOnInputActionTriggeredDelegate(InputAction);
 	if (OnInputActionTriggered.IsBound())
 	{
 		OnInputActionTriggered.Broadcast();
+		return true;
 	}
+	return false;
 }
 
 UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
@@ -190,6 +191,34 @@ FOnTagMovedSignature& UHeroActionComponent::GetOnTagMovedDelegate(const FGamepla
 FOnInputActionTriggeredSignature& UHeroActionComponent::GetOnInputActionTriggeredDelegate(UInputAction* InputAction)
 {
 	return OnInputActionTriggeredDelegates.FindOrAdd(InputAction);
+}
+
+FOnInputActionTriggeredReplicatedSignature& UHeroActionComponent::GetOnInputActionTriggeredReplicated(UInputAction* InputAction)
+{
+	return OnInputActionTriggeredReplicatedDelegates.FindOrAdd(InputAction);
+}
+
+void UHeroActionComponent::ServerNotifyClientInputTriggered_Implementation(UInputAction* InputAction, UHeroActionNetID* NetID)
+{
+	bool bHandled = HandleInputActionTriggered(InputAction);
+	if (!bHandled)
+	{
+		CachedData.Add({NetID, InputAction});
+	}
+	ClientNotifiedServerHandleInputActionTriggered(InputAction, bHandled);
+}
+
+bool UHeroActionComponent::CallOnInputActionTriggeredDelegateIfAlreadyArrived(UInputAction* InputAction, UHeroActionNetID* NetID)
+{
+	UInputAction** IAPtr = CachedData.Find(NetID);
+	if(IAPtr)
+	{
+		CachedData.Remove(NetID);
+		bool bHandled = HandleInputActionTriggered(InputAction);
+		ensure(bHandled);
+		return bHandled;
+	}
+	return false;	
 }
 
 void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
@@ -246,7 +275,6 @@ void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		if (CanTriggerHeroAction(HeroAction))
 		{
 			ClientTriggerHeroAction(HeroAction);
-			TriggerHeroAction(HeroAction);
 		}
 		return;
 	}
@@ -257,6 +285,24 @@ void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)
 	if (ensure(HeroAction))
 	{
 		HeroAction->TriggerHeroAction();
+	}
+}
+
+void UHeroActionComponent::ServerHandleInputActionTriggered_Implementation(UInputAction* InputAction, UHeroActionNetID* NetID)
+{
+	bool bHandled = HandleInputActionTriggered(InputAction);
+	if (!bHandled)
+	{
+		CachedData.Add({NetID, InputAction});
+	}
+}
+
+void UHeroActionComponent::ClientNotifiedServerHandleInputActionTriggered_Implementation(UInputAction* InputAction, bool bHandled)
+{
+	FOnInputActionTriggeredReplicatedSignature& Delegate = GetOnInputActionTriggeredReplicated(InputAction);
+	if (Delegate.IsBound())
+	{
+		Delegate.Broadcast(bHandled);
 	}
 }
 

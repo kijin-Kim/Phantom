@@ -8,12 +8,15 @@
 #include "Components/ActorComponent.h"
 #include "HeroActionComponent.generated.h"
 
+class UHeroActionNetID;
 class UInputAction;
 class UHeroAction;
+class UReplicatedObject;
 
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTagMovedSignature, const FGameplayTag& /*Tag*/, bool /*bIsAdded*/);
 DECLARE_MULTICAST_DELEGATE(FOnInputActionTriggeredSignature);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputActionTriggeredReplicatedSignature, bool);
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -45,7 +48,7 @@ public:
 	void AuthAddHeroAction(TSubclassOf<UHeroAction> HeroActionClass);
 	bool CanTriggerHeroAction(UHeroAction* HeroAction);
 	void TryTriggerHeroAction(TSubclassOf<UHeroAction> HeroActionClass);
-	void HandleInputActionTriggered(UInputAction* InputAction);
+	bool HandleInputActionTriggered(UInputAction* InputAction);
 	UHeroAction* FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	
 	
@@ -54,7 +57,18 @@ public:
 
 	FOnTagMovedSignature& GetOnTagMovedDelegate(const FGameplayTag& Tag);
 	FOnInputActionTriggeredSignature& GetOnInputActionTriggeredDelegate(UInputAction* InputAction);
+	FOnInputActionTriggeredReplicatedSignature& GetOnInputActionTriggeredReplicated(UInputAction* InputAction);
 	
+	UFUNCTION(Server, Reliable)
+	void ServerHandleInputActionTriggered(UInputAction* InputAction, UHeroActionNetID* NetID);
+	
+	UFUNCTION(Server, Reliable)
+	void ServerNotifyClientInputTriggered(UInputAction* InputAction, UHeroActionNetID* NetID);
+	UFUNCTION(Client, Reliable)
+	void ClientNotifiedServerHandleInputActionTriggered(UInputAction* InputAction, bool bHandled);
+
+	bool CallOnInputActionTriggeredDelegateIfAlreadyArrived(UInputAction* InputAction, UHeroActionNetID* NetID);
+
 protected:
 	void InternalTryTriggerHeroAction(UHeroAction* HeroAction);
 	void TriggerHeroAction(UHeroAction* HeroAction);
@@ -62,6 +76,8 @@ protected:
 	void ServerTryTriggerHeroAction(UHeroAction* HeroAction);
 	UFUNCTION(Client, Reliable)
 	void ClientTriggerHeroAction(UHeroAction* HeroAction);
+	
+	
 
 private:
 	void BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded);
@@ -75,4 +91,6 @@ protected:
 private:
 	TMap<FGameplayTag, FOnTagMovedSignature> OnTagMovedDelegates;
 	TMap<UInputAction*, FOnInputActionTriggeredSignature> OnInputActionTriggeredDelegates;
+	TMap<UInputAction*, FOnInputActionTriggeredReplicatedSignature> OnInputActionTriggeredReplicatedDelegates;
+	TMap<UHeroActionNetID*, UInputAction*> CachedData;
 };

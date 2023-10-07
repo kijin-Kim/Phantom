@@ -21,14 +21,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action|Job",
 		meta = (DisplayName = "Wait Input Action Triggered", HidePin = "HeroAction", DefaultToSelf = "HeroAction", BlueprintInternalUseOnly = "true"))
 	static UHeroActionJob_WaitInputActionTriggered* CreateHeroActionJobWaitInputActionTriggered(UHeroAction* HeroAction, UInputAction* InputAction);
+	void LocalButNotListenServerOriginated();
+	void LocalButNotListenLocalPredicted();
+	void NotOwningServer();
+	void OnAuthority();
+	void LocalListenAndStandalone();
+	void BroadcastOnInputActionTriggered();
 	virtual void Activate() override;
 	virtual void SetReadyToDestroy() override;
-
+	
 public:
 	UPROPERTY(BlueprintAssignable)
 	FHeroActionOnInputActionTriggeredSignature OnInputActionTriggered;
 	TObjectPtr<UInputAction> InputAction;
+	int32 HeroActionJobID = 0;
 
 private:
 	FDelegateHandle HACDelegateHandle;
+	FDelegateHandle ServerNotifiedDelegateHandle;
 };

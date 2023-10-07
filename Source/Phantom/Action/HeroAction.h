@@ -31,17 +31,19 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual bool CanTriggerHeroAction() const;
 	virtual void TriggerHeroAction();
-	UFUNCTION(BlueprintCallable, Category = "Hero Action")
-	void EndHeroAction();
+	UFUNCTION(BlueprintCallable)
+	virtual void EndHeroAction();
 	
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Can Trigger Hero Action"))
 	bool BP_CanTriggerHeroAction() const;
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Trigger Hero Action"))
 	void BP_TriggerHeroAction();
+	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "On End Hero Action"))
+	void BP_OnEndHeroAction();
 	
 	EHeroActionNetMethod GetHeroActionNetMethod() const { return HeroActionNetMethod; }
 	const FHeroActionActorInfo& GetHeroActionActorInfo() const { return HeroActionActorInfo; }
-
+	
 private:
 	void InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo);
 	void HandleTagOnTrigger();

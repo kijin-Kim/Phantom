@@ -59,7 +59,7 @@ void UHeroAction::TriggerHeroAction()
 	if (bIsTriggering)
 	{
 		check(HeroActionRetriggeringMethod != EHeroActionRetriggeringMethod::Block);
-		EndHeroAction(); // Setting bIsTriggering to false;
+  		EndHeroAction(); // Setting bIsTriggering to false;
 		if (HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::CancelAndRetrigger)
 		{
 			TriggerHeroAction();
@@ -90,6 +90,8 @@ void UHeroAction::EndHeroAction()
 	{
 		OnHeroActionEnd.Broadcast();
 	}
+
+	BP_OnEndHeroAction();
 }
 
 void UHeroAction::InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo)
