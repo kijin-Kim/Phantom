@@ -21,11 +21,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action|Job",
 		meta = (DisplayName = "Wait Input Action Triggered", HidePin = "HeroAction", DefaultToSelf = "HeroAction", BlueprintInternalUseOnly = "true"))
 	static UHeroActionJob_WaitInputActionTriggered* CreateHeroActionJobWaitInputActionTriggered(UHeroAction* HeroAction, UInputAction* InputAction);
-	void LocalButNotListenServerOriginated();
-	void LocalButNotListenLocalPredicted();
-	void NotOwningServer();
-	void OnAuthority();
-	void LocalListenAndStandalone();
+	void SendServerAndWaitResponse();
+	void SendServerAndProceed();
+	void BindOnInputActionTriggeredDelegate();
 	void BroadcastOnInputActionTriggered();
 	virtual void Activate() override;
 	virtual void SetReadyToDestroy() override;

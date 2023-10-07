@@ -19,7 +19,7 @@ bool UHeroAction::CanTriggerHeroAction() const
 		&& HeroActionActorInfo.SourceActor.IsValid()
 		&& HeroActionActorInfo.HeroActionComponent.IsValid());
 
-	if (bIsTriggering && HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::Block)
+   	if (bIsTriggering && HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::Block)
 	{
 		UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]가 Block되었습니다."), *GetNameSafe(this));
 		return false;
