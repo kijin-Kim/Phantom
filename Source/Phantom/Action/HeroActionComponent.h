@@ -77,9 +77,11 @@ public:
 
 	// Client RPC가 Delegate Binding보다 먼저 도착했는지 확인하고, 먼저 도착했으면 OnInputActionTriggered을 직접 호출함.
 	bool AuthCallOnInputActionTriggeredIfAlreadyArrived(UInputAction* InputAction, UHeroActionNetID* NetID);
+	
+	void RemoveCachedData(UHeroActionNetID* NetID);
 
 	FOnInputActionTriggeredSignature& GetOnInputActionTriggeredDelegate(UInputAction* InputAction);
-    FOnInputActionTriggeredReplicatedSignature& GetOnInputActionTriggeredReplicated(UInputAction* InputAction);
+    FOnInputActionTriggeredReplicatedSignature& GetOnInputActionTriggeredReplicatedDelegate(UInputAction* InputAction);
 
 	
 	FOnTagMovedSignature& GetOnTagMovedDelegate(const FGameplayTag& Tag);

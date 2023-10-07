@@ -206,7 +206,7 @@ void UHeroActionComponent::ServerNotifyInputActionTriggered_Implementation(UInpu
 
 void UHeroActionComponent::ClientNotifyInputActionTriggered_Implementation(UInputAction* InputAction, bool bHandled)
 {
-	FOnInputActionTriggeredReplicatedSignature& Delegate = GetOnInputActionTriggeredReplicated(InputAction);
+	FOnInputActionTriggeredReplicatedSignature& Delegate = GetOnInputActionTriggeredReplicatedDelegate(InputAction);
 	if (Delegate.IsBound())
 	{
 		Delegate.Broadcast(bHandled);
@@ -227,13 +227,21 @@ bool UHeroActionComponent::AuthCallOnInputActionTriggeredIfAlreadyArrived(UInput
 	return false;
 }
 
+void UHeroActionComponent::RemoveCachedData(UHeroActionNetID* NetID)
+{
+	if (UInputAction** IAPtr = CachedData.Find(NetID))
+	{
+		CachedData.Remove(NetID);
+	}
+}
+
 FOnInputActionTriggeredSignature& UHeroActionComponent::GetOnInputActionTriggeredDelegate(UInputAction* InputAction)
 {
 	ensure(InputAction);
 	return OnInputActionTriggeredDelegates.FindOrAdd(InputAction);
 }
 
-FOnInputActionTriggeredReplicatedSignature& UHeroActionComponent::GetOnInputActionTriggeredReplicated(UInputAction* InputAction)
+FOnInputActionTriggeredReplicatedSignature& UHeroActionComponent::GetOnInputActionTriggeredReplicatedDelegate(UInputAction* InputAction)
 {
 	ensure(InputAction);
 	return OnInputActionTriggeredReplicatedDelegates.FindOrAdd(InputAction);

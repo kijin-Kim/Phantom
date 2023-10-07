@@ -35,6 +35,6 @@ public:
 	int32 HeroActionJobID = 0;
 
 private:
-	FDelegateHandle HACDelegateHandle;
-	FDelegateHandle ServerNotifiedDelegateHandle;
+	FDelegateHandle Handle;
+	FDelegateHandle RepHandle;
 };
