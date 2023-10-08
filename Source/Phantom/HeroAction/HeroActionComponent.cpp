@@ -7,6 +7,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Phantom/Phantom.h"
+#include "Phantom/Controller/PhantomPlayerController.h"
 
 
 // Sets default values for this component's properties
@@ -43,7 +44,7 @@ void UHeroActionComponent::OnUnregister()
 	Super::OnUnregister();
 	for (UHeroAction* HeroAction : AvailableHeroActions)
 	{
-		HeroAction->EndHeroAction();
+		EndHeroAction(HeroAction);
 	}
 
 	if (HeroActionActorInfo.IsOwnerHasAuthority())
@@ -59,6 +60,7 @@ void UHeroActionComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 	if (HeroActionActorInfo.IsOwnerHasAuthority())
 	{
 		AuthUpdateReplicatedAnimMontage();
+		AuthTakeHeroActionSnapshots();
 	}
 }
 
@@ -164,6 +166,14 @@ bool UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> 
 	return false;
 }
 
+void UHeroActionComponent::EndHeroAction(UHeroAction* HeroAction)
+{
+	if (ensure(HeroAction))
+	{
+		HeroAction->EndHeroAction();
+	}
+}
+
 UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
 {
 	for (UHeroAction* HeroAction : AvailableHeroActions)
@@ -174,18 +184,6 @@ UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction
 		}
 	}
 	return nullptr;
-}
-
-void UHeroActionComponent::AuthUpdateReplicatedAnimMontage()
-{
-	if (const UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
-	{
-		ReplicatedAnimMontageData.AnimMontage = AnimInstance->GetCurrentActiveMontage();
-		ReplicatedAnimMontageData.PlayRate = AnimInstance->Montage_GetPlayRate(ReplicatedAnimMontageData.AnimMontage);
-		ReplicatedAnimMontageData.StartSectionName = AnimInstance->Montage_GetCurrentSection(ReplicatedAnimMontageData.AnimMontage);
-		ReplicatedAnimMontageData.Position = AnimInstance->Montage_GetPosition(ReplicatedAnimMontageData.AnimMontage);
-		ReplicatedAnimMontageData.bIsStopped = AnimInstance->Montage_GetIsStopped(ReplicatedAnimMontageData.AnimMontage);
-	}
 }
 
 float UHeroActionComponent::PlayAnimMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection,
@@ -302,9 +300,15 @@ FOnHeroActionEventSignature& UHeroActionComponent::GetOnHeroActionEventDelegate(
 	return OnHeroActionEventDelegates.FindOrAdd(Tag);
 }
 
+
 bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 {
 	check(HeroAction)
+
+	// TODO
+	APhantomPlayerController* PC = Cast<APhantomPlayerController>(HeroActionActorInfo.PlayerController.Get());
+	const float ServerTime = PC->GetServerTime();
+
 
 	const bool bHasAuthority = HeroActionActorInfo.IsOwnerHasAuthority();
 	const bool bIsLocal = HeroActionActorInfo.IsSourceLocallyControlled();
@@ -331,7 +335,7 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		const bool bCanTriggerLocal = CanTriggerHeroAction(HeroAction);
 		if (bCanTriggerLocal)
 		{
-			ServerTryTriggerHeroAction(HeroAction);
+			ServerTryTriggerHeroAction(HeroAction, ServerTime);
 		}
 		return bCanTriggerLocal;
 	}
@@ -344,7 +348,7 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		const bool bCanTriggerLocal = CanTriggerHeroAction(HeroAction);
 		if (bCanTriggerLocal)
 		{
-			ServerTryTriggerHeroAction(HeroAction);
+			ServerTryTriggerHeroAction(HeroAction, ServerTime);
 			TriggerHeroAction(HeroAction);
 		}
 		return bCanTriggerLocal;
@@ -386,16 +390,8 @@ void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)
 	}
 }
 
-void UHeroActionComponent::BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded)
-{
-	const FOnHeroActionTagMovedSignature& OnTagMoved = GetOnTagMovedDelegate(Tag);
-	if (OnTagMoved.IsBound())
-	{
-		OnTagMoved.Broadcast(Tag, bIsAdded);
-	}
-}
 
-void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction* HeroAction)
+void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction* HeroAction, float Time)
 {
 	if (!ensure(HeroAction))
 	{
@@ -410,11 +406,71 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 			ClientTriggerHeroAction(HeroAction);
 		}
 	}
+	else
+	{
+		APhantomPlayerController* PC = Cast<APhantomPlayerController>(HeroActionActorInfo.PlayerController.Get());
+		const float AvgSingleTripTime = PC->GetAverageSingleTripTime();
+		const float RequestedTime = Time + AvgSingleTripTime;
+
+		TDeque<FHeroActionSnapshot>& SnapShots = HeroActionSnapshots.FindOrAdd(HeroAction);
+
+
+		const float OldestTime = SnapShots.Last().Time;
+		const float NewestTime = SnapShots.First().Time;
+		if (OldestTime > RequestedTime) // Too Late
+		{
+			UE_LOG(LogPhantom, Warning, TEXT("Request가 너무 늦게 도착했습니다."));
+			ClientTryTriggerHeroActionFailed(HeroAction);
+			return;
+		}
+
+		for (auto& [Time, bCanTrigger] : SnapShots)
+		{
+			if (Time <= RequestedTime && bCanTrigger)
+			{
+				UE_LOG(LogPhantom, Warning, TEXT("보정"));
+				TriggerHeroAction(HeroAction);
+				if (HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
+				{
+					ClientTriggerHeroAction(HeroAction);
+				}
+				return;
+			}
+		}
+		
+		if (FMath::IsNearlyEqual(NewestTime, RequestedTime) || NewestTime <= RequestedTime)
+		{
+			if(SnapShots.First().bCanTrigger)
+			{
+				UE_LOG(LogPhantom, Warning, TEXT("보정"));
+				TriggerHeroAction(HeroAction);
+				if (HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
+				{
+					ClientTriggerHeroAction(HeroAction);
+				}
+				return;
+			}
+		}
+	}
 }
 
 void UHeroActionComponent::ClientTriggerHeroAction_Implementation(UHeroAction* HeroAction)
 {
 	TriggerHeroAction(HeroAction);
+}
+
+void UHeroActionComponent::ClientTryTriggerHeroActionFailed_Implementation(UHeroAction* HeroAction)
+{
+	EndHeroAction(HeroAction);
+}
+
+void UHeroActionComponent::BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded)
+{
+	const FOnHeroActionTagMovedSignature& OnTagMoved = GetOnTagMovedDelegate(Tag);
+	if (OnTagMoved.IsBound())
+	{
+		OnTagMoved.Broadcast(Tag, bIsAdded);
+	}
 }
 
 void UHeroActionComponent::OnRep_ReplicatedAnimMontage()
@@ -504,4 +560,40 @@ float UHeroActionComponent::PlayAnimMontageLocal(UAnimMontage* AnimMontage, FNam
 		}
 	}
 	return 0.f;
+}
+
+void UHeroActionComponent::AuthUpdateReplicatedAnimMontage()
+{
+	if (const UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
+	{
+		ReplicatedAnimMontageData.AnimMontage = AnimInstance->GetCurrentActiveMontage();
+		ReplicatedAnimMontageData.PlayRate = AnimInstance->Montage_GetPlayRate(ReplicatedAnimMontageData.AnimMontage);
+		ReplicatedAnimMontageData.StartSectionName = AnimInstance->Montage_GetCurrentSection(ReplicatedAnimMontageData.AnimMontage);
+		ReplicatedAnimMontageData.Position = AnimInstance->Montage_GetPosition(ReplicatedAnimMontageData.AnimMontage);
+		ReplicatedAnimMontageData.bIsStopped = AnimInstance->Montage_GetIsStopped(ReplicatedAnimMontageData.AnimMontage);
+	}
+}
+
+void UHeroActionComponent::AuthTakeHeroActionSnapshots()
+{
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	for (UHeroAction* HeroAction : AvailableHeroActions)
+	{
+		const bool bCanTrigger = CanTriggerHeroAction(HeroAction);
+		TDeque<FHeroActionSnapshot>& Snapshots = HeroActionSnapshots.FindOrAdd(HeroAction);
+		if (Snapshots.Num() <= 1)
+		{
+			Snapshots.PushFirst({CurrentTime, bCanTrigger});
+		}
+		else
+		{
+			float CurrentDuration = Snapshots.First().Time - Snapshots.Last().Time;
+			while (CurrentDuration > MaxRecordDuration)
+			{
+				Snapshots.PopLast();
+				CurrentDuration = Snapshots.First().Time - Snapshots.Last().Time;
+			}
+			Snapshots.PushFirst({CurrentTime, bCanTrigger});
+		}
+	}
 }

@@ -73,7 +73,7 @@ struct PHANTOM_API FHeroActionEventData
 };
 
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FHeroActionNetID
 {
 	GENERATED_BODY()
@@ -88,6 +88,14 @@ struct FHeroActionNetID
 	friend uint32 GetTypeHash(const FHeroActionNetID& ReplicationID);
 
 private:
-	UPROPERTY()
 	int32 ID;
+};
+
+USTRUCT()
+struct FHeroActionSnapshot
+{
+	GENERATED_BODY()
+
+	float Time = 0.0f;
+	bool bCanTrigger = false;
 };

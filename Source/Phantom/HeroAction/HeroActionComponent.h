@@ -6,6 +6,7 @@
 #include "GameplayTagAssetInterface.h"
 #include "HeroActionTypes.h"
 #include "Components/ActorComponent.h"
+#include "Containers/Deque.h"
 #include "Phantom/RepAnimMontageData.h"
 #include "HeroActionComponent.generated.h"
 
@@ -57,15 +58,13 @@ public:
 	bool CanTriggerHeroAction(UHeroAction* HeroAction);
 	bool TryTriggerHeroAction(UHeroAction* HeroAction);
 	bool TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
+	void EndHeroAction(UHeroAction* HeroAction);
 	UHeroAction* FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 
 
 	// ----------------------------------------------------
 	// Replicates AnimMontage
 	// ----------------------------------------------------
-
-	// Authority에서 Simulated Proxy에 Replicate할 정보를 Update합니다. 
-	void AuthUpdateReplicatedAnimMontage();
 	float PlayAnimMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection = NAME_None,
 	                                float PlayRate = 1.0f, float StartTime = 0.0f);
 
@@ -109,9 +108,11 @@ protected:
 	bool InternalTryTriggerHeroAction(UHeroAction* HeroAction);
 	void TriggerHeroAction(UHeroAction* HeroAction);
 	UFUNCTION(Server, Reliable)
-	void ServerTryTriggerHeroAction(UHeroAction* HeroAction);
+	void ServerTryTriggerHeroAction(UHeroAction* HeroAction, float Time);
 	UFUNCTION(Client, Reliable)
 	void ClientTriggerHeroAction(UHeroAction* HeroAction);
+	UFUNCTION(Client, Reliable)
+	void ClientTryTriggerHeroActionFailed(UHeroAction* HeroAction);
 
 private:
 	// Tag가 추가/삭제 될 때, Delegate를 호출
@@ -119,12 +120,19 @@ private:
 	UFUNCTION()
 	void OnRep_ReplicatedAnimMontage();
 	float PlayAnimMontageLocal(UAnimMontage* AnimMontage, FName StartSection = NAME_None, float PlayRate = 1.0f, float StartTime = 0.0f);
+	// Authority에서 Simulated Proxy에 Replicate할 정보를 Update합니다. 
+	void AuthUpdateReplicatedAnimMontage();
+	void AuthTakeHeroActionSnapshots();
 
 protected:
 	FHeroActionActorInfo HeroActionActorInfo;
 	UPROPERTY(Replicated)
 	TArray<TObjectPtr<UHeroAction>> AvailableHeroActions;
 	FGameplayTagContainer OwningTags;
+
+	// Lag Compensation Data. HeroAction이 Trigger가능한지 여부를 저장
+	TMap<TObjectPtr<UHeroAction>, TDeque<FHeroActionSnapshot>> HeroActionSnapshots;
+	float MaxRecordDuration = 4.0f;
 
 private:
 	// Tag가 추가/삭제 될 때, 호출하는 Delegates
