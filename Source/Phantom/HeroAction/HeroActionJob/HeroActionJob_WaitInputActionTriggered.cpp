@@ -135,11 +135,8 @@ void UHeroActionJob_WaitInputActionTriggered::SetReadyToDestroy()
 {
 	Super::SetReadyToDestroy();
 
-	if (OnInputActionTriggered.IsBound())
-	{
-		OnInputActionTriggered.Clear();
-	}
-
+	OnInputActionTriggered.Clear();
+	
 	UHeroActionComponent* HAC = HeroActionComponent.Get();
 	if (HAC && InputAction)
 	{

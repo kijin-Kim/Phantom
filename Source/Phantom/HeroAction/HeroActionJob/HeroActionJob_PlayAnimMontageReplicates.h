@@ -28,9 +28,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action|Job",
 		meta = (DisplayName = "Play Anim Montage Replicates", HidePin = "HeroAction", DefaultToSelf = "HeroAction", BlueprintInternalUseOnly = "true"))
 	static UHeroActionJob_PlayAnimMontageReplicates* CreateHeroActionJobPlayMontage(UHeroAction* HeroAction, UAnimMontage* AnimMontage,
-	                                                                  FName StartSection = NAME_None, float PlayRate = 1.0f, float StartTime = 0.0f);
+	                                                                                FName StartSection = NAME_None, float PlayRate = 1.0f, float StartTime = 0.0f);
 	virtual void Activate() override;
 	virtual void SetReadyToDestroy() override;
+
 private:
 	void OnMontageEnded(UAnimMontage* InAnimMontage, bool bInterrupted);
 	void OnMontageBlendingOutStarted(UAnimMontage* InAnimMontage, bool bInterrupted);
@@ -46,10 +47,10 @@ public:
 private:
 	UPROPERTY()
 	TObjectPtr<UAnimMontage> AnimMontage;
+	/*여러개의 같은 AnimMontage를 실행중인 PlayAnimMontage노드
+	 *사이에서 현재 노드가 주관하는 AnimMontage를 구분하기 위해 필요.*/
+	int32 AnimMontageInstanceID = 0;
 	FName StartSection = NAME_None;
 	float PlayRate = 1.0f;
 	float StartTime = 0.0f;
-
-
-
 };

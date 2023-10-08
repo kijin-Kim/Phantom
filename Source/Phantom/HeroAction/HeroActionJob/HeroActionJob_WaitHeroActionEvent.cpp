@@ -27,6 +27,7 @@ void UHeroActionJob_WaitHeroActionEvent::Activate()
 void UHeroActionJob_WaitHeroActionEvent::SetReadyToDestroy()
 {
 	Super::SetReadyToDestroy();
+	OnEvent.Clear();
 	UHeroActionComponent* HAC = HeroActionComponent.Get();
 	if (HAC)
 	{

@@ -26,6 +26,10 @@ void UHeroActionJob_PlayAnimMontageReplicates::Activate()
 {
 	Super::Activate();
 	check(HeroAction.IsValid() && HeroActionComponent.IsValid());
+	if(!AnimMontage)
+	{
+		return;
+	}
 
 	UHeroActionComponent* HAC = HeroActionComponent.Get();
 	if (!HAC->PlayAnimMontageReplicates(HeroAction.Get(), AnimMontage, StartSection, PlayRate, StartTime))
@@ -37,13 +41,17 @@ void UHeroActionJob_PlayAnimMontageReplicates::Activate()
 	const FHeroActionActorInfo& HeroActionActorInfo = HeroAction->GetHeroActionActorInfo();
 	if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
 	{
+		FAnimMontageInstance* AnimMontageInstance = AnimInstance->GetActiveInstanceForMontage(AnimMontage);
+		check(AnimMontageInstance);
+		AnimMontageInstanceID = AnimMontageInstance->GetInstanceID();
+		
 		FOnMontageEnded MontageEndedDelegate;
 		MontageEndedDelegate.BindUObject(this, &UHeroActionJob_PlayAnimMontageReplicates::OnMontageEnded);
-		AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, AnimMontage);
+		AnimMontageInstance->OnMontageEnded = MontageEndedDelegate;
 		
 		FOnMontageBlendingOutStarted MontageBlendingOutStartedDelegate;
 		MontageBlendingOutStartedDelegate.BindUObject(this, &UHeroActionJob_PlayAnimMontageReplicates::OnMontageBlendingOutStarted);
-		AnimInstance->Montage_SetBlendingOutDelegate(MontageBlendingOutStartedDelegate, AnimMontage);
+		AnimMontageInstance->OnMontageBlendingOutStarted = MontageBlendingOutStartedDelegate;
 	}
 }
 
@@ -51,18 +59,24 @@ void UHeroActionJob_PlayAnimMontageReplicates::SetReadyToDestroy()
 {
 	Super::SetReadyToDestroy();
 	
+	OnCompleted.Clear();
+	OnBlendingOut.Clear();
+	OnInterrupted.Clear();
 	if (HeroAction.IsValid())
 	{
 		const FHeroActionActorInfo& HeroActionActorInfo = HeroAction->GetHeroActionActorInfo();
 		if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
 		{
-			// Delegate Unbind합니다.
-			FOnMontageEnded MontageEndedDelegate;
-			AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, AnimMontage);
-			FOnMontageBlendingOutStarted MontageBlendingOutStartedDelegate;
-			AnimInstance->Montage_SetBlendingOutDelegate(MontageBlendingOutStartedDelegate, AnimMontage);
-
-			AnimInstance->Montage_Stop(0.0f, AnimMontage);
+			/* MontageInstance의 ID를 확인하여, 현재 이 노드가 실행한 Montage가 맞는지 확인합니다.
+			 * (같은 Montage를 다른 실행경로를 통해 실행하고 있을 수도 있음.)
+			 */
+			FAnimMontageInstance* CurrentMontageInstance = AnimInstance->GetActiveInstanceForMontage(AnimMontage);
+			if(CurrentMontageInstance && CurrentMontageInstance->GetInstanceID() == AnimMontageInstanceID)
+			{
+				CurrentMontageInstance->OnMontageEnded.Unbind();
+				CurrentMontageInstance->OnMontageBlendingOutStarted.Unbind();
+				AnimInstance->Montage_Stop(AnimMontage->BlendOut.GetBlendTime(), AnimMontage);
+			}
 		}
 	}
 }
@@ -73,7 +87,6 @@ void UHeroActionJob_PlayAnimMontageReplicates::OnMontageEnded(UAnimMontage* InAn
 	{
 		OnCompleted.Broadcast();
 	}
-
 	Cancel();
 }
 

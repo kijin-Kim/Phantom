@@ -65,7 +65,6 @@ public:
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 
-	virtual float PlayAnimMontage(UAnimMontage* AnimMontage, float InPlayRate = 1.f, FName StartSectionName = NAME_None) override;
 	void ChangeCharacterActionState(ECharacterActionState NewActionState);
 
 	UFUNCTION(BlueprintCallable)
@@ -94,8 +93,6 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
-	// Simulated Proxy에게 Replicate할 애니메이션 정보를 Update함.
-	void AuthUpdateReplicatedAnimMontage(float DeltaSeconds);
 	// 매 프레임마다 새로 타겟팅할 후보를 계산함.
 	void CalculateNewTargetingEnemy();
 

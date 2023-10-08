@@ -144,7 +144,6 @@ void APhantomCharacter::BeginPlay()
 void APhantomCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	AuthUpdateReplicatedAnimMontage(DeltaSeconds);
 	if (IsLocallyControlled())
 	{
 		CalculateNewTargetingEnemy();

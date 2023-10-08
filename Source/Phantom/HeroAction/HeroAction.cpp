@@ -66,7 +66,7 @@ void UHeroAction::TriggerHeroAction()
 		}
 		return;
 	}
-
+	
 	bIsTriggering = true;
 	UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 Trigger 되었습니다."), *GetNameSafe(this));
 
@@ -81,8 +81,14 @@ void UHeroAction::EndHeroAction()
 		&& HeroActionActorInfo.SourceActor.IsValid()
 		&& HeroActionActorInfo.HeroActionComponent.IsValid());
 
+	if(!bIsTriggering)
+	{
+		UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 이미 End되었거나, Trigger되지 않았습니다."), *GetNameSafe(this));
+		return;
+	}
+
 	bIsTriggering = false;
-	UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 End 되었습니다."), *GetNameSafe(this));
+	UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 End되었습니다."), *GetNameSafe(this));
 
 	HandleTagOnEnd();
 
