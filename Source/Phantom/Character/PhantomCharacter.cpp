@@ -270,11 +270,6 @@ void APhantomCharacter::Move(const FInputActionValue& Value)
 	}
 }
 
-bool APhantomCharacter::CanDodge() const
-{
-	return CharacterActionState != ECharacterActionState::Dodge && !bIsCrouched;
-}
-
 bool APhantomCharacter::CanAttack() const
 {
 	if (!HasAuthority())

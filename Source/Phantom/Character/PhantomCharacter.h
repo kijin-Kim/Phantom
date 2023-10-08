@@ -80,8 +80,7 @@ public:
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
 	void Attack();
-
-	bool CanDodge() const;
+	
 	bool CanAttack() const;
 	bool CanSnapShotAttack(const FCharacterSnapshot& Snapshot) const;
 

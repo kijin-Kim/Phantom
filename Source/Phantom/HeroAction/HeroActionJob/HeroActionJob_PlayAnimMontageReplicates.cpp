@@ -6,8 +6,8 @@
 #include "Phantom/HeroAction/HeroAction.h"
 #include "Phantom/Phantom.h"
 
-UHeroActionJob_PlayAnimMontageReplicates* UHeroActionJob_PlayAnimMontageReplicates::CreateHeroActionJobPlayMontage(UHeroAction* InHeroAction, UAnimMontage* InAnimMontage, FName InStartSection,
-                                                                                       float InPlayRate, float InStartTime)
+UHeroActionJob_PlayAnimMontageReplicates* UHeroActionJob_PlayAnimMontageReplicates::CreateHeroActionJobPlayMontage(
+	UHeroAction* InHeroAction, UAnimMontage* InAnimMontage, bool InbStopOnEnd, FName InStartSection, float InPlayRate, float InStartTime)
 {
 	if (!InAnimMontage)
 	{
@@ -16,6 +16,7 @@ UHeroActionJob_PlayAnimMontageReplicates* UHeroActionJob_PlayAnimMontageReplicat
 
 	UHeroActionJob_PlayAnimMontageReplicates* MyObj = NewHeroActionJob<UHeroActionJob_PlayAnimMontageReplicates>(InHeroAction);
 	MyObj->AnimMontage = InAnimMontage;
+	MyObj->bStopOnEnd = InbStopOnEnd;
 	MyObj->StartSection = InStartSection;
 	MyObj->PlayRate = InPlayRate;
 	MyObj->StartTime = InStartTime;
@@ -26,7 +27,7 @@ void UHeroActionJob_PlayAnimMontageReplicates::Activate()
 {
 	Super::Activate();
 	check(HeroAction.IsValid() && HeroActionComponent.IsValid());
-	if(!AnimMontage)
+	if (!AnimMontage)
 	{
 		return;
 	}
@@ -44,11 +45,11 @@ void UHeroActionJob_PlayAnimMontageReplicates::Activate()
 		FAnimMontageInstance* AnimMontageInstance = AnimInstance->GetActiveInstanceForMontage(AnimMontage);
 		check(AnimMontageInstance);
 		AnimMontageInstanceID = AnimMontageInstance->GetInstanceID();
-		
+
 		FOnMontageEnded MontageEndedDelegate;
 		MontageEndedDelegate.BindUObject(this, &UHeroActionJob_PlayAnimMontageReplicates::OnMontageEnded);
 		AnimMontageInstance->OnMontageEnded = MontageEndedDelegate;
-		
+
 		FOnMontageBlendingOutStarted MontageBlendingOutStartedDelegate;
 		MontageBlendingOutStartedDelegate.BindUObject(this, &UHeroActionJob_PlayAnimMontageReplicates::OnMontageBlendingOutStarted);
 		AnimMontageInstance->OnMontageBlendingOutStarted = MontageBlendingOutStartedDelegate;
@@ -58,7 +59,7 @@ void UHeroActionJob_PlayAnimMontageReplicates::Activate()
 void UHeroActionJob_PlayAnimMontageReplicates::SetReadyToDestroy()
 {
 	Super::SetReadyToDestroy();
-	
+
 	OnCompleted.Clear();
 	OnBlendingOut.Clear();
 	OnInterrupted.Clear();
@@ -71,11 +72,14 @@ void UHeroActionJob_PlayAnimMontageReplicates::SetReadyToDestroy()
 			 * (같은 Montage를 다른 실행경로를 통해 실행하고 있을 수도 있음.)
 			 */
 			FAnimMontageInstance* CurrentMontageInstance = AnimInstance->GetActiveInstanceForMontage(AnimMontage);
-			if(CurrentMontageInstance && CurrentMontageInstance->GetInstanceID() == AnimMontageInstanceID)
+			if (CurrentMontageInstance && CurrentMontageInstance->GetInstanceID() == AnimMontageInstanceID)
 			{
 				CurrentMontageInstance->OnMontageEnded.Unbind();
 				CurrentMontageInstance->OnMontageBlendingOutStarted.Unbind();
-				AnimInstance->Montage_Stop(AnimMontage->BlendOut.GetBlendTime(), AnimMontage);
+				if(bStopOnEnd)
+				{
+					AnimInstance->Montage_Stop(AnimMontage->BlendOut.GetBlendTime(), AnimMontage);	
+				}
 			}
 		}
 	}
