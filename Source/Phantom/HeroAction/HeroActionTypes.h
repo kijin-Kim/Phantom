@@ -71,3 +71,23 @@ struct PHANTOM_API FHeroActionEventData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
 	TObjectPtr<AActor> EventTarget;
 };
+
+
+USTRUCT(BlueprintType)
+struct FHeroActionNetID
+{
+	GENERATED_BODY()
+
+	FHeroActionNetID();
+
+	void CreateNewID();
+	
+	bool IsValid() const;
+	bool operator==(const FHeroActionNetID& Other) const;
+	bool operator!=(const FHeroActionNetID& Other) const;
+	friend uint32 GetTypeHash(const FHeroActionNetID& ReplicationID);
+
+private:
+	UPROPERTY()
+	int32 ID;
+};

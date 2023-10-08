@@ -2,7 +2,6 @@
 
 
 #include "HeroActionJob.h"
-#include "Phantom/HeroAction/HeroActionNetID.h"
 #include "Phantom/HeroAction/HeroActionBlueprintLibrary.h"
 
 bool UHeroActionJob::ShouldBroadcastDelegates() const
@@ -27,7 +26,6 @@ void UHeroActionJob::InitHeroActionJob(UHeroAction* InHeroAction)
 	if (HeroActionActorInfo.SourceActor.IsValid())
 	{
 		HeroActionComponent = UHeroActionBlueprintLibrary::GetHeroActionComponent(HeroActionActorInfo.SourceActor.Get());
-		NetID = NewObject<UHeroActionNetID>(HeroActionActorInfo.SourceActor.Get());
 	}
 	HeroActionEndDelegateHandle = InHeroAction->OnHeroActionEnd.AddUObject(this, &UCancellableAsyncAction::Cancel);
 }

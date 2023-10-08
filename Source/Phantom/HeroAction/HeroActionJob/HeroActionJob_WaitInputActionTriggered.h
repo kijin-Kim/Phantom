@@ -21,6 +21,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action|Job",
 		meta = (DisplayName = "Wait Input Action Triggered", HidePin = "HeroAction", DefaultToSelf = "HeroAction", BlueprintInternalUseOnly = "true"))
 	static UHeroActionJob_WaitInputActionTriggered* CreateHeroActionJobWaitInputActionTriggered(UHeroAction* HeroAction, UInputAction* InputAction, bool bIgnoreWhenActionTriggered = false);
+	void SetupDelegates();
 	virtual void Activate() override;
 	virtual void SetReadyToDestroy() override;
 	
@@ -28,7 +29,7 @@ private:
 	void SendServerAndWaitResponse();
 	void SendServerAndProceed();
 	void BindOnInputActionTriggeredDelegate();
-	void BroadcastOnInputActionTriggered();
+	void BroadcastOnInputActionTriggered(bool bTriggeredHeroAction);
 
 	
 public:
@@ -40,4 +41,5 @@ public:
 private:
 	FDelegateHandle Handle;
 	FDelegateHandle RepHandle;
+	FHeroActionNetID InputEventNetID;
 };

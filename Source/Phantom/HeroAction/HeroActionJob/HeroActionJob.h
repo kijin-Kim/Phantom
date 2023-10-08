@@ -8,7 +8,6 @@
 #include "Engine/CancellableAsyncAction.h"
 #include "HeroActionJob.generated.h"
 
-class UHeroActionNetID;
 class UHeroActionComponent;
 class UHeroAction;
 /**
@@ -38,7 +37,6 @@ private:
 protected:
 	TWeakObjectPtr<UHeroAction> HeroAction;
 	TWeakObjectPtr<UHeroActionComponent> HeroActionComponent;
-	TObjectPtr<UHeroActionNetID> NetID;
 
 private:
 	FDelegateHandle HeroActionEndDelegateHandle;

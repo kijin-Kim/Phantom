@@ -214,52 +214,54 @@ bool UHeroActionComponent::HandleInputActionTriggered(UInputAction* InputAction,
 	return false;
 }
 
-void UHeroActionComponent::ServerHandleInputActionTriggered_Implementation(UInputAction* InputAction, UHeroActionNetID* NetID)
+void UHeroActionComponent::ServerHandleInputActionTriggered_Implementation(UInputAction* InputAction, FHeroActionNetID NetID, bool bTriggeredHeroAction)
 {
-	bool bHandled = HandleInputActionTriggered(InputAction, true);
+	bool bHandled = HandleInputActionTriggered(InputAction, bTriggeredHeroAction);
 	if (!bHandled)
 	{
-		CachedData.Add({NetID, InputAction});
+		TPair<UInputAction*, bool> NewValue = {InputAction, bTriggeredHeroAction};
+		CachedData.Add({NetID, NewValue});
 	}
 }
 
-void UHeroActionComponent::ServerNotifyInputActionTriggered_Implementation(UInputAction* InputAction, UHeroActionNetID* NetID)
+void UHeroActionComponent::ServerNotifyInputActionTriggered_Implementation(UInputAction* InputAction, FHeroActionNetID NetID, bool bTriggeredHeroAction)
 {
-	ensure(InputAction && NetID);
+	ensure(InputAction && NetID.IsValid());
 
-	const bool bHandled = HandleInputActionTriggered(InputAction, true);
+	const bool bHandled = HandleInputActionTriggered(InputAction, bTriggeredHeroAction);
 	if (!bHandled)
 	{
-		CachedData.Add({NetID, InputAction});
+		TPair<UInputAction*, bool> NewValue = {InputAction, bTriggeredHeroAction};
+		CachedData.Add({NetID, NewValue});
 	}
-	ClientNotifyInputActionTriggered(InputAction, bHandled);
+	ClientNotifyInputActionTriggered(InputAction, bHandled, bTriggeredHeroAction);
 }
 
-void UHeroActionComponent::ClientNotifyInputActionTriggered_Implementation(UInputAction* InputAction, bool bHandled)
+void UHeroActionComponent::ClientNotifyInputActionTriggered_Implementation(UInputAction* InputAction, bool bHandled, bool bTriggeredHeroAction)
 {
 	FOnInputActionTriggeredReplicatedSignature& Delegate = GetOnInputActionTriggeredReplicatedDelegate(InputAction);
 	if (Delegate.IsBound())
 	{
-		Delegate.Broadcast(bHandled);
+		Delegate.Broadcast(bHandled, bTriggeredHeroAction);
 	}
 }
 
-bool UHeroActionComponent::AuthCallOnInputActionTriggeredIfAlreadyArrived(UInputAction* InInputAction, UHeroActionNetID* NetID)
+bool UHeroActionComponent::AuthCallOnInputActionTriggeredIfAlreadyArrived(UInputAction* InInputAction, FHeroActionNetID NetID)
 {
-	ensure(HeroActionActorInfo.IsOwnerHasAuthority() && InInputAction && NetID);
-	
-	if (UInputAction** InputActionPtr = CachedData.Find(NetID))
+	ensure(HeroActionActorInfo.IsOwnerHasAuthority() && InInputAction && NetID.IsValid());
+
+	if (auto DataPtr = CachedData.Find(NetID))
 	{
-		check(*InputActionPtr == InInputAction);
+		check(DataPtr->Key == InInputAction);
 		CachedData.Remove(NetID);
-		const bool bHandled = HandleInputActionTriggered(*InputActionPtr, true);
+		const bool bHandled = HandleInputActionTriggered(DataPtr->Key, DataPtr->Value);
 		ensure(bHandled);
 		return bHandled;
 	}
 	return false;
 }
 
-void UHeroActionComponent::RemoveCachedData(UHeroActionNetID* NetID)
+void UHeroActionComponent::RemoveCachedData(FHeroActionNetID NetID)
 {
 	if (CachedData.Find(NetID))
 	{
@@ -338,7 +340,7 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		// Flush Server Moves
 		// Server Trigger
 		// Local Trigger
-		const bool bCanTriggerLocal =  CanTriggerHeroAction(HeroAction);
+		const bool bCanTriggerLocal = CanTriggerHeroAction(HeroAction);
 		if (bCanTriggerLocal)
 		{
 			ServerTryTriggerHeroAction(HeroAction);
@@ -351,7 +353,7 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		|| NetMethod == EHeroActionNetMethod::ServerOnly
 		|| (bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted))
 	{
-		const bool bCanTriggerLocal =  CanTriggerHeroAction(HeroAction);
+		const bool bCanTriggerLocal = CanTriggerHeroAction(HeroAction);
 		if (bCanTriggerLocal)
 		{
 			TriggerHeroAction(HeroAction);
@@ -363,7 +365,7 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 	{
 		// Client Trigger
 		// Local Trigger
-		const bool bCanTriggerLocal =  CanTriggerHeroAction(HeroAction);
+		const bool bCanTriggerLocal = CanTriggerHeroAction(HeroAction);
 		if (bCanTriggerLocal)
 		{
 			ClientTriggerHeroAction(HeroAction);
