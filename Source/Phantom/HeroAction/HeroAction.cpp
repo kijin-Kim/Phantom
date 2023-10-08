@@ -60,13 +60,13 @@ void UHeroAction::TriggerHeroAction()
 	{
 		check(HeroActionRetriggeringMethod != EHeroActionRetriggeringMethod::Block);
 		EndHeroAction(); // Setting bIsTriggering to false;
-		if (HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::CancelAndRetrigger)
+		if (HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::EndAndRetrigger)
 		{
 			TriggerHeroAction();
 		}
 		return;
 	}
-	
+
 	bIsTriggering = true;
 	UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 Trigger 되었습니다."), *GetNameSafe(this));
 
@@ -81,7 +81,7 @@ void UHeroAction::EndHeroAction()
 		&& HeroActionActorInfo.SourceActor.IsValid()
 		&& HeroActionActorInfo.HeroActionComponent.IsValid());
 
-	if(!bIsTriggering)
+	if (!bIsTriggering)
 	{
 		UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 이미 End되었거나, Trigger되지 않았습니다."), *GetNameSafe(this));
 		return;
@@ -112,11 +112,14 @@ void UHeroAction::BindTryTriggerEvent()
 	check(HeroActionComponent);
 	for (const FGameplayTag& Tag : TriggerEventTags)
 	{
-		FDelegateHandle Handle = HeroActionComponent->GetOnHeroActionEventDelegate(Tag).AddLambda(
-			[this, HeroActionComponent, Handle](const FHeroActionEventData&)
-			{
-				HeroActionComponent->TryTriggerHeroAction(this);
-			});
+		if (!HeroActionComponent->GetOnHeroActionEventDelegate(Tag).IsBoundToObject(this))
+		{
+			FDelegateHandle Handle = HeroActionComponent->GetOnHeroActionEventDelegate(Tag).AddLambda(
+				[this, HeroActionComponent](const FHeroActionEventData&)
+				{
+					HeroActionComponent->TryTriggerHeroAction(this);
+				});
+		}
 	}
 }
 
@@ -161,6 +164,5 @@ void UHeroAction::HandleTagOnEnd()
 		OnTagMoved.Remove(LifeTagRemovalDelegateHandle);
 		HeroActionComponent->RemoveTag(LifeTag);
 	}
-
 	BindTryTriggerEvent();
 }

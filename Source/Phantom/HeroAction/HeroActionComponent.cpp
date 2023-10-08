@@ -283,11 +283,12 @@ FOnInputActionTriggeredReplicatedSignature& UHeroActionComponent::GetOnInputActi
 
 void UHeroActionComponent::DispatchHeroActionEvent(const FGameplayTag& Tag, const FHeroActionEventData& Data)
 {
-	FOnHeroActionEventSignature& Delegate = HeroActionActorInfo.HeroActionComponent->GetOnHeroActionEventDelegate(Tag);
+	FOnHeroActionEventSignature& Delegate = GetOnHeroActionEventDelegate(Tag);
 	if (Delegate.IsBound())
 	{
 		Delegate.Broadcast(Data);
 		Delegate.Clear();
+		OnHeroActionEventDelegates.Remove(Tag);
 	}
 }
 

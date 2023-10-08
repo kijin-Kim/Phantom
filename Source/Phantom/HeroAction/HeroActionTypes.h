@@ -29,10 +29,10 @@ enum class EHeroActionRetriggeringMethod
 {
 	// Retrigger 불가능
 	Block UMETA(DisplayName = "Block"),
-	// Retrigger시 Cancel
-	Cancel UMETA(DisplayName = "Cancel"),
-	// Retrigger시 Cancel후 Retrigger
-	CancelAndRetrigger UMETA(DisplayName = "Cancel And Retrigger"),
+	// Retrigger시 End
+	End UMETA(DisplayName = "End"),
+	// Retrigger시 End후 Retrigger
+	EndAndRetrigger UMETA(DisplayName = "End And Retrigger"),
 	Max UMETA(hidden)
 };
 
