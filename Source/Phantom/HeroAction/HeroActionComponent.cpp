@@ -56,7 +56,7 @@ void UHeroActionComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if(HeroActionActorInfo.IsOwnerHasAuthority())
+	if (HeroActionActorInfo.IsOwnerHasAuthority())
 	{
 		AuthUpdateReplicatedAnimMontage();
 	}
@@ -145,23 +145,23 @@ bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction)
 	return HeroAction && HeroAction->CanTriggerHeroAction();
 }
 
-void UHeroActionComponent::TryTriggerHeroAction(UHeroAction* HeroAction)
+bool UHeroActionComponent::TryTriggerHeroAction(UHeroAction* HeroAction)
 {
-	TryTriggerHeroActionByClass(HeroAction->GetClass());
+	return TryTriggerHeroActionByClass(HeroAction->GetClass());
 }
 
-void UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
+bool UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
 {
 	if (UHeroAction* HeroAction = FindHeroActionByClass(HeroActionClass))
 	{
-		InternalTryTriggerHeroAction(HeroAction);
-		return;
+		return InternalTryTriggerHeroAction(HeroAction);
 	}
 
 	if (IsValid(HeroActionClass))
 	{
 		UE_LOG(LogPhantom, Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroActionClass));
 	}
+	return false;
 }
 
 UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
@@ -198,17 +198,17 @@ float UHeroActionComponent::PlayAnimMontageReplicates(UHeroAction* HeroAction, U
 	}
 
 	const float Duration = PlayAnimMontageLocal(AnimMontage, StartSection, PlayRate, StartTime);
-	LocalAnimMontageData.AnimMontage = Duration > 0.0f ? AnimMontage : nullptr; 
+	LocalAnimMontageData.AnimMontage = Duration > 0.0f ? AnimMontage : nullptr;
 	return Duration;
 }
 
-bool UHeroActionComponent::HandleInputActionTriggered(UInputAction* InputAction)
+bool UHeroActionComponent::HandleInputActionTriggered(UInputAction* InputAction, bool bTriggeredHeroAction)
 {
 	check(InputAction);
 	FOnInputActionTriggeredSignature& OnInputActionTriggered = GetOnInputActionTriggeredDelegate(InputAction);
 	if (OnInputActionTriggered.IsBound())
 	{
-		OnInputActionTriggered.Broadcast();
+		OnInputActionTriggered.Broadcast(bTriggeredHeroAction);
 		return true;
 	}
 	return false;
@@ -216,7 +216,7 @@ bool UHeroActionComponent::HandleInputActionTriggered(UInputAction* InputAction)
 
 void UHeroActionComponent::ServerHandleInputActionTriggered_Implementation(UInputAction* InputAction, UHeroActionNetID* NetID)
 {
-	bool bHandled = HandleInputActionTriggered(InputAction);
+	bool bHandled = HandleInputActionTriggered(InputAction, true);
 	if (!bHandled)
 	{
 		CachedData.Add({NetID, InputAction});
@@ -227,7 +227,7 @@ void UHeroActionComponent::ServerNotifyInputActionTriggered_Implementation(UInpu
 {
 	ensure(InputAction && NetID);
 
-	bool bHandled = HandleInputActionTriggered(InputAction);
+	const bool bHandled = HandleInputActionTriggered(InputAction, true);
 	if (!bHandled)
 	{
 		CachedData.Add({NetID, InputAction});
@@ -244,14 +244,15 @@ void UHeroActionComponent::ClientNotifyInputActionTriggered_Implementation(UInpu
 	}
 }
 
-bool UHeroActionComponent::AuthCallOnInputActionTriggeredIfAlreadyArrived(UInputAction* InputAction, UHeroActionNetID* NetID)
+bool UHeroActionComponent::AuthCallOnInputActionTriggeredIfAlreadyArrived(UInputAction* InInputAction, UHeroActionNetID* NetID)
 {
-	ensure(HeroActionActorInfo.IsOwnerHasAuthority() && InputAction && NetID);
-
-	if (UInputAction** IAPtr = CachedData.Find(NetID))
+	ensure(HeroActionActorInfo.IsOwnerHasAuthority() && InInputAction && NetID);
+	
+	if (UInputAction** InputActionPtr = CachedData.Find(NetID))
 	{
+		check(*InputActionPtr == InInputAction);
 		CachedData.Remove(NetID);
-		bool bHandled = HandleInputActionTriggered(InputAction);
+		const bool bHandled = HandleInputActionTriggered(*InputActionPtr, true);
 		ensure(bHandled);
 		return bHandled;
 	}
@@ -260,7 +261,7 @@ bool UHeroActionComponent::AuthCallOnInputActionTriggeredIfAlreadyArrived(UInput
 
 void UHeroActionComponent::RemoveCachedData(UHeroActionNetID* NetID)
 {
-	if (UInputAction** IAPtr = CachedData.Find(NetID))
+	if (CachedData.Find(NetID))
 	{
 		CachedData.Remove(NetID);
 	}
@@ -278,7 +279,7 @@ FOnInputActionTriggeredReplicatedSignature& UHeroActionComponent::GetOnInputActi
 	return OnInputActionTriggeredReplicatedDelegates.FindOrAdd(InputAction);
 }
 
-void UHeroActionComponent::BroadcastHeroActionEventDelegate(const FGameplayTag& Tag, const FHeroActionEventData& Data)
+void UHeroActionComponent::DispatchHeroActionEvent(const FGameplayTag& Tag, const FHeroActionEventData& Data)
 {
 	FOnHeroActionEventSignature& Delegate = HeroActionActorInfo.HeroActionComponent->GetOnHeroActionEventDelegate(Tag);
 	if (Delegate.IsBound())
@@ -298,7 +299,7 @@ FOnHeroActionEventSignature& UHeroActionComponent::GetOnHeroActionEventDelegate(
 	return OnHeroActionEventDelegates.FindOrAdd(Tag);
 }
 
-void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
+bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 {
 	check(HeroAction)
 
@@ -311,21 +312,25 @@ void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 	{
 		ensure(false);
 		UE_LOG(LogPhantom, Error, TEXT("Local이 아닌곳에서는 실행할 수 없는 Action입니다."));
-		return;
+		return false;
 	}
 
 	if (!bHasAuthority && NetMethod == EHeroActionNetMethod::ServerOnly)
 	{
 		ensure(false);
 		UE_LOG(LogPhantom, Error, TEXT("Server가 아닌곳에서는 실행할 수 없는 Action입니다."));
-		return;
+		return false;
 	}
 
 	if (!bHasAuthority && NetMethod == EHeroActionNetMethod::ServerOriginated)
 	{
 		// 서버에게 실행해달라고 요청.
-		ServerTryTriggerHeroAction(HeroAction);
-		return;
+		const bool bCanTriggerLocal = CanTriggerHeroAction(HeroAction);
+		if (bCanTriggerLocal)
+		{
+			ServerTryTriggerHeroAction(HeroAction);
+		}
+		return bCanTriggerLocal;
 	}
 
 	if (!bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted)
@@ -333,35 +338,41 @@ void UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		// Flush Server Moves
 		// Server Trigger
 		// Local Trigger
-		if (CanTriggerHeroAction(HeroAction))
+		const bool bCanTriggerLocal =  CanTriggerHeroAction(HeroAction);
+		if (bCanTriggerLocal)
 		{
 			ServerTryTriggerHeroAction(HeroAction);
 			TriggerHeroAction(HeroAction);
 		}
-		return;
+		return bCanTriggerLocal;
 	}
 
 	if (NetMethod == EHeroActionNetMethod::LocalOnly
 		|| NetMethod == EHeroActionNetMethod::ServerOnly
 		|| (bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted))
 	{
-		if (CanTriggerHeroAction(HeroAction))
+		const bool bCanTriggerLocal =  CanTriggerHeroAction(HeroAction);
+		if (bCanTriggerLocal)
 		{
 			TriggerHeroAction(HeroAction);
 		}
-		return;
+		return bCanTriggerLocal;
 	}
 
 	if (NetMethod == EHeroActionNetMethod::ServerOriginated)
 	{
 		// Client Trigger
 		// Local Trigger
-		if (CanTriggerHeroAction(HeroAction))
+		const bool bCanTriggerLocal =  CanTriggerHeroAction(HeroAction);
+		if (bCanTriggerLocal)
 		{
 			ClientTriggerHeroAction(HeroAction);
 		}
-		return;
+		return bCanTriggerLocal;
 	}
+
+	// Not Reachable
+	return false;
 }
 
 void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)

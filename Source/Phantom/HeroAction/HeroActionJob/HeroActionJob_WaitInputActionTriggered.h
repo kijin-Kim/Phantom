@@ -20,19 +20,22 @@ class PHANTOM_API UHeroActionJob_WaitInputActionTriggered : public UHeroActionJo
 public:
 	UFUNCTION(BlueprintCallable, Category = "Action|Job",
 		meta = (DisplayName = "Wait Input Action Triggered", HidePin = "HeroAction", DefaultToSelf = "HeroAction", BlueprintInternalUseOnly = "true"))
-	static UHeroActionJob_WaitInputActionTriggered* CreateHeroActionJobWaitInputActionTriggered(UHeroAction* HeroAction, UInputAction* InputAction);
+	static UHeroActionJob_WaitInputActionTriggered* CreateHeroActionJobWaitInputActionTriggered(UHeroAction* HeroAction, UInputAction* InputAction, bool bIgnoreWhenActionTriggered = false);
+	virtual void Activate() override;
+	virtual void SetReadyToDestroy() override;
+	
+private:
 	void SendServerAndWaitResponse();
 	void SendServerAndProceed();
 	void BindOnInputActionTriggeredDelegate();
 	void BroadcastOnInputActionTriggered();
-	virtual void Activate() override;
-	virtual void SetReadyToDestroy() override;
+
 	
 public:
 	UPROPERTY(BlueprintAssignable)
 	FHeroActionOnInputActionTriggeredSignature OnInputActionTriggered;
 	TObjectPtr<UInputAction> InputAction;
-	int32 HeroActionJobID = 0;
+	bool bIgnoreWhenHeroActionTriggered;
 
 private:
 	FDelegateHandle Handle;

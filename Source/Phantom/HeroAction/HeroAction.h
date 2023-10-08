@@ -50,6 +50,28 @@ public:
 	const FHeroActionActorInfo& GetHeroActionActorInfo() const { return HeroActionActorInfo; }
 	FGameplayTag GetLifeTag() const { return LifeTag; }
 
+
+	// ----------------------------------------------------
+	// Blueprint Helper Function
+	// ----------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "HeroAction")
+	AActor* GetOwnerActor() const { return HeroActionActorInfo.Owner.Get(); }
+	UFUNCTION(BlueprintCallable, Category = "HeroAction")
+	AActor* GetSourceActor() const { return HeroActionActorInfo.SourceActor.Get(); }
+	UFUNCTION(BlueprintCallable, Category = "HeroAction")
+	UHeroActionComponent* GetHeroActionComponent() const { return HeroActionActorInfo.HeroActionComponent.Get(); }
+	UFUNCTION(BlueprintCallable, Category = "HeroAction")
+	USkeletalMeshComponent* GetSkeletalMeshComponent() const { return HeroActionActorInfo.SkeletalMeshComponent.Get(); }
+	UFUNCTION(BlueprintCallable, Category = "HeroAction")
+	UCharacterMovementComponent* GetCharacterMovementComponent() const { return HeroActionActorInfo.CharacterMovementComponent.Get(); }
+	UFUNCTION(BlueprintCallable, Category = "HeroAction")
+	UAnimInstance* GetAnimInstance() const { return HeroActionActorInfo.GetAnimInstance(); }
+	UFUNCTION(BlueprintCallable, Category = "HeroAction")
+	bool IsSourceLocallyControlled() const { return HeroActionActorInfo.IsSourceLocallyControlled(); }
+	UFUNCTION(BlueprintCallable, Category = "HeroAction")
+	bool IsOwnerHasAuthority() const { return HeroActionActorInfo.IsOwnerHasAuthority(); }
+	
+
 private:
 	void InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo);
 	void HandleTagOnTrigger();

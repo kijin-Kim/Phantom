@@ -16,8 +16,8 @@ class UReplicatedObject;
 
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHeroActionTagMovedSignature, const FGameplayTag& /*Tag*/, bool /*bIsAdded*/);
-DECLARE_MULTICAST_DELEGATE(FOnInputActionTriggeredSignature);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputActionTriggeredReplicatedSignature, bool);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputActionTriggeredSignature, bool /*bInputTriggeredHeroAction*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputActionTriggeredReplicatedSignature, bool /*bHandledByServer*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHeroActionEventSignature, const FHeroActionEventData& /*EventData*/);
 
 
@@ -28,7 +28,7 @@ class PHANTOM_API UHeroActionComponent : public UActorComponent, public IGamepla
 
 public:
 	UHeroActionComponent();
-	
+
 	// ----------------------------------------------------
 	// Component
 	// ----------------------------------------------------
@@ -36,7 +36,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void OnUnregister() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	
+
 	// ----------------------------------------------------
 	// IGameplayTagAssetInterface
 	// ----------------------------------------------------
@@ -51,36 +51,38 @@ public:
 	void RemoveTag(FGameplayTag Tag);
 	UFUNCTION(BlueprintCallable, Category = "HeroAction|Tag")
 	void RemoveTags(const FGameplayTagContainer& GameplayTagContainer);
-	
+
 	void InitializeHeroActionActorInfo(AActor* SourceActor);
 	void AuthAddHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	bool CanTriggerHeroAction(UHeroAction* HeroAction);
-	void TryTriggerHeroAction(UHeroAction* HeroAction);
-	void TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
+	bool TryTriggerHeroAction(UHeroAction* HeroAction);
+	bool TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	UHeroAction* FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 
-	
+
 	// ----------------------------------------------------
 	// Replicates AnimMontage
 	// ----------------------------------------------------
-	
+
 	// Authority에서 Simulated Proxy에 Replicate할 정보를 Update합니다. 
 	void AuthUpdateReplicatedAnimMontage();
 	float PlayAnimMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection = NAME_None,
-	                                    float PlayRate = 1.0f, float StartTime = 0.0f);
+	                                float PlayRate = 1.0f, float StartTime = 0.0f);
 
-	
+
 	// ----------------------------------------------------
 	// Delegate Handling
 	// ----------------------------------------------------
 
-	// InputAction에 Bind되어 있는 Delegate를 호출함.
-	bool HandleInputActionTriggered(UInputAction* InputAction);
-	
+	/* InputAction에 Bind되어 있는 Delegate를 호출함.
+	 * 다른 InputAction이 다른 HeroAction을 Trigger했을시,
+	 * bTriggeredHeroAction = true */
+	bool HandleInputActionTriggered(UInputAction* InputAction, bool bTriggeredHeroAction);
+
 	// Server에 Client에 Input을 보내고, Delegate를 호출하라고 요청. Bind되지 않았을시 (늦었을시) 실패하고 정보를 저장함.
 	UFUNCTION(Server, Reliable)
 	void ServerHandleInputActionTriggered(UInputAction* InputAction, UHeroActionNetID* NetID);
-	
+
 	/* Server에 Client에 Input을 보내고, Delegate를 호출하라고 요청. Bind되지 않았을시 (늦었을시) 실패하고 정보를 저장함
 	 * 이후 클라이언트에 결과를 응답함. */
 	UFUNCTION(Server, Reliable)
@@ -92,20 +94,19 @@ public:
 
 	// Client RPC가 Delegate Binding보다 먼저 도착했는지 확인하고, 먼저 도착했으면 OnInputActionTriggered을 직접 호출함.
 	bool AuthCallOnInputActionTriggeredIfAlreadyArrived(UInputAction* InputAction, UHeroActionNetID* NetID);
-	
+
 	void RemoveCachedData(UHeroActionNetID* NetID);
 
 	FOnInputActionTriggeredSignature& GetOnInputActionTriggeredDelegate(UInputAction* InputAction);
-    FOnInputActionTriggeredReplicatedSignature& GetOnInputActionTriggeredReplicatedDelegate(UInputAction* InputAction);
+	FOnInputActionTriggeredReplicatedSignature& GetOnInputActionTriggeredReplicatedDelegate(UInputAction* InputAction);
 
-	
-	void  BroadcastHeroActionEventDelegate(const FGameplayTag& Tag, const FHeroActionEventData& Data);
+
+	void DispatchHeroActionEvent(const FGameplayTag& Tag, const FHeroActionEventData& Data);
 	FOnHeroActionTagMovedSignature& GetOnTagMovedDelegate(const FGameplayTag& Tag);
 	FOnHeroActionEventSignature& GetOnHeroActionEventDelegate(const FGameplayTag& Tag);
-	
 
 protected:
-	void InternalTryTriggerHeroAction(UHeroAction* HeroAction);
+	bool InternalTryTriggerHeroAction(UHeroAction* HeroAction);
 	void TriggerHeroAction(UHeroAction* HeroAction);
 	UFUNCTION(Server, Reliable)
 	void ServerTryTriggerHeroAction(UHeroAction* HeroAction);
@@ -118,7 +119,6 @@ private:
 	UFUNCTION()
 	void OnRep_ReplicatedAnimMontage();
 	float PlayAnimMontageLocal(UAnimMontage* AnimMontage, FName StartSection = NAME_None, float PlayRate = 1.0f, float StartTime = 0.0f);
-
 
 protected:
 	FHeroActionActorInfo HeroActionActorInfo;

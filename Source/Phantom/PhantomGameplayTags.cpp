@@ -21,4 +21,8 @@ namespace PhantomGameplayTags
 	
 
 	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Run_Trigger, "Event.HeroAction.Run.Trigger");
+	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Combo_Opened, "Event.Notify.Combo.Opened");
+	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Combo_Closed, "Event.Notify.Combo.Closed");
+	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Collision_Opened, "Event.Notify.Collision.Opened");
+	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Collision_Closed, "Event.Notify.Collision.Closed");
 }

@@ -103,7 +103,7 @@ void UHeroAction::EndHeroAction()
 void UHeroAction::DispatchHeroActionEvent(FGameplayTag EventTag, FHeroActionEventData EventData)
 {
 	check(HeroActionActorInfo.HeroActionComponent.IsValid());
-	HeroActionActorInfo.HeroActionComponent->BroadcastHeroActionEventDelegate(EventTag, EventData);
+	HeroActionActorInfo.HeroActionComponent->DispatchHeroActionEvent(EventTag, EventData);
 }
 
 void UHeroAction::BindTryTriggerEvent()
