@@ -6,6 +6,7 @@
 #include "GameplayTagAssetInterface.h"
 #include "HeroActionTypes.h"
 #include "Components/ActorComponent.h"
+#include "Phantom/RepAnimMontageData.h"
 #include "HeroActionComponent.generated.h"
 
 class UHeroActionNetID;
@@ -34,6 +35,7 @@ public:
 	virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void OnUnregister() override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	
 	// ----------------------------------------------------
 	// IGameplayTagAssetInterface
@@ -49,7 +51,6 @@ public:
 	void RemoveTag(FGameplayTag Tag);
 	UFUNCTION(BlueprintCallable, Category = "HeroAction|Tag")
 	void RemoveTags(const FGameplayTagContainer& GameplayTagContainer);
-
 	
 	void InitializeHeroActionActorInfo(AActor* SourceActor);
 	void AuthAddHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
@@ -57,9 +58,15 @@ public:
 	void TryTriggerHeroAction(UHeroAction* HeroAction);
 	void TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	UHeroAction* FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
+
 	
+	// ----------------------------------------------------
+	// Replicates AnimMontage
+	// ----------------------------------------------------
 	
-	bool PlayAnimationMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection = NAME_None,
+	// Authority에서 Simulated Proxy에 Replicate할 정보를 Update합니다. 
+	void AuthUpdateReplicatedAnimMontage();
+	float PlayAnimMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection = NAME_None,
 	                                    float PlayRate = 1.0f, float StartTime = 0.0f);
 
 	
@@ -108,6 +115,10 @@ protected:
 private:
 	// Tag가 추가/삭제 될 때, Delegate를 호출
 	void BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded);
+	UFUNCTION()
+	void OnRep_ReplicatedAnimMontage();
+	float PlayAnimMontageLocal(UAnimMontage* AnimMontage, FName StartSection = NAME_None, float PlayRate = 1.0f, float StartTime = 0.0f);
+
 
 protected:
 	FHeroActionActorInfo HeroActionActorInfo;
@@ -129,4 +140,9 @@ private:
 	 * 정보가 저장됨. Server에서 OnInputTriggered가 Bind한 후, 여기에 데이터가 있으면 Client RPC가 서버의 Bind보다 빠른 것
 	 * 이므로 여기있는 데이터를 사용하여 직접 OnInputTriggered를 호출함. (데이터는 Remove됨) */
 	TMap<UHeroActionNetID*, UInputAction*> CachedData;
+
+	// Authority에서 Simulated Proxy에 Replicate할 AnimMontage에 대한 정보. 
+	UPROPERTY(Transient, ReplicatedUsing=OnRep_ReplicatedAnimMontage)
+	FRepAnimMontageData ReplicatedAnimMontageData;
+	FLocalAnimMontageData LocalAnimMontageData;
 };

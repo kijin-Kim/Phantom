@@ -6,7 +6,7 @@
 #include "InputActionValue.h"
 #include "PhantomCharacterBase.h"
 #include "Phantom/PhantomTypes.h"
-#include "Phantom/RepAnimMontage.h"
+#include "Phantom/RepAnimMontageData.h"
 #include "PhantomCharacter.generated.h"
 
 
@@ -118,11 +118,6 @@ private:
 
 	void AcceptSnapshot(const FCharacterSnapshot& Snapshot);
 
-
-	// Server에서 Update된 AnimMontage정보를 Simulated Proxy에서 반영함
-	UFUNCTION()
-	void OnRep_ReplicatedAnimMontage();
-
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -133,14 +128,7 @@ private:
 	TObjectPtr<USphereComponent> CombatRangeSphere;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMotionWarpingComponent> MotionWarping;
-
-	// Server에서 Update되고 Simulated Proxy에 전달되는 AnimMontage에 대한 정보
-	UPROPERTY(Transient, ReplicatedUsing=OnRep_ReplicatedAnimMontage)
-	FRepAnimMontage ReplicatedAnimMontage;
-	// Simulated Proxy의 Local AnimMontage정보
-	UPROPERTY(Transient)
-	FLocalAnimMontage LocalAnimMontage;
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAnimMontage> DodgeMontage;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))

@@ -207,16 +207,6 @@ void APhantomCharacter::Attack()
 	}
 }
 
-float APhantomCharacter::PlayAnimMontage(UAnimMontage* AnimMontage, float InPlayRate, FName StartSectionName)
-{
-	if (HasAuthority())
-	{
-		const uint8 CurrentID = ReplicatedAnimMontage.AnimMontageInstanceID;
-		ReplicatedAnimMontage.AnimMontageInstanceID = CurrentID < UINT8_MAX ? CurrentID + 1 : 0;
-	}
-	return Super::PlayAnimMontage(AnimMontage, InPlayRate, StartSectionName);
-}
-
 void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActionState)
 {
 	if (CharacterActionState == NewActionState)
@@ -245,11 +235,6 @@ void APhantomCharacter::OnNotifyEnableCombo()
 
 void APhantomCharacter::OnNotifyDisableCombo()
 {
-	if (!HasAuthority())
-	{
-		Attack();
-		return;
-	}
 	bCanCombo = false;
 	AttackSequenceComboCount = 0;
 }
@@ -314,24 +299,9 @@ bool APhantomCharacter::CanSnapShotAttack(const FCharacterSnapshot& Snapshot) co
 void APhantomCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME_CONDITION(APhantomCharacter, ReplicatedAnimMontage, COND_SimulatedOnly);
 	DOREPLIFETIME(APhantomCharacter, Weapon);
 }
 
-void APhantomCharacter::AuthUpdateReplicatedAnimMontage(float DeltaSeconds)
-{
-	if (HasAuthority() && GetMesh())
-	{
-		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
-		{
-			ReplicatedAnimMontage.AnimMontage = AnimInstance->GetCurrentActiveMontage();
-			ReplicatedAnimMontage.PlayRate = AnimInstance->Montage_GetPlayRate(ReplicatedAnimMontage.AnimMontage);
-			ReplicatedAnimMontage.StartSectionName = AnimInstance->Montage_GetCurrentSection(ReplicatedAnimMontage.AnimMontage);
-			ReplicatedAnimMontage.Position = AnimInstance->Montage_GetPosition(ReplicatedAnimMontage.AnimMontage);
-			ReplicatedAnimMontage.bIsStopped = AnimInstance->Montage_GetIsStopped(ReplicatedAnimMontage.AnimMontage);
-		}
-	}
-}
 
 void APhantomCharacter::CalculateNewTargetingEnemy()
 {
@@ -666,78 +636,4 @@ void APhantomCharacter::AcceptSnapshot(const FCharacterSnapshot& Snapshot)
 	AttackSequenceComboCount = Snapshot.AttackSequenceComboCount;
 	bCanCombo = Snapshot.bCanCombo;
 	bIsCrouched = Snapshot.bIsCrouched;
-}
-
-void APhantomCharacter::OnRep_ReplicatedAnimMontage()
-{
-	// Server로부터 AnimMontage정보를 받아 Simulated Proxy에서 이 정보를 확인하고 갱신함. 
-
-	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.AnimMontage"));
-	bool bDebugRepAnimMontage = CVar && CVar->GetValueOnGameThread();
-	if (bDebugRepAnimMontage)
-	{
-		if (ReplicatedAnimMontage.AnimMontage)
-		{
-			UE_LOG(LogPhantom, Warning, TEXT("Montage Name: %s"), *ReplicatedAnimMontage.AnimMontage->GetName());
-		}
-		UE_LOG(LogPhantom, Warning, TEXT("Play Rate: %f"), ReplicatedAnimMontage.PlayRate);
-		UE_LOG(LogPhantom, Warning, TEXT("Position: %f"), ReplicatedAnimMontage.Position);
-		UE_LOG(LogPhantom, Warning, TEXT("Start Section Name: %s"), *ReplicatedAnimMontage.StartSectionName.ToString());
-		UE_LOG(LogPhantom, Warning, TEXT("bIsStopped %s"), ReplicatedAnimMontage.bIsStopped ? TEXT("True") : TEXT("False"));
-	}
-
-
-	const USkeletalMeshComponent* SkeletalMeshComponent = GetMesh();
-	if (!SkeletalMeshComponent)
-	{
-		return;
-	}
-
-	UAnimInstance* AnimInstance = SkeletalMeshComponent->GetAnimInstance();
-	if (!AnimInstance)
-	{
-		return;
-	}
-
-	if (ReplicatedAnimMontage.AnimMontage && (LocalAnimMontage.AnimMontage != ReplicatedAnimMontage.AnimMontage || LocalAnimMontage.
-		AnimMontageInstanceID != ReplicatedAnimMontage.AnimMontageInstanceID))
-	{
-		LocalAnimMontage.AnimMontageInstanceID = ReplicatedAnimMontage.AnimMontageInstanceID;
-		LocalAnimMontage.AnimMontage = ReplicatedAnimMontage.AnimMontage;
-		PlayAnimMontage(ReplicatedAnimMontage.AnimMontage);
-		return;
-	}
-
-	if (LocalAnimMontage.AnimMontage)
-	{
-		if (ReplicatedAnimMontage.bIsStopped)
-		{
-			AnimInstance->Montage_Stop(LocalAnimMontage.AnimMontage->BlendOut.GetBlendTime(), ReplicatedAnimMontage.AnimMontage);
-		}
-
-		if (AnimInstance->Montage_GetPlayRate(LocalAnimMontage.AnimMontage) != ReplicatedAnimMontage.PlayRate)
-		{
-			AnimInstance->Montage_SetPlayRate(LocalAnimMontage.AnimMontage, ReplicatedAnimMontage.PlayRate);
-		}
-		if (AnimInstance->Montage_GetCurrentSection(LocalAnimMontage.AnimMontage) != ReplicatedAnimMontage.StartSectionName)
-		{
-			AnimInstance->Montage_JumpToSection(ReplicatedAnimMontage.StartSectionName);
-			return;
-		}
-
-		// AnimMontage Position의 최대 오류 허용치
-		const float MONTAGE_POSITION_DELTA_TOLERANCE = 0.1f;
-		const float LocalMontagePosition = AnimInstance->Montage_GetPosition(LocalAnimMontage.AnimMontage);
-		// Server와 Simulated Proxy사이의 Position의 차이가 허용치를 넘으면 Server의 값으로 갱신함.
-		if (!FMath::IsNearlyEqual(LocalMontagePosition, ReplicatedAnimMontage.Position, MONTAGE_POSITION_DELTA_TOLERANCE))
-		{
-			AnimInstance->Montage_SetPosition(LocalAnimMontage.AnimMontage, ReplicatedAnimMontage.Position);
-			if (bDebugRepAnimMontage)
-			{
-				const float PositionDelta = FMath::Abs(LocalMontagePosition - ReplicatedAnimMontage.Position);
-				UE_LOG(LogPhantom, Warning, TEXT("Adjusted Simulated Proxy Montage Position Delta. AnimNotify may be skipped. (Delta : %f)"),
-				       PositionDelta);
-			}
-		}
-	}
 }

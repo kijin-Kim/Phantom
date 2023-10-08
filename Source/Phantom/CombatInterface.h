@@ -24,4 +24,6 @@ class PHANTOM_API ICombatInterface
 public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
 	UAnimMontage* GetDodgeMontage() const;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
+	TArray<UAnimMontage*> GetAttackMontages() const;
 };

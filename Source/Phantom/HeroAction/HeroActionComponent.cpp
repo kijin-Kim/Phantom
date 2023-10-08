@@ -12,7 +12,7 @@
 // Sets default values for this component's properties
 UHeroActionComponent::UHeroActionComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 	SetIsReplicatedByDefault(true);
 }
 
@@ -35,6 +35,7 @@ void UHeroActionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(UHeroActionComponent, AvailableHeroActions, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UHeroActionComponent, ReplicatedAnimMontageData, COND_SimulatedOnly);
 }
 
 void UHeroActionComponent::OnUnregister()
@@ -48,6 +49,16 @@ void UHeroActionComponent::OnUnregister()
 	if (HeroActionActorInfo.IsOwnerHasAuthority())
 	{
 		AvailableHeroActions.Empty();
+	}
+}
+
+void UHeroActionComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if(HeroActionActorInfo.IsOwnerHasAuthority())
+	{
+		AuthUpdateReplicatedAnimMontage();
 	}
 }
 
@@ -165,17 +176,30 @@ UHeroAction* UHeroActionComponent::FindHeroActionByClass(TSubclassOf<UHeroAction
 	return nullptr;
 }
 
-bool UHeroActionComponent::PlayAnimationMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection,
-                                                          float PlayRate, float StartTime)
+void UHeroActionComponent::AuthUpdateReplicatedAnimMontage()
 {
-	if (AnimMontage)
+	if (const UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
 	{
-		if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
-		{
-			return AnimInstance->Montage_Play(AnimMontage, PlayRate, EMontagePlayReturnType::MontageLength, StartTime) > 0.0f;
-		}
+		ReplicatedAnimMontageData.AnimMontage = AnimInstance->GetCurrentActiveMontage();
+		ReplicatedAnimMontageData.PlayRate = AnimInstance->Montage_GetPlayRate(ReplicatedAnimMontageData.AnimMontage);
+		ReplicatedAnimMontageData.StartSectionName = AnimInstance->Montage_GetCurrentSection(ReplicatedAnimMontageData.AnimMontage);
+		ReplicatedAnimMontageData.Position = AnimInstance->Montage_GetPosition(ReplicatedAnimMontageData.AnimMontage);
+		ReplicatedAnimMontageData.bIsStopped = AnimInstance->Montage_GetIsStopped(ReplicatedAnimMontageData.AnimMontage);
 	}
-	return false;
+}
+
+float UHeroActionComponent::PlayAnimMontageReplicates(UHeroAction* HeroAction, UAnimMontage* AnimMontage, FName StartSection,
+                                                      float PlayRate, float StartTime)
+{
+	if (HeroActionActorInfo.IsOwnerHasAuthority())
+	{
+		const uint8 CurrentID = ReplicatedAnimMontageData.AnimMontageInstanceID;
+		ReplicatedAnimMontageData.AnimMontageInstanceID = CurrentID < UINT8_MAX ? CurrentID + 1 : 0;
+	}
+
+	const float Duration = PlayAnimMontageLocal(AnimMontage, StartSection, PlayRate, StartTime);
+	LocalAnimMontageData.AnimMontage = Duration > 0.0f ? AnimMontage : nullptr; 
+	return Duration;
 }
 
 bool UHeroActionComponent::HandleInputActionTriggered(UInputAction* InputAction)
@@ -377,4 +401,93 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 void UHeroActionComponent::ClientTriggerHeroAction_Implementation(UHeroAction* HeroAction)
 {
 	TriggerHeroAction(HeroAction);
+}
+
+void UHeroActionComponent::OnRep_ReplicatedAnimMontage()
+{
+	// Server로부터 AnimMontage정보를 받아 Simulated Proxy에서 이 정보를 확인하고 갱신함.
+	UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance();
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+
+	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.AnimMontage"));
+	bool bDebugRepAnimMontage = CVar && CVar->GetValueOnGameThread();
+	if (bDebugRepAnimMontage)
+	{
+		if (ReplicatedAnimMontageData.AnimMontage)
+		{
+			UE_LOG(LogPhantom, Warning, TEXT("Montage Name: %s"), *ReplicatedAnimMontageData.AnimMontage->GetName());
+		}
+		UE_LOG(LogPhantom, Warning, TEXT("Play Rate: %f"), ReplicatedAnimMontageData.PlayRate);
+		UE_LOG(LogPhantom, Warning, TEXT("Position: %f"), ReplicatedAnimMontageData.Position);
+		UE_LOG(LogPhantom, Warning, TEXT("Start Section Name: %s"), *ReplicatedAnimMontageData.StartSectionName.ToString());
+		UE_LOG(LogPhantom, Warning, TEXT("bIsStopped %s"), ReplicatedAnimMontageData.bIsStopped ? TEXT("True") : TEXT("False"));
+	}
+
+
+	if (ReplicatedAnimMontageData.AnimMontage && (LocalAnimMontageData.AnimMontage != ReplicatedAnimMontageData.AnimMontage || LocalAnimMontageData.
+		AnimMontageInstanceID != ReplicatedAnimMontageData.AnimMontageInstanceID))
+	{
+		LocalAnimMontageData.AnimMontageInstanceID = ReplicatedAnimMontageData.AnimMontageInstanceID;
+		LocalAnimMontageData.AnimMontage = ReplicatedAnimMontageData.AnimMontage;
+		PlayAnimMontageLocal(ReplicatedAnimMontageData.AnimMontage);
+		return;
+	}
+
+	if (LocalAnimMontageData.AnimMontage)
+	{
+		if (ReplicatedAnimMontageData.bIsStopped)
+		{
+			AnimInstance->Montage_Stop(LocalAnimMontageData.AnimMontage->BlendOut.GetBlendTime(), ReplicatedAnimMontageData.AnimMontage);
+		}
+
+		if (AnimInstance->Montage_GetPlayRate(LocalAnimMontageData.AnimMontage) != ReplicatedAnimMontageData.PlayRate)
+		{
+			AnimInstance->Montage_SetPlayRate(LocalAnimMontageData.AnimMontage, ReplicatedAnimMontageData.PlayRate);
+		}
+		if (AnimInstance->Montage_GetCurrentSection(LocalAnimMontageData.AnimMontage) != ReplicatedAnimMontageData.StartSectionName)
+		{
+			AnimInstance->Montage_JumpToSection(ReplicatedAnimMontageData.StartSectionName);
+			return;
+		}
+
+		// AnimMontage Position의 최대 오류 허용치
+		const float MONTAGE_POSITION_DELTA_TOLERANCE = 0.1f;
+		const float LocalMontagePosition = AnimInstance->Montage_GetPosition(LocalAnimMontageData.AnimMontage);
+		// Server와 Simulated Proxy사이의 Position의 차이가 허용치를 넘으면 Server의 값으로 갱신함.
+		if (!FMath::IsNearlyEqual(LocalMontagePosition, ReplicatedAnimMontageData.Position, MONTAGE_POSITION_DELTA_TOLERANCE))
+		{
+			AnimInstance->Montage_SetPosition(LocalAnimMontageData.AnimMontage, ReplicatedAnimMontageData.Position);
+			if (bDebugRepAnimMontage)
+			{
+				const float PositionDelta = FMath::Abs(LocalMontagePosition - ReplicatedAnimMontageData.Position);
+				UE_LOG(LogPhantom, Warning, TEXT("Adjusted Simulated Proxy Montage Position Delta. AnimNotify may be skipped. (Delta : %f)"),
+				       PositionDelta);
+			}
+		}
+	}
+}
+
+float UHeroActionComponent::PlayAnimMontageLocal(UAnimMontage* AnimMontage, FName StartSection, float PlayRate, float StartTime)
+{
+	UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance();
+	if (AnimMontage && AnimInstance)
+	{
+		float const Duration = AnimInstance->Montage_Play(AnimMontage, PlayRate);
+
+		if (Duration > 0.f)
+		{
+			// Start at a given Section.
+			if (StartSection != NAME_None)
+			{
+				AnimInstance->Montage_JumpToSection(StartSection, AnimMontage);
+			}
+
+			return Duration;
+		}
+	}
+	return 0.f;
 }

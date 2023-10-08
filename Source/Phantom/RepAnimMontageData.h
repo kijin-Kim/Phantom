@@ -1,19 +1,19 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "RepAnimMontage.generated.h"
+#include "RepAnimMontageData.generated.h"
 
 
 // Simualted Proxy에 Replicate하기 위한 정보를 담을 구조체
 
 
 USTRUCT()
-struct PHANTOM_API FRepAnimMontage
+struct PHANTOM_API FRepAnimMontageData
 {
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
-	UAnimMontage* AnimMontage;
+	TObjectPtr<UAnimMontage> AnimMontage;
 	UPROPERTY(Transient)
 	uint8 AnimMontageInstanceID = 0;
 	UPROPERTY(Transient)
@@ -27,12 +27,12 @@ struct PHANTOM_API FRepAnimMontage
 };
 
 USTRUCT()
-struct PHANTOM_API FLocalAnimMontage
+struct PHANTOM_API FLocalAnimMontageData
 {
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
-	UAnimMontage* AnimMontage;
+	TObjectPtr<UAnimMontage> AnimMontage;
 	UPROPERTY(Transient)
 	uint8 AnimMontageInstanceID = 0;
 };

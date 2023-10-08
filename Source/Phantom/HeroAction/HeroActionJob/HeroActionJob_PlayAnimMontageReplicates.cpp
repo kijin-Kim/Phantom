@@ -1,12 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "HeroActionJob_PlayMontage.h"
+#include "HeroActionJob_PlayAnimMontageReplicates.h"
 #include "Animation/AnimMontage.h"
 #include "Phantom/HeroAction/HeroAction.h"
 #include "Phantom/Phantom.h"
 
-UHeroActionJob_PlayMontage* UHeroActionJob_PlayMontage::CreateHeroActionJobPlayMontage(UHeroAction* InHeroAction, UAnimMontage* InAnimMontage, FName InStartSection,
+UHeroActionJob_PlayAnimMontageReplicates* UHeroActionJob_PlayAnimMontageReplicates::CreateHeroActionJobPlayMontage(UHeroAction* InHeroAction, UAnimMontage* InAnimMontage, FName InStartSection,
                                                                                        float InPlayRate, float InStartTime)
 {
 	if (!InAnimMontage)
@@ -14,7 +14,7 @@ UHeroActionJob_PlayMontage* UHeroActionJob_PlayMontage::CreateHeroActionJobPlayM
 		return nullptr;
 	}
 
-	UHeroActionJob_PlayMontage* MyObj = NewHeroActionJob<UHeroActionJob_PlayMontage>(InHeroAction);
+	UHeroActionJob_PlayAnimMontageReplicates* MyObj = NewHeroActionJob<UHeroActionJob_PlayAnimMontageReplicates>(InHeroAction);
 	MyObj->AnimMontage = InAnimMontage;
 	MyObj->StartSection = InStartSection;
 	MyObj->PlayRate = InPlayRate;
@@ -22,13 +22,13 @@ UHeroActionJob_PlayMontage* UHeroActionJob_PlayMontage::CreateHeroActionJobPlayM
 	return MyObj;
 }
 
-void UHeroActionJob_PlayMontage::Activate()
+void UHeroActionJob_PlayAnimMontageReplicates::Activate()
 {
 	Super::Activate();
 	check(HeroAction.IsValid() && HeroActionComponent.IsValid());
 
 	UHeroActionComponent* HAC = HeroActionComponent.Get();
-	if (!HAC->PlayAnimationMontageReplicates(HeroAction.Get(), AnimMontage, StartSection, PlayRate, StartTime))
+	if (!HAC->PlayAnimMontageReplicates(HeroAction.Get(), AnimMontage, StartSection, PlayRate, StartTime))
 	{
 		UE_LOG(LogPhantom, Warning, TEXT("Animation Montage [%s]를 실행하는데 실패하였습니다"), *GetNameSafe(AnimMontage))
 		Cancel();
@@ -38,16 +38,16 @@ void UHeroActionJob_PlayMontage::Activate()
 	if (UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance())
 	{
 		FOnMontageEnded MontageEndedDelegate;
-		MontageEndedDelegate.BindUObject(this, &UHeroActionJob_PlayMontage::OnMontageEnded);
+		MontageEndedDelegate.BindUObject(this, &UHeroActionJob_PlayAnimMontageReplicates::OnMontageEnded);
 		AnimInstance->Montage_SetEndDelegate(MontageEndedDelegate, AnimMontage);
 		
 		FOnMontageBlendingOutStarted MontageBlendingOutStartedDelegate;
-		MontageBlendingOutStartedDelegate.BindUObject(this, &UHeroActionJob_PlayMontage::OnMontageBlendingOutStarted);
+		MontageBlendingOutStartedDelegate.BindUObject(this, &UHeroActionJob_PlayAnimMontageReplicates::OnMontageBlendingOutStarted);
 		AnimInstance->Montage_SetBlendingOutDelegate(MontageBlendingOutStartedDelegate, AnimMontage);
 	}
 }
 
-void UHeroActionJob_PlayMontage::SetReadyToDestroy()
+void UHeroActionJob_PlayAnimMontageReplicates::SetReadyToDestroy()
 {
 	Super::SetReadyToDestroy();
 	
@@ -67,7 +67,7 @@ void UHeroActionJob_PlayMontage::SetReadyToDestroy()
 	}
 }
 
-void UHeroActionJob_PlayMontage::OnMontageEnded(UAnimMontage* InAnimMontage, bool bInterrupted)
+void UHeroActionJob_PlayAnimMontageReplicates::OnMontageEnded(UAnimMontage* InAnimMontage, bool bInterrupted)
 {
 	if (ShouldBroadcastDelegates() && !bInterrupted && OnCompleted.IsBound())
 	{
@@ -77,7 +77,7 @@ void UHeroActionJob_PlayMontage::OnMontageEnded(UAnimMontage* InAnimMontage, boo
 	Cancel();
 }
 
-void UHeroActionJob_PlayMontage::OnMontageBlendingOutStarted(UAnimMontage* InAnimMontage, bool bInterrupted)
+void UHeroActionJob_PlayAnimMontageReplicates::OnMontageBlendingOutStarted(UAnimMontage* InAnimMontage, bool bInterrupted)
 {
 	if (ShouldBroadcastDelegates())
 	{
