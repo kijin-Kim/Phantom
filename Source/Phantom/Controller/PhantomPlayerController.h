@@ -25,10 +25,15 @@ public:
 	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
 	virtual void ReceivedPlayer() override;
 	void AuthInitializeRandomSeed();
+	UFUNCTION(BlueprintCallable)
 	float GetServerTime() const;
+	UFUNCTION(BlueprintCallable)
 	float GetLatestRoundTripTime() const { return RoundTripTimes.IsEmpty() ? 0.0f : RoundTripTimes.Last(); }
+	UFUNCTION(BlueprintCallable)
 	float GetAverageRoundTripTime() const { return AvgRoundTripTime; }
+	UFUNCTION(BlueprintCallable)
 	float GetLatestSingleTripTime() const { return GetLatestRoundTripTime() * 0.5f; }
+	UFUNCTION(BlueprintCallable)
 	float GetAverageSingleTripTime() const { return GetAverageRoundTripTime() * 0.5f; }
 
 protected:

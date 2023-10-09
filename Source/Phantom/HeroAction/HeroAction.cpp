@@ -68,8 +68,10 @@ void UHeroAction::TriggerHeroAction()
 	if (bIsTriggering)
 	{
 		check(HeroActionRetriggeringMethod != EHeroActionRetriggeringMethod::Block);
-		EndHeroAction(); // Setting bIsTriggering to false;
-		return;
+		if(HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::Retrigger)
+		{
+			EndHeroAction(); // Setting bIsTriggering to false;
+		}
 	}
 
 	bIsTriggering = true;
@@ -100,8 +102,9 @@ void UHeroAction::EndHeroAction()
 	if (OnHeroActionEnd.IsBound())
 	{
 		OnHeroActionEnd.Broadcast();
+		OnHeroActionEnd.Clear();
 	}
-
+	
 	BP_OnEndHeroAction();
 }
 

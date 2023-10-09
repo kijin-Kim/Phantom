@@ -111,18 +111,16 @@ public:
 protected:
 	bool InternalTryTriggerHeroAction(UHeroAction* HeroAction);
 	void TriggerHeroAction(UHeroAction* HeroAction);
-	void AcceptHeroAction(UHeroAction* HeroAction);
-	void DeclineHeroAction(UHeroAction* HeroAction);
+	void AcceptHeroActionPrediction(UHeroAction* HeroAction);
+	void DeclineHeroActionPrediction(UHeroAction* HeroAction);
 	UFUNCTION(Server, Reliable)
 	void ServerTryTriggerHeroAction(UHeroAction* HeroAction, float Time);
 	UFUNCTION(Client, Reliable)
 	void ClientTriggerHeroAction(UHeroAction* HeroAction);
 	UFUNCTION(Client, Reliable)
-	void ClientTriggerHeroActionAccepted(UHeroAction* HeroAction);
+	void ClientNotifyPredictionAccepted(UHeroAction* HeroAction);
 	UFUNCTION(Client, Reliable)
-	void ClientNotifyTryTriggerHeroActionAccepted(UHeroAction* HeroAction);
-	UFUNCTION(Client, Reliable)
-	void ClientNotifyTryTriggerHeroActionDeclined(UHeroAction* HeroAction);
+	void ClientNotifyPredictionDeclined(UHeroAction* HeroAction);
 
 private:
 	// Tag가 추가/삭제 될 때, Delegate를 호출

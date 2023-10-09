@@ -17,7 +17,10 @@ class PHANTOM_API UHeroActionBlueprintLibrary : public UBlueprintFunctionLibrary
 public:
 	UFUNCTION(BlueprintPure, Category = "HeroActionBlueprintLibrary|HeroAction")
 	static UHeroActionComponent* GetHeroActionComponent(AActor* Actor);
-	
 	UFUNCTION(BlueprintCallable, Category="HeroActionBlueprintLibrary|HeroAction|Event")
 	static void DispatchHeroActionEvent(AActor* Target, FGameplayTag Tag, FHeroActionEventData Data);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="HeroActionBlueprintLibrary|HeroAction|Animation")
+	static float GetAnimMontageSectionLength(UAnimMontage* AnimMontage, int32 Index);
+	
 };

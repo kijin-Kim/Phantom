@@ -104,18 +104,7 @@ void UHeroActionComponent::InitializeHeroActionActorInfo(AActor* SourceActor)
 {
 	check(SourceActor);
 	check(GetOwner());
-
-	HeroActionActorInfo.Owner = GetOwner();
-	HeroActionActorInfo.SourceActor = SourceActor;
-	HeroActionActorInfo.HeroActionComponent = this;
-	const APawn* SourceActorAsPawn = Cast<APawn>(SourceActor);
-	if (SourceActorAsPawn && SourceActorAsPawn->IsPlayerControlled())
-	{
-		HeroActionActorInfo.PlayerController = Cast<APlayerController>(SourceActorAsPawn->GetController());
-	}
-
-	HeroActionActorInfo.SkeletalMeshComponent = SourceActor->FindComponentByClass<USkeletalMeshComponent>();
-	HeroActionActorInfo.CharacterMovementComponent = SourceActor->FindComponentByClass<UCharacterMovementComponent>();
+	HeroActionActorInfo.Initialize(GetOwner(), SourceActor, this);
 }
 
 void UHeroActionComponent::AuthAddHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
@@ -144,7 +133,7 @@ void UHeroActionComponent::AuthAddHeroActionByClass(TSubclassOf<UHeroAction> Her
 
 bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction, bool bShowDebugMessage)
 {
-	return HeroAction && HeroAction->CanTriggerHeroAction(bShowDebugMessage);
+	return HeroActionActorInfo.IsInitialized() && HeroAction && HeroAction->CanTriggerHeroAction(bShowDebugMessage);
 }
 
 bool UHeroActionComponent::TryTriggerHeroAction(UHeroAction* HeroAction)
@@ -288,7 +277,6 @@ void UHeroActionComponent::DispatchHeroActionEvent(const FGameplayTag& Tag, cons
 	{
 		Delegate.Broadcast(Data);
 		Delegate.Clear();
-		OnHeroActionEventDelegates.Remove(Tag);
 	}
 }
 
@@ -388,10 +376,8 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		if (CanTriggerHeroAction(HeroAction))
 		{
 			TriggerHeroAction(HeroAction);
-			AcceptHeroAction(HeroAction);
 			return true;
 		}
-		DeclineHeroAction(HeroAction);
 		return false;
 	}
 
@@ -401,12 +387,9 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		// Local Trigger
 		if (CanTriggerHeroAction(HeroAction))
 		{
-			AcceptHeroAction(HeroAction);
-			ClientTriggerHeroActionAccepted(HeroAction);
+			ClientTriggerHeroAction(HeroAction);
 			return true;
 		}
-		DeclineHeroAction(HeroAction);
-		ClientNotifyTryTriggerHeroActionDeclined(HeroAction);
 		return false;
 	}
 
@@ -423,8 +406,11 @@ void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)
 	}
 }
 
-void UHeroActionComponent::AcceptHeroAction(UHeroAction* HeroAction)
+void UHeroActionComponent::AcceptHeroActionPrediction(UHeroAction* HeroAction)
 {
+	ensure(!HeroActionActorInfo.IsOwnerHasAuthority());
+	ensure(HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::LocalPredicted);
+		
 	UE_LOG(LogPhantom, Warning, TEXT("HeroAction을 [%s]이 Confirm되었습니다."), *GetNameSafe(HeroAction));
 	bool bHandled = HandleHeroActionConfirmed(HeroAction, true);
 	if (!bHandled)
@@ -433,20 +419,17 @@ void UHeroActionComponent::AcceptHeroAction(UHeroAction* HeroAction)
 	}
 }
 
-void UHeroActionComponent::DeclineHeroAction(UHeroAction* HeroAction)
+void UHeroActionComponent::DeclineHeroActionPrediction(UHeroAction* HeroAction)
 {
+	ensure(!HeroActionActorInfo.IsOwnerHasAuthority());
+	ensure(HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::LocalPredicted);
+	
 	UE_LOG(LogPhantom, Warning, TEXT("HeroAction을 [%s]이 Decline되었습니다."), *GetNameSafe(HeroAction));
 	bool bHandled = HandleHeroActionConfirmed(HeroAction, false);
 	if (!bHandled)
 	{
 		CachedConfirmationData.Add(HeroAction, false);
 	}
-}
-
-void UHeroActionComponent::ClientTriggerHeroActionAccepted_Implementation(UHeroAction* HeroAction)
-{
-	AcceptHeroAction(HeroAction);
-	TriggerHeroAction(HeroAction);
 }
 
 void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction* HeroAction, float Time)
@@ -456,23 +439,26 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 		return;
 	}
 
+	const EHeroActionNetMethod HeroActionNetMethod = HeroAction->GetHeroActionNetMethod();
 	if (CanTriggerHeroAction(HeroAction))
 	{
-		TriggerHeroAction(HeroAction);
-		if (HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
+		if (HeroActionNetMethod == EHeroActionNetMethod::LocalPredicted)
 		{
-			ClientTriggerHeroActionAccepted(HeroAction);
-			return;
+			ClientNotifyPredictionAccepted(HeroAction);
 		}
-		AcceptHeroAction(HeroAction);
-		ClientNotifyTryTriggerHeroActionAccepted(HeroAction);
+		else
+		{
+			ClientTriggerHeroAction(HeroAction);
+		}
+		TriggerHeroAction(HeroAction);
 	}
 	else
 	{
-		DeclineHeroAction(HeroAction);
-		ClientNotifyTryTriggerHeroActionDeclined(HeroAction);
+		if (HeroActionNetMethod == EHeroActionNetMethod::LocalPredicted)
+		{
+			ClientNotifyPredictionDeclined(HeroAction);
+		}
 	}
-
 
 	if (false)
 	{
@@ -488,8 +474,8 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 		if (OldestTime > RequestedTime) // Too Late
 		{
 			UE_LOG(LogPhantom, Warning, TEXT("Request가 너무 늦게 도착했습니다."));
-			DeclineHeroAction(HeroAction);
-			ClientNotifyTryTriggerHeroActionDeclined(HeroAction);
+			DeclineHeroActionPrediction(HeroAction);
+			ClientNotifyPredictionDeclined(HeroAction);
 			return;
 		}
 
@@ -501,12 +487,12 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 				TriggerHeroAction(HeroAction);
 				if (HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
 				{
-					AcceptHeroAction(HeroAction);
-					ClientTriggerHeroActionAccepted(HeroAction);
+					AcceptHeroActionPrediction(HeroAction);
+					ClientTriggerHeroAction(HeroAction);
 					return;
 				}
-				AcceptHeroAction(HeroAction);
-				ClientNotifyTryTriggerHeroActionAccepted(HeroAction);
+				AcceptHeroActionPrediction(HeroAction);
+				ClientNotifyPredictionAccepted(HeroAction);
 				return;
 			}
 		}
@@ -519,11 +505,11 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 				TriggerHeroAction(HeroAction);
 				if (HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
 				{
-					AcceptHeroAction(HeroAction);
-					ClientTriggerHeroActionAccepted(HeroAction);
+					AcceptHeroActionPrediction(HeroAction);
+					ClientTriggerHeroAction(HeroAction);
 					return;
 				}
-				ClientNotifyTryTriggerHeroActionAccepted(HeroAction);
+				ClientNotifyPredictionAccepted(HeroAction);
 				return;
 			}
 		}
@@ -535,14 +521,14 @@ void UHeroActionComponent::ClientTriggerHeroAction_Implementation(UHeroAction* H
 	TriggerHeroAction(HeroAction);
 }
 
-void UHeroActionComponent::ClientNotifyTryTriggerHeroActionAccepted_Implementation(UHeroAction* HeroAction)
+void UHeroActionComponent::ClientNotifyPredictionAccepted_Implementation(UHeroAction* HeroAction)
 {
-	AcceptHeroAction(HeroAction);
+	AcceptHeroActionPrediction(HeroAction);
 }
 
-void UHeroActionComponent::ClientNotifyTryTriggerHeroActionDeclined_Implementation(UHeroAction* HeroAction)
+void UHeroActionComponent::ClientNotifyPredictionDeclined_Implementation(UHeroAction* HeroAction)
 {
-	DeclineHeroAction(HeroAction);
+	DeclineHeroActionPrediction(HeroAction);
 }
 
 void UHeroActionComponent::BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded)

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HeroActionJob.h"
-#include "HeroActionJob_WaitHeroActionConfirmed.generated.h"
+#include "HeroActionJob_WaitHeroActionPredictionConfirmed.generated.h"
 
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHeroActionConfirmedAccepted);
@@ -14,13 +14,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHeroActionConfirmedDeclined);
  * 
  */
 UCLASS()
-class PHANTOM_API UHeroActionJob_WaitHeroActionConfirmed : public UHeroActionJob
+class PHANTOM_API UHeroActionJob_WaitHeroActionPredictionConfirmed : public UHeroActionJob
 {
 	GENERATED_BODY()
 public:
 	UFUNCTION(BlueprintCallable, Category = "Action|Job",
-		meta = (DisplayName = "Wait HeroAction Confirmed", HidePin = "HeroAction", DefaultToSelf = "HeroAction", BlueprintInternalUseOnly = "true"))
-	static UHeroActionJob_WaitHeroActionConfirmed* CreateHeroActionJobWaitHeroActionConfirmed(UHeroAction* HeroAction);
+		meta = (DisplayName = "Wait HeroAction Prediction Confirmed", HidePin = "HeroAction", DefaultToSelf = "HeroAction", BlueprintInternalUseOnly = "true"))
+	static UHeroActionJob_WaitHeroActionPredictionConfirmed* CreateHeroActionJobWaitHeroActionConfirmed(UHeroAction* HeroAction);
 
 	virtual void Activate() override;
 	virtual void SetReadyToDestroy() override;

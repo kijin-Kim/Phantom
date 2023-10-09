@@ -1,5 +1,4 @@
 #pragma once
-#include "GameplayTagContainer.h"
 #include "HeroActionTypes.generated.h"
 
 // This Types are mostly impressed by GAS
@@ -31,6 +30,7 @@ enum class EHeroActionRetriggeringMethod : uint8
 	Block UMETA(DisplayName = "Block"),
 	// Retrigger시 End
 	End UMETA(DisplayName = "End"),
+	Retrigger UMETA(DisplayName = "Retrigger"),
 	Max UMETA(hidden)
 };
 
@@ -52,10 +52,16 @@ struct PHANTOM_API FHeroActionActorInfo
 	TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
 	UPROPERTY(BlueprintReadOnly)
 	TWeakObjectPtr<UCharacterMovementComponent> CharacterMovementComponent;
+
+	bool IsInitialized() const;
+	void Initialize(AActor* Owner, AActor* SourceActor, UHeroActionComponent* HeroActionComponent);
 	
 	UAnimInstance* GetAnimInstance() const;
 	bool IsSourceLocallyControlled() const;
 	bool IsOwnerHasAuthority() const;
+
+private:
+	bool bIsInitialized = false;
 };
 
 

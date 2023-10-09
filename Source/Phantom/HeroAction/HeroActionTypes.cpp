@@ -1,7 +1,29 @@
 #include "HeroActionTypes.h"
 
-#include "HeroAction.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "HeroActionComponent.h"
 #include "GameFramework/PlayerController.h"
+
+bool FHeroActionActorInfo::IsInitialized() const
+{
+	return bIsInitialized;
+}
+
+void FHeroActionActorInfo::Initialize(AActor* InOwner, AActor* InSourceActor, UHeroActionComponent* InHeroActionComponent)
+{
+	bIsInitialized = true;
+	Owner = InOwner;
+	SourceActor = InSourceActor;
+	HeroActionComponent = InHeroActionComponent;
+	const APawn* SourceActorAsPawn = Cast<APawn>(SourceActor);
+	if (SourceActorAsPawn && SourceActorAsPawn->IsPlayerControlled())
+	{
+		PlayerController = Cast<APlayerController>(SourceActorAsPawn->GetController());
+	}
+
+	SkeletalMeshComponent = SourceActor->FindComponentByClass<USkeletalMeshComponent>();
+	CharacterMovementComponent = SourceActor->FindComponentByClass<UCharacterMovementComponent>();
+}
 
 UAnimInstance* FHeroActionActorInfo::GetAnimInstance() const
 {

@@ -29,3 +29,12 @@ void UHeroActionBlueprintLibrary::DispatchHeroActionEvent(AActor* Target, FGamep
 		HeroActionComponent->DispatchHeroActionEvent(Tag, Data);
 	}
 }
+
+float UHeroActionBlueprintLibrary::GetAnimMontageSectionLength(UAnimMontage* AnimMontage, int32 Index)
+{
+	if(AnimMontage)
+	{
+		return AnimMontage->GetSectionLength(Index);
+	}
+	return 0.0f;
+}
