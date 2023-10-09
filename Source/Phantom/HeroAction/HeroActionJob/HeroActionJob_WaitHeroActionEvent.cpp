@@ -20,6 +20,7 @@ void UHeroActionJob_WaitHeroActionEvent::Activate()
 			if (WeakThis->OnEvent.IsBound() && WeakThis->ShouldBroadcastDelegates())
 			{
 				WeakThis->OnEvent.Broadcast(Data);
+				WeakThis->Cancel();
 			}
 		});
 }

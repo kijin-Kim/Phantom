@@ -53,8 +53,7 @@ void UHeroActionJob_WaitInputActionTriggered::SetupDelegates()
 		 * 그러면 서버에서 OnInputActionTriggered를 Cached Data를 가지고 Call 한다음에 다시 클라이언트에게
 		 * 알려줘야 함. */
 		BindOnInputActionTriggeredDelegate();
-		bool bHandled = HeroActionComponent->AuthCallOnInputActionTriggeredIfAlreadyArrived(InputAction, InputEventNetID);
-		return;
+		HeroActionComponent->AuthCallOnInputActionTriggeredIfAlready(InputAction, InputEventNetID);
 	}
 }
 

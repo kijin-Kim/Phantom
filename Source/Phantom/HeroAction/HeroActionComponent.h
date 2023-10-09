@@ -20,6 +20,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHeroActionTagMovedSignature, const FGame
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputActionTriggeredSignature, bool /*bInputTriggeredHeroAction*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInputActionTriggeredReplicatedSignature, bool /*bHandledByServer*/, bool /*bInputTriggeredHeroAction*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHeroActionEventSignature, const FHeroActionEventData& /*EventData*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHeroActionConfirmed, bool /*Accepted*/);
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -55,7 +56,7 @@ public:
 
 	void InitializeHeroActionActorInfo(AActor* SourceActor);
 	void AuthAddHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
-	bool CanTriggerHeroAction(UHeroAction* HeroAction);
+	bool CanTriggerHeroAction(UHeroAction* HeroAction, bool bShowDebugMessage = true);
 	bool TryTriggerHeroAction(UHeroAction* HeroAction);
 	bool TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	void EndHeroAction(UHeroAction* HeroAction);
@@ -92,27 +93,36 @@ public:
 	void ClientNotifyInputActionTriggered(UInputAction* InputAction, bool bHandled, bool bTriggeredHeroAction);
 
 	// Client RPC가 Delegate Binding보다 먼저 도착했는지 확인하고, 먼저 도착했으면 OnInputActionTriggered을 직접 호출함.
-	bool AuthCallOnInputActionTriggeredIfAlreadyArrived(UInputAction* InputAction, FHeroActionNetID NetID);
-
+	void AuthCallOnInputActionTriggeredIfAlready(UInputAction* InputAction, FHeroActionNetID NetID);
 	void RemoveCachedData(FHeroActionNetID NetID);
-
 	FOnInputActionTriggeredSignature& GetOnInputActionTriggeredDelegate(UInputAction* InputAction);
 	FOnInputActionTriggeredReplicatedSignature& GetOnInputActionTriggeredReplicatedDelegate(UInputAction* InputAction);
 
 
 	void DispatchHeroActionEvent(const FGameplayTag& Tag, const FHeroActionEventData& Data);
+	
 	FOnHeroActionTagMovedSignature& GetOnTagMovedDelegate(const FGameplayTag& Tag);
 	FOnHeroActionEventSignature& GetOnHeroActionEventDelegate(const FGameplayTag& Tag);
 
+	bool HandleHeroActionConfirmed(UHeroAction* HeroAction, bool bIsAccepted);
+	void CallHeroActionConfirmedIfAlready(UHeroAction* HeroAction);
+	FOnHeroActionConfirmed& GetOnHeroActionConfirmedDelegate(UHeroAction* HeroAction);
+	
 protected:
 	bool InternalTryTriggerHeroAction(UHeroAction* HeroAction);
 	void TriggerHeroAction(UHeroAction* HeroAction);
+	void AcceptHeroAction(UHeroAction* HeroAction);
+	void DeclineHeroAction(UHeroAction* HeroAction);
 	UFUNCTION(Server, Reliable)
 	void ServerTryTriggerHeroAction(UHeroAction* HeroAction, float Time);
 	UFUNCTION(Client, Reliable)
 	void ClientTriggerHeroAction(UHeroAction* HeroAction);
 	UFUNCTION(Client, Reliable)
-	void ClientTryTriggerHeroActionFailed(UHeroAction* HeroAction);
+	void ClientTriggerHeroActionAccepted(UHeroAction* HeroAction);
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyTryTriggerHeroActionAccepted(UHeroAction* HeroAction);
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyTryTriggerHeroActionDeclined(UHeroAction* HeroAction);
 
 private:
 	// Tag가 추가/삭제 될 때, Delegate를 호출
@@ -137,17 +147,27 @@ protected:
 private:
 	// Tag가 추가/삭제 될 때, 호출하는 Delegates
 	TMap<FGameplayTag, FOnHeroActionTagMovedSignature> OnTagMovedDelegates;
+	
 	// Dispatch Event함수에 의하여 호출되는 Delegates
 	TMap<FGameplayTag, FOnHeroActionEventSignature> OnHeroActionEventDelegates;
+	
+	// HeroAction이 Authority에 의해 Confirmed되었을 때, 호출되는 Delegates
+	TMap<TObjectPtr<UHeroAction>, FOnHeroActionConfirmed> OnHeroActionConfirmedDelegates;
+	// HeroAction이 Confirm되었는데 관련 Delegate가 Bind되어있지 않으면 여기에 Accept/Decline결과가 담긴다.
+	TMap<TObjectPtr<UHeroAction>, bool> CachedConfirmationData;
+	
 	// Autonomous Proxy에서 InputAction이 Trigger되면 호출하는 Delegates 
-	TMap<UInputAction*, FOnInputActionTriggeredSignature> OnInputActionTriggeredDelegates;
+	TMap<TObjectPtr<UInputAction>, FOnInputActionTriggeredSignature> OnInputActionTriggeredDelegates;
+	
 	/* Non-Authoritative Autonomous Proxy에서 호출되는 Delegates. 서버로부터 Client RPC를 통해 InputActionTriggered에 대한 결과를 받음.
 	 * 서버에 경우, OnInputActionTriggered를 Bind하지 않았을 때, 클라이언트로부터 Server RPC를 통해 Input을 받으면 실패함. */
-	TMap<UInputAction*, FOnInputActionTriggeredReplicatedSignature> OnInputActionTriggeredReplicatedDelegates;
+	TMap<TObjectPtr<UInputAction>, FOnInputActionTriggeredReplicatedSignature> OnInputActionTriggeredReplicatedDelegates;
+	
 	/* 클라이언트가 Server RPC를 통해보낸 임시 Input정보. 서버가 OnInputTriggered를 Bind하기 전에 도착했을시 이곳에
 	 * 정보가 저장됨. Server에서 OnInputTriggered가 Bind한 후, 여기에 데이터가 있으면 Client RPC가 서버의 Bind보다 빠른 것
 	 * 이므로 여기있는 데이터를 사용하여 직접 OnInputTriggered를 호출함. (데이터는 Remove됨) */
-	TMap<FHeroActionNetID, TPair<UInputAction*, bool>> CachedData;
+	TMap<FHeroActionNetID, TPair<TObjectPtr<UInputAction>, bool>> CachedInputActionData;
+	
 
 	// Authority에서 Simulated Proxy에 Replicate할 AnimMontage에 대한 정보. 
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_ReplicatedAnimMontage)

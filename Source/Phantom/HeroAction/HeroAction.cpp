@@ -13,7 +13,7 @@ void UHeroAction::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME_CONDITION(UHeroAction, HeroActionActorInfo, COND_InitialOnly);
 }
 
-bool UHeroAction::CanTriggerHeroAction() const
+bool UHeroAction::CanTriggerHeroAction(bool bShowDebugMessage) const
 {
 	check(HeroActionActorInfo.Owner.IsValid()
 		&& HeroActionActorInfo.SourceActor.IsValid()
@@ -21,20 +21,29 @@ bool UHeroAction::CanTriggerHeroAction() const
 
 	if (bIsTriggering && HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::Block)
 	{
-		UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]가 Block되었습니다."), *GetNameSafe(this));
+		if (bShowDebugMessage)
+		{
+			UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]가 Block되었습니다."), *GetNameSafe(this));
+		}
 		return false;
 	}
 
 	const UHeroActionComponent* HeroActionComponent = HeroActionActorInfo.HeroActionComponent.Get();
 	if (!BlockedTags.IsEmpty() && HeroActionComponent->HasAnyMatchingGameplayTags(BlockedTags))
 	{
-		UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]가 Tag에 의해 Block되었습니다."), *GetNameSafe(this));
+		if (bShowDebugMessage)
+		{
+			UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]가 Tag에 의해 Block되었습니다."), *GetNameSafe(this));
+		}
 		return false;
 	}
 
 	if (!RequiredTags.IsEmpty() && !HeroActionComponent->HasAllMatchingGameplayTags(RequiredTags))
 	{
-		UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]가 Tag에 의해 Requirement를 충족하지 못하였습니다."), *GetNameSafe(this));
+		if (bShowDebugMessage)
+		{
+			UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]가 Tag에 의해 Requirement를 충족하지 못하였습니다."), *GetNameSafe(this));
+		}
 		return false;
 	}
 
@@ -60,10 +69,6 @@ void UHeroAction::TriggerHeroAction()
 	{
 		check(HeroActionRetriggeringMethod != EHeroActionRetriggeringMethod::Block);
 		EndHeroAction(); // Setting bIsTriggering to false;
-		if (HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::EndAndRetrigger)
-		{
-			TriggerHeroAction();
-		}
 		return;
 	}
 

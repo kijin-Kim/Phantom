@@ -142,9 +142,9 @@ void UHeroActionComponent::AuthAddHeroActionByClass(TSubclassOf<UHeroAction> Her
 	AvailableHeroActions.Add(Action);
 }
 
-bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction)
+bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction, bool bShowDebugMessage)
 {
-	return HeroAction && HeroAction->CanTriggerHeroAction();
+	return HeroAction && HeroAction->CanTriggerHeroAction(bShowDebugMessage);
 }
 
 bool UHeroActionComponent::TryTriggerHeroAction(UHeroAction* HeroAction)
@@ -168,6 +168,11 @@ bool UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> 
 
 void UHeroActionComponent::EndHeroAction(UHeroAction* HeroAction)
 {
+	if (CachedConfirmationData.Find(HeroAction))
+	{
+		CachedConfirmationData.Remove(HeroAction);
+	}
+
 	if (ensure(HeroAction))
 	{
 		HeroAction->EndHeroAction();
@@ -218,7 +223,7 @@ void UHeroActionComponent::ServerHandleInputActionTriggered_Implementation(UInpu
 	if (!bHandled)
 	{
 		TPair<UInputAction*, bool> NewValue = {InputAction, bTriggeredHeroAction};
-		CachedData.Add({NetID, NewValue});
+		CachedInputActionData.Add(NetID, NewValue);
 	}
 }
 
@@ -230,7 +235,7 @@ void UHeroActionComponent::ServerNotifyInputActionTriggered_Implementation(UInpu
 	if (!bHandled)
 	{
 		TPair<UInputAction*, bool> NewValue = {InputAction, bTriggeredHeroAction};
-		CachedData.Add({NetID, NewValue});
+		CachedInputActionData.Add(NetID, NewValue);
 	}
 	ClientNotifyInputActionTriggered(InputAction, bHandled, bTriggeredHeroAction);
 }
@@ -244,26 +249,23 @@ void UHeroActionComponent::ClientNotifyInputActionTriggered_Implementation(UInpu
 	}
 }
 
-bool UHeroActionComponent::AuthCallOnInputActionTriggeredIfAlreadyArrived(UInputAction* InInputAction, FHeroActionNetID NetID)
+void UHeroActionComponent::AuthCallOnInputActionTriggeredIfAlready(UInputAction* InInputAction, FHeroActionNetID NetID)
 {
 	ensure(HeroActionActorInfo.IsOwnerHasAuthority() && InInputAction && NetID.IsValid());
 
-	if (auto DataPtr = CachedData.Find(NetID))
+	if (auto DataPtr = CachedInputActionData.Find(NetID))
 	{
 		check(DataPtr->Key == InInputAction);
-		CachedData.Remove(NetID);
-		const bool bHandled = HandleInputActionTriggered(DataPtr->Key, DataPtr->Value);
-		ensure(bHandled);
-		return bHandled;
+		CachedInputActionData.Remove(NetID);
+		ensure(HandleInputActionTriggered(DataPtr->Key, DataPtr->Value));
 	}
-	return false;
 }
 
 void UHeroActionComponent::RemoveCachedData(FHeroActionNetID NetID)
 {
-	if (CachedData.Find(NetID))
+	if (CachedInputActionData.Find(NetID))
 	{
-		CachedData.Remove(NetID);
+		CachedInputActionData.Remove(NetID);
 	}
 }
 
@@ -300,6 +302,31 @@ FOnHeroActionEventSignature& UHeroActionComponent::GetOnHeroActionEventDelegate(
 	return OnHeroActionEventDelegates.FindOrAdd(Tag);
 }
 
+bool UHeroActionComponent::HandleHeroActionConfirmed(UHeroAction* HeroAction, bool bIsAccepted)
+{
+	FOnHeroActionConfirmed& Delegate = GetOnHeroActionConfirmedDelegate(HeroAction);
+	if (Delegate.IsBound())
+	{
+		Delegate.Broadcast(bIsAccepted);
+		return true;
+	}
+	return false;
+}
+
+void UHeroActionComponent::CallHeroActionConfirmedIfAlready(UHeroAction* HeroAction)
+{
+	ensure(HeroAction);
+	if (bool* bIsAcceptedPtr = CachedConfirmationData.Find(HeroAction))
+	{
+		CachedConfirmationData.Remove(HeroAction);
+		ensure(HandleHeroActionConfirmed(HeroAction, *bIsAcceptedPtr));
+	}
+}
+
+FOnHeroActionConfirmed& UHeroActionComponent::GetOnHeroActionConfirmedDelegate(UHeroAction* HeroAction)
+{
+	return OnHeroActionConfirmedDelegates.FindOrAdd(HeroAction);
+}
 
 bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 {
@@ -358,27 +385,33 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 		|| NetMethod == EHeroActionNetMethod::ServerOnly
 		|| (bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted))
 	{
-		const bool bCanTriggerLocal = CanTriggerHeroAction(HeroAction);
-		if (bCanTriggerLocal)
+		if (CanTriggerHeroAction(HeroAction))
 		{
 			TriggerHeroAction(HeroAction);
+			AcceptHeroAction(HeroAction);
+			return true;
 		}
-		return bCanTriggerLocal;
+		DeclineHeroAction(HeroAction);
+		return false;
 	}
 
 	if (NetMethod == EHeroActionNetMethod::ServerOriginated)
 	{
 		// Client Trigger
 		// Local Trigger
-		const bool bCanTriggerLocal = CanTriggerHeroAction(HeroAction);
-		if (bCanTriggerLocal)
+		if (CanTriggerHeroAction(HeroAction))
 		{
-			ClientTriggerHeroAction(HeroAction);
+			AcceptHeroAction(HeroAction);
+			ClientTriggerHeroActionAccepted(HeroAction);
+			return true;
 		}
-		return bCanTriggerLocal;
+		DeclineHeroAction(HeroAction);
+		ClientNotifyTryTriggerHeroActionDeclined(HeroAction);
+		return false;
 	}
 
 	// Not Reachable
+	ensure(false);
 	return false;
 }
 
@@ -390,6 +423,31 @@ void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)
 	}
 }
 
+void UHeroActionComponent::AcceptHeroAction(UHeroAction* HeroAction)
+{
+	UE_LOG(LogPhantom, Warning, TEXT("HeroAction을 [%s]이 Confirm되었습니다."), *GetNameSafe(HeroAction));
+	bool bHandled = HandleHeroActionConfirmed(HeroAction, true);
+	if (!bHandled)
+	{
+		CachedConfirmationData.Add(HeroAction, true);
+	}
+}
+
+void UHeroActionComponent::DeclineHeroAction(UHeroAction* HeroAction)
+{
+	UE_LOG(LogPhantom, Warning, TEXT("HeroAction을 [%s]이 Decline되었습니다."), *GetNameSafe(HeroAction));
+	bool bHandled = HandleHeroActionConfirmed(HeroAction, false);
+	if (!bHandled)
+	{
+		CachedConfirmationData.Add(HeroAction, false);
+	}
+}
+
+void UHeroActionComponent::ClientTriggerHeroActionAccepted_Implementation(UHeroAction* HeroAction)
+{
+	AcceptHeroAction(HeroAction);
+	TriggerHeroAction(HeroAction);
+}
 
 void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction* HeroAction, float Time)
 {
@@ -403,10 +461,20 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 		TriggerHeroAction(HeroAction);
 		if (HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
 		{
-			ClientTriggerHeroAction(HeroAction);
+			ClientTriggerHeroActionAccepted(HeroAction);
+			return;
 		}
+		AcceptHeroAction(HeroAction);
+		ClientNotifyTryTriggerHeroActionAccepted(HeroAction);
 	}
 	else
+	{
+		DeclineHeroAction(HeroAction);
+		ClientNotifyTryTriggerHeroActionDeclined(HeroAction);
+	}
+
+
+	if (false)
 	{
 		APhantomPlayerController* PC = Cast<APhantomPlayerController>(HeroActionActorInfo.PlayerController.Get());
 		const float AvgSingleTripTime = PC->GetAverageSingleTripTime();
@@ -420,34 +488,42 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 		if (OldestTime > RequestedTime) // Too Late
 		{
 			UE_LOG(LogPhantom, Warning, TEXT("Request가 너무 늦게 도착했습니다."));
-			ClientTryTriggerHeroActionFailed(HeroAction);
+			DeclineHeroAction(HeroAction);
+			ClientNotifyTryTriggerHeroActionDeclined(HeroAction);
 			return;
 		}
 
-		for (auto& [Time, bCanTrigger] : SnapShots)
+		for (auto& [SnapshotTime, bCanTrigger] : SnapShots)
 		{
-			if (Time <= RequestedTime && bCanTrigger)
+			if (SnapshotTime <= RequestedTime && bCanTrigger)
 			{
 				UE_LOG(LogPhantom, Warning, TEXT("보정"));
 				TriggerHeroAction(HeroAction);
 				if (HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
 				{
-					ClientTriggerHeroAction(HeroAction);
+					AcceptHeroAction(HeroAction);
+					ClientTriggerHeroActionAccepted(HeroAction);
+					return;
 				}
+				AcceptHeroAction(HeroAction);
+				ClientNotifyTryTriggerHeroActionAccepted(HeroAction);
 				return;
 			}
 		}
-		
+
 		if (FMath::IsNearlyEqual(NewestTime, RequestedTime) || NewestTime <= RequestedTime)
 		{
-			if(SnapShots.First().bCanTrigger)
+			if (SnapShots.First().bCanTrigger)
 			{
 				UE_LOG(LogPhantom, Warning, TEXT("보정"));
 				TriggerHeroAction(HeroAction);
 				if (HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::ServerOriginated)
 				{
-					ClientTriggerHeroAction(HeroAction);
+					AcceptHeroAction(HeroAction);
+					ClientTriggerHeroActionAccepted(HeroAction);
+					return;
 				}
+				ClientNotifyTryTriggerHeroActionAccepted(HeroAction);
 				return;
 			}
 		}
@@ -459,9 +535,14 @@ void UHeroActionComponent::ClientTriggerHeroAction_Implementation(UHeroAction* H
 	TriggerHeroAction(HeroAction);
 }
 
-void UHeroActionComponent::ClientTryTriggerHeroActionFailed_Implementation(UHeroAction* HeroAction)
+void UHeroActionComponent::ClientNotifyTryTriggerHeroActionAccepted_Implementation(UHeroAction* HeroAction)
 {
-	EndHeroAction(HeroAction);
+	AcceptHeroAction(HeroAction);
+}
+
+void UHeroActionComponent::ClientNotifyTryTriggerHeroActionDeclined_Implementation(UHeroAction* HeroAction)
+{
+	DeclineHeroAction(HeroAction);
 }
 
 void UHeroActionComponent::BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded)
@@ -579,7 +660,7 @@ void UHeroActionComponent::AuthTakeHeroActionSnapshots()
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
 	for (UHeroAction* HeroAction : AvailableHeroActions)
 	{
-		const bool bCanTrigger = CanTriggerHeroAction(HeroAction);
+		const bool bCanTrigger = CanTriggerHeroAction(HeroAction, false);
 		TDeque<FHeroActionSnapshot>& Snapshots = HeroActionSnapshots.FindOrAdd(HeroAction);
 		if (Snapshots.Num() <= 1)
 		{

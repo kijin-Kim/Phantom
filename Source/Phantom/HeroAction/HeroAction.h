@@ -30,11 +30,11 @@ public:
 	}
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	virtual bool CanTriggerHeroAction() const;
+	virtual bool CanTriggerHeroAction(bool bShowDebugMessage = true) const;
 	virtual void TriggerHeroAction();
 	UFUNCTION(BlueprintCallable)
 	virtual void EndHeroAction();
-
+	
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Can Trigger Hero Action"))
 	bool BP_CanTriggerHeroAction() const;
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Trigger Hero Action"))
