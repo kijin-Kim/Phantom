@@ -20,6 +20,7 @@ AWeapon::AWeapon()
 	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
 	CollisionBox->SetupAttachment(GetRootComponent());
 	CollisionBox->SetCollisionProfileName(FName("Weapon"));
+	CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	TraceStart = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStart"));
 	TraceStart->SetupAttachment(RootComponent);

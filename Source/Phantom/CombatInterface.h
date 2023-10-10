@@ -37,4 +37,6 @@ public:
 	bool GetComboWindowOpened() const;
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
 	UMotionWarpingComponent* GetMotionWarpingComponent() const;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
+	AWeapon* GetWeapon() const;
 };

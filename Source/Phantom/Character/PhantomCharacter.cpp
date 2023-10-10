@@ -67,38 +67,8 @@ void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& D
 	DisplayDebugManager.SetDrawColor(FColor::Yellow);
 	DisplayDebugManager.DrawString(TEXT("PHANTOM CHARACTER"));
 	DisplayDebugManager.SetDrawColor(FColor::White);
-	if (CharacterActionState == ECharacterActionState::Attack)
-	{
-		DisplayDebugManager.SetDrawColor(FColor::Green);
-	}
-	DisplayDebugManager.DrawString(FString::Printf(TEXT("Is Attacking: %s"),
-	                                               CharacterActionState == ECharacterActionState::Attack ? TEXT("true") : TEXT("false")));
-	DisplayDebugManager.SetDrawColor(FColor::White);
-
-	if (bCanCombo)
-	{
-		DisplayDebugManager.SetDrawColor(FColor::Green);
-	}
-	DisplayDebugManager.DrawString(FString::Printf(TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false")));
-	DisplayDebugManager.SetDrawColor(FColor::White);
+	//DisplayDebugManager.DrawString(FString::Printf(TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false")));
 	DisplayDebugManager.DrawString(FString::Printf(TEXT("Attack Sequence Combo Count: %d"), AttackSequenceComboCount));
-
-
-	DisplayDebugManager.DrawString(TEXT("Action State"));
-
-	static ECharacterActionState PrevCharacterActionState = ECharacterActionState::Max;
-	static ECharacterActionState CurrentCharacterActionStateCache = ECharacterActionState::Max;
-	if (CharacterActionState != CurrentCharacterActionStateCache)
-	{
-		PrevCharacterActionState = CurrentCharacterActionStateCache;
-		CurrentCharacterActionStateCache = CharacterActionState;
-	}
-
-	const UEnum* EnumPtr = StaticEnum<ECharacterActionState>();
-	const FString CurrentActionStateString = EnumPtr->GetDisplayNameTextByValue(static_cast<uint8>(CharacterActionState)).ToString();
-	const FString PrevActionStateString = EnumPtr->GetDisplayNameTextByValue(static_cast<uint8>(PrevCharacterActionState)).ToString();
-	DisplayDebugManager.DrawString(FString::Printf(TEXT("  Current Character Action State: %s"), *CurrentActionStateString));
-	DisplayDebugManager.DrawString(FString::Printf(TEXT("    Previous Character Action State: %s"), *PrevActionStateString));
 }
 
 void APhantomCharacter::PostInitializeComponents()
@@ -147,8 +117,6 @@ void APhantomCharacter::Tick(float DeltaSeconds)
 	{
 		CalculateNewTargetingEnemy();
 	}
-
-	TakeSnapshots();
 }
 
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
@@ -182,76 +150,6 @@ void APhantomCharacter::Look(const FInputActionValue& Value)
 	}
 }
 
-void APhantomCharacter::Attack()
-{
-	if (CanAttack())
-	{
-		if (!HasAuthority())
-		{
-			LocalAttack(CurrentTargetedEnemy.Get());
-		}
-
-		if (const APhantomPlayerController* PhantomPlayerController = Cast<APhantomPlayerController>(Controller))
-		{
-			ServerAttack(CurrentTargetedEnemy.Get(), CurrentAttackSnapshot);
-		}
-	}
-	else
-	{
-		PHANTOM_LOG(Warning, TEXT("Client Attack 실패"));
-		// 문제 Client는 Attack이후에 Attack이 인정되면 다음 Combo를 수행하는데 다음 어택의 클라이언트에서의
-		// 수행시간안에 Attack에 대한 인정 메시지가 안오면 Attack Combo를 이어나갈수가 없음.
-	}
-}
-
-void APhantomCharacter::ChangeCharacterActionState(ECharacterActionState NewActionState)
-{
-	if (CharacterActionState == NewActionState)
-	{
-		return;
-	}
-
-	if (CharacterActionState == ECharacterActionState::Attack)
-	{
-		bCanCombo = false;
-		AttackSequenceComboCount = 0;
-
-		if (Weapon)
-		{
-			Weapon->SetHitBoxEnabled(ECollisionEnabled::NoCollision);
-		}
-	}
-
-	CharacterActionState = NewActionState;
-}
-
-void APhantomCharacter::OnNotifyEnableCombo()
-{
-	bCanCombo = true;
-}
-
-void APhantomCharacter::OnNotifyDisableCombo()
-{
-	bCanCombo = false;
-	AttackSequenceComboCount = 0;
-}
-
-void APhantomCharacter::OnNotifyEnableWeaponBoxCollision()
-{
-	if (Weapon)
-	{
-		Weapon->SetHitBoxEnabled(ECollisionEnabled::QueryOnly);
-	}
-}
-
-void APhantomCharacter::OnNotifyDisableWeaponBoxCollision()
-{
-	if (Weapon)
-	{
-		Weapon->SetHitBoxEnabled(ECollisionEnabled::NoCollision);
-	}
-}
-
 void APhantomCharacter::Move(const FInputActionValue& Value)
 {
 	const FVector2D MovementVector = Value.Get<FVector2D>();
@@ -266,26 +164,6 @@ void APhantomCharacter::Move(const FInputActionValue& Value)
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
 	}
-}
-
-bool APhantomCharacter::CanAttack() const
-{
-	if (!HasAuthority())
-	{
-		if (!bServerAnswered)
-		{
-			return false;
-		}
-	}
-
-	return (CharacterActionState != ECharacterActionState::Attack || bCanCombo) && !bIsCrouched && CharacterActionState !=
-		ECharacterActionState::Dodge;
-}
-
-bool APhantomCharacter::CanSnapShotAttack(const FCharacterSnapshot& Snapshot) const
-{
-	return (Snapshot.CharacterActionState != ECharacterActionState::Attack || Snapshot.bCanCombo) && !Snapshot.bIsCrouched && Snapshot.CharacterActionState !=
-		ECharacterActionState::Dodge;
 }
 
 void APhantomCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -374,33 +252,6 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 	}
 }
 
-void APhantomCharacter::TakeSnapshots()
-{
-	if (HasAuthority())
-	{
-		FCharacterSnapshot CurrentSnapshot;
-		CurrentSnapshot.Time = GetWorld()->GetTimeSeconds();
-		CurrentSnapshot.CharacterActionState = CharacterActionState;
-		CurrentSnapshot.AttackSequenceComboCount = AttackSequenceComboCount;
-		CurrentSnapshot.bCanCombo = bCanCombo;
-		CurrentSnapshot.bIsCrouched = bIsCrouched;
-
-		if (Snapshots.Num() <= 1)
-		{
-			Snapshots.AddHead(CurrentSnapshot);
-		}
-		else
-		{
-			float CurrentDuration = Snapshots.GetHead()->GetValue().Time - Snapshots.GetTail()->GetValue().Time;
-			while (CurrentDuration > MaxRecordDuration)
-			{
-				Snapshots.RemoveNode(Snapshots.GetTail());
-				CurrentDuration = Snapshots.GetHead()->GetValue().Time - Snapshots.GetTail()->GetValue().Time;
-			}
-			Snapshots.AddHead(CurrentSnapshot);
-		}
-	}
-}
 
 void APhantomCharacter::OnCombatSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
                                                    int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -430,202 +281,4 @@ void APhantomCharacter::OnCombatSphereEndOverlap(UPrimitiveComponent* Overlapped
 	{
 		EnemiesInCombatRange.Remove(LeftEnemy);
 	}
-}
-
-
-void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
-{
-	if (ensure(AttackMontage))
-	{
-		if (!HasAuthority())
-		{
-			bServerAnswered = false;
-			PHANTOM_LOG(Warning, TEXT("Consume Start"));
-			CurrentAttackSnapshot.Time = Cast<APhantomPlayerController>(Controller)->GetServerTime();
-			CurrentAttackSnapshot.CharacterActionState = CharacterActionState;
-			CurrentAttackSnapshot.AttackSequenceComboCount = AttackSequenceComboCount;
-			CurrentAttackSnapshot.bCanCombo = bCanCombo;
-			CurrentAttackSnapshot.bIsCrouched = bIsCrouched;
-
-			UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-			if (AnimInstance)
-			{
-				LastMontage = AnimInstance->GetCurrentActiveMontage();
-				if (LastMontage)
-				{
-					LastMontagePosition = AnimInstance->Montage_GetPosition(LastMontage);
-				}
-			}
-		}
-
-		if (HasAuthority())
-		{
-			GEngine->AddOnScreenDebugMessage(10, 2.0f, FColor::Red, FString::Printf(TEXT("Server: %d"), AttackSequenceComboCount));
-		}
-		else
-		{
-			GEngine->AddOnScreenDebugMessage(11, 2.0f, FColor::Blue, FString::Printf(TEXT("Client: %d"), AttackSequenceComboCount));
-		}
-
-
-		const int32 SectionCount = AttackMontage->GetNumSections();
-		if (bCanCombo)
-		{
-			AttackSequenceComboCount++;
-			AttackSequenceComboCount %= SectionCount;
-			bCanCombo = false;
-		}
-
-		if (AttackTarget)
-		{
-			// Motion Warping할 Enemy가 있으면 Motion Warping를 하고,
-			// 없으면 Motion Warping을 하지 않음.
-			MotionWarping->AddOrUpdateWarpTargetFromTransform(MotionWarpAttackTargetName, AttackTarget->GetActorTransform());
-		}
-
-		PlayAnimMontage(AttackMontage, 1.0f, AttackMontage->GetSectionName(AttackSequenceComboCount));
-		const float SectionDuration = AttackMontage->GetSectionLength(AttackSequenceComboCount);
-		ChangeCharacterActionState(ECharacterActionState::Attack);
-		GetWorldTimerManager().SetTimer(AttackComboTimer, [this]()
-		{
-			if (CharacterActionState == ECharacterActionState::Attack)
-			{
-				ChangeCharacterActionState(ECharacterActionState::Idle);
-			}
-		}, SectionDuration, false);
-	}
-}
-
-
-void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget, FCharacterSnapshot ClientSnapshot)
-{
-	if (CanAttack())
-	{
-		LocalAttack(AttackTarget);
-		ClientAcceptAction();
-		return;
-	}
-
-	const float RequestedTime = ClientSnapshot.Time + Cast<APhantomPlayerController>(Controller)->GetAverageSingleTripTime();
-	const float OldestTime = Snapshots.GetTail()->GetValue().Time;
-	const float NewestTime = Snapshots.GetHead()->GetValue().Time;
-	if (OldestTime > RequestedTime) // Too Late
-	{
-		PHANTOM_LOG(Warning, TEXT("Request가 너무 늦게 도착했습니다."));
-		ClientDeclineAction();
-		return;
-	}
-
-	using SnapshotNode = TDoubleLinkedList<FCharacterSnapshot>::TDoubleLinkedListNode;
-	SnapshotNode* Current = Snapshots.GetHead();
-	while (Current->GetValue().Time > RequestedTime)
-	{
-		if (!Current->GetNextNode())
-		{
-			break;
-		}
-		Current = Current->GetNextNode();
-	}
-
-	FCharacterSnapshot SnapShotToCheck;
-	if (FMath::IsNearlyEqual(NewestTime, RequestedTime) || NewestTime <= RequestedTime)
-	{
-		SnapShotToCheck = Snapshots.GetHead()->GetValue();
-	}
-	else
-	{
-		SnapShotToCheck = Current->GetValue();
-	}
-
-
-	if (CanSnapShotAttack(SnapShotToCheck) && SnapShotToCheck.IsEqual(ClientSnapshot))
-	{
-		AcceptSnapshot(ClientSnapshot);
-		LocalAttack(AttackTarget);
-		ClientAcceptAction();
-		return;
-	}
-
-	// Too Early
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	UAnimMontage* CurrentMontage = GetMesh()->GetAnimInstance()->GetCurrentActiveMontage();
-	if (CurrentMontage)
-	{
-		float Position = AnimInstance->Montage_GetPosition(CurrentMontage);
-		FAnimNotifyContext AnimNotifyContext;
-		CurrentMontage->GetAnimNotifies(Position, 1.0f, AnimNotifyContext);
-		FName CurrentSection = AnimInstance->Montage_GetCurrentSection(CurrentMontage);
-
-		for (auto& NotifiesRef : AnimNotifyContext.ActiveNotifies)
-		{
-			const FAnimNotifyEvent* AnimNotifyEvent = NotifiesRef.GetNotify();
-			if (AnimNotifyEvent && AnimNotifyEvent->NotifyName == FName(TEXT("EnableCombo")))
-			{
-				AcceptSnapshot(ClientSnapshot);
-				LocalAttack(AttackTarget);
-				ClientAcceptAction();
-				return;
-			}
-		}
-	}
-	PHANTOM_LOG(Warning, TEXT("Server Reconciliation이 실패했습니다."));
-	ClientDeclineAction();
-	return;
-
-	// Deny
-	// 1. 너무 늦게 RPC가 왔을때
-	// 2. Server Reconciliation이 실패한 경우
-
-
-	const UEnum* EnumPtr = StaticEnum<ECharacterActionState>();
-	const FString CurrentActionStateString = EnumPtr->GetDisplayNameTextByValue(static_cast<uint8>(CharacterActionState)).ToString();
-	PHANTOM_LOG(Warning, TEXT("Cannot Attack!!"));
-	PHANTOM_LOG(Warning, TEXT("Action State: %s"), *CurrentActionStateString);
-	PHANTOM_LOG(Warning, TEXT("Attack Sequence Combo Count: %d"), AttackSequenceComboCount);
-	PHANTOM_LOG(Warning, TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false"));
-	PHANTOM_LOG(Warning, TEXT("Is Crouched: %s"), bIsCrouched ? TEXT("true") : TEXT("false"));
-}
-
-void APhantomCharacter::ClientAcceptAction_Implementation()
-{
-	PHANTOM_LOG(Warning, TEXT("Accept Action"));
-	bServerAnswered = true;
-}
-
-void APhantomCharacter::ClientDeclineAction_Implementation()
-{
-	PHANTOM_LOG(Warning, TEXT("Deny Action"));
-	bServerAnswered = true;
-	AcceptSnapshot(CurrentAttackSnapshot);
-	if (LastMontage)
-	{
-		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-		if (AnimInstance)
-		{
-			float DeltaTime = Cast<APhantomPlayerController>(Controller)->GetServerTime() - CurrentAttackSnapshot.Time;
-			float NewPosition = LastMontagePosition + DeltaTime; //(* Rate)
-			int32 SectionIndex = LastMontage->GetSectionIndexFromPosition(NewPosition);
-			if (SectionIndex != INDEX_NONE)
-			{
-				FAlphaBlendArgs Blend;
-				Blend.BlendTime = 0.0f;
-				if (AnimInstance->GetCurrentActiveMontage())
-					AnimInstance->Montage_StopWithBlendOut(Blend, AnimInstance->GetCurrentActiveMontage());
-				AnimInstance->Montage_PlayWithBlendIn(LastMontage, Blend, 1.0f);
-				AnimInstance->Montage_SetPosition(LastMontage, NewPosition);
-			}
-		}
-	}
-	else
-	{
-		StopAnimMontage();
-	}
-}
-
-void APhantomCharacter::AcceptSnapshot(const FCharacterSnapshot& Snapshot)
-{
-	CharacterActionState = Snapshot.CharacterActionState;
-	AttackSequenceComboCount = Snapshot.AttackSequenceComboCount;
-	bCanCombo = Snapshot.bCanCombo;
-	bIsCrouched = Snapshot.bIsCrouched;
 }

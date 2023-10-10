@@ -64,29 +64,12 @@ public:
 
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
-
-	void ChangeCharacterActionState(ECharacterActionState NewActionState);
-
-	UFUNCTION(BlueprintCallable)
-	void OnNotifyEnableCombo();
-	UFUNCTION(BlueprintCallable)
-	void OnNotifyDisableCombo();
-
-	UFUNCTION(BlueprintCallable)
-	void OnNotifyEnableWeaponBoxCollision();
-	UFUNCTION(BlueprintCallable)
-	void OnNotifyDisableWeaponBoxCollision();
-
+	
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
-	void Attack();
-	
-	bool CanAttack() const;
-	bool CanSnapShotAttack(const FCharacterSnapshot& Snapshot) const;
 
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UCameraComponent* GetFollowCamera() const { return FollowCamera; }
-	AWeapon* GetWeapon() const { return Weapon; }
 
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -94,25 +77,13 @@ protected:
 private:
 	// 매 프레임마다 새로 타겟팅할 후보를 계산함.
 	void CalculateNewTargetingEnemy();
-
-	void TakeSnapshots();
-
+	
 	UFUNCTION()
 	void OnCombatSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	                                int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	UFUNCTION()
 	void OnCombatSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
-	
 
-	void LocalAttack(AEnemy* AttackTarget);
-	UFUNCTION(Server, Reliable)
-	void ServerAttack(AEnemy* AttackTarget, FCharacterSnapshot ClientSnapshot);
-	UFUNCTION(Client, Reliable)
-	void ClientAcceptAction();
-	UFUNCTION(Client, Reliable)
-	void ClientDeclineAction();
-
-	void AcceptSnapshot(const FCharacterSnapshot& Snapshot);
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
@@ -143,9 +114,7 @@ private:
 	float MaxWalkSpeedCrouchedCache;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Crouch", meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
 	float MaxRunSpeedCrouched;
-
-	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
-	ECharacterActionState CharacterActionState = ECharacterActionState::Idle;
+	
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	FName MotionWarpAttackTargetName;
@@ -162,21 +131,6 @@ private:
 	TObjectPtr<AWeapon> Weapon;
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	uint8 AttackSequenceComboCount = 0;
-	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	bool bCanCombo = false;
-	UPROPERTY(Transient)
-	FTimerHandle AttackComboTimer;
-
-
-	TDoubleLinkedList<FCharacterSnapshot> Snapshots;
-	UPROPERTY(EditDefaultsOnly)
-	float MaxRecordDuration = 4.0f;
-
-	bool bServerAnswered = true;
-	FCharacterSnapshot CurrentAttackSnapshot;
-
-	TObjectPtr<UAnimMontage> LastMontage = nullptr;
-	float LastMontagePosition = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hero Action", meta = (AllowPrivateAccess = "true"))
 	TArray<TSubclassOf<UHeroAction>> StartupActionClasses;
