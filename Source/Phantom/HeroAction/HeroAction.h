@@ -41,15 +41,11 @@ public:
 	void BP_TriggerHeroAction();
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "On End Hero Action"))
 	void BP_OnEndHeroAction();
-	
-	UFUNCTION(BlueprintCallable, Category = "HeroAction")
-	void DispatchHeroActionEvent(FGameplayTag EventTag, FHeroActionEventData EventData);
-	void BindTryTriggerEvent();
+
 
 	EHeroActionNetMethod GetHeroActionNetMethod() const { return HeroActionNetMethod; }
 	const FHeroActionActorInfo& GetHeroActionActorInfo() const { return HeroActionActorInfo; }
-	FGameplayTag GetLifeTag() const { return LifeTag; }
-
+	const FGameplayTagContainer& GetTriggerEventTags() const { return TriggerEventTags; }
 
 	// ----------------------------------------------------
 	// Blueprint Helper Function
@@ -78,7 +74,7 @@ private:
 	void InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo);
 	void HandleTagOnTrigger();
 	void HandleTagOnEnd();
-
+	void OnLifeTagMoved(const FGameplayTag& Tag, bool bIsAdded);
 public:
 	FOnHeroActionEndSignature OnHeroActionEnd;
 

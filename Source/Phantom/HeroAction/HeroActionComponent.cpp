@@ -129,6 +129,12 @@ void UHeroActionComponent::AuthAddHeroActionByClass(TSubclassOf<UHeroAction> Her
 	UHeroAction* Action = UHeroAction::NewHeroAction<UHeroAction>(GetOwner(), HeroActionClass, HeroActionActorInfo);
 	check(Action);
 	AvailableHeroActions.Add(Action);
+
+	const FGameplayTagContainer& TriggerEventTags = Action->GetTriggerEventTags();
+	for (FGameplayTag Tag : TriggerEventTags)
+	{
+		TriggerEventActions.FindOrAdd(Tag).AddUnique(Action);
+	}
 }
 
 bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction, bool bShowDebugMessage)
@@ -157,11 +163,6 @@ bool UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> 
 
 void UHeroActionComponent::EndHeroAction(UHeroAction* HeroAction)
 {
-	if (CachedConfirmationData.Find(HeroAction))
-	{
-		CachedConfirmationData.Remove(HeroAction);
-	}
-
 	if (ensure(HeroAction))
 	{
 		HeroAction->EndHeroAction();
@@ -258,6 +259,14 @@ void UHeroActionComponent::RemoveCachedData(FHeroActionNetID NetID)
 	}
 }
 
+void UHeroActionComponent::RemoveCachedConfirmationData(UHeroAction* HeroAction)
+{
+	if (CachedConfirmationData.Find(HeroAction))
+	{
+		CachedConfirmationData.Remove(HeroAction);
+	}
+}
+
 FOnInputActionTriggeredSignature& UHeroActionComponent::GetOnInputActionTriggeredDelegate(UInputAction* InputAction)
 {
 	ensure(InputAction);
@@ -275,8 +284,17 @@ void UHeroActionComponent::DispatchHeroActionEvent(const FGameplayTag& Tag, cons
 	FOnHeroActionEventSignature& Delegate = GetOnHeroActionEventDelegate(Tag);
 	if (Delegate.IsBound())
 	{
-		Delegate.Broadcast(Data);
+		FOnHeroActionEventSignature Temp = Delegate;
 		Delegate.Clear();
+		Temp.Broadcast(Data);
+	}
+
+	if (TArray<UHeroAction*>* HeroActionsToTrigger = TriggerEventActions.Find(Tag))
+	{
+		for (UHeroAction* ToTrigger : *HeroActionsToTrigger)
+		{
+			TryTriggerHeroAction(ToTrigger);
+		}
 	}
 }
 
@@ -410,7 +428,7 @@ void UHeroActionComponent::AcceptHeroActionPrediction(UHeroAction* HeroAction)
 {
 	ensure(!HeroActionActorInfo.IsOwnerHasAuthority());
 	ensure(HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::LocalPredicted);
-		
+
 	UE_LOG(LogPhantom, Warning, TEXT("HeroAction을 [%s]이 Confirm되었습니다."), *GetNameSafe(HeroAction));
 	bool bHandled = HandleHeroActionConfirmed(HeroAction, true);
 	if (!bHandled)
@@ -423,7 +441,7 @@ void UHeroActionComponent::DeclineHeroActionPrediction(UHeroAction* HeroAction)
 {
 	ensure(!HeroActionActorInfo.IsOwnerHasAuthority());
 	ensure(HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::LocalPredicted);
-	
+
 	UE_LOG(LogPhantom, Warning, TEXT("HeroAction을 [%s]이 Decline되었습니다."), *GetNameSafe(HeroAction));
 	bool bHandled = HandleHeroActionConfirmed(HeroAction, false);
 	if (!bHandled)

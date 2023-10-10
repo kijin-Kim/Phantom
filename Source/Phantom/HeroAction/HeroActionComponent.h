@@ -95,6 +95,7 @@ public:
 	// Client RPC가 Delegate Binding보다 먼저 도착했는지 확인하고, 먼저 도착했으면 OnInputActionTriggered을 직접 호출함.
 	void AuthCallOnInputActionTriggeredIfAlready(UInputAction* InputAction, FHeroActionNetID NetID);
 	void RemoveCachedData(FHeroActionNetID NetID);
+	void RemoveCachedConfirmationData(UHeroAction* HeroAction);
 	FOnInputActionTriggeredSignature& GetOnInputActionTriggeredDelegate(UInputAction* InputAction);
 	FOnInputActionTriggeredReplicatedSignature& GetOnInputActionTriggeredReplicatedDelegate(UInputAction* InputAction);
 
@@ -148,6 +149,8 @@ private:
 	
 	// Dispatch Event함수에 의하여 호출되는 Delegates
 	TMap<FGameplayTag, FOnHeroActionEventSignature> OnHeroActionEventDelegates;
+
+	TMap<FGameplayTag, TArray<UHeroAction*>> TriggerEventActions;
 	
 	// HeroAction이 Authority에 의해 Confirmed되었을 때, 호출되는 Delegates
 	TMap<TObjectPtr<UHeroAction>, FOnHeroActionConfirmed> OnHeroActionConfirmedDelegates;

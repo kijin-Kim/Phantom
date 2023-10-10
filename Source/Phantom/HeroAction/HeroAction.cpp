@@ -68,16 +68,15 @@ void UHeroAction::TriggerHeroAction()
 	if (bIsTriggering)
 	{
 		check(HeroActionRetriggeringMethod != EHeroActionRetriggeringMethod::Block);
-		if(HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::Retrigger)
+		if (HeroActionRetriggeringMethod == EHeroActionRetriggeringMethod::Retrigger)
 		{
 			EndHeroAction(); // Setting bIsTriggering to false;
 		}
 	}
 
+	HandleTagOnTrigger();
 	bIsTriggering = true;
 	UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 Trigger 되었습니다."), *GetNameSafe(this));
-
-	HandleTagOnTrigger();
 
 	BP_TriggerHeroAction();
 }
@@ -94,47 +93,22 @@ void UHeroAction::EndHeroAction()
 		return;
 	}
 
-	bIsTriggering = false;
-	UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 End되었습니다."), *GetNameSafe(this));
-
 	HandleTagOnEnd();
+	bIsTriggering = false;
+	HeroActionActorInfo.HeroActionComponent->RemoveCachedConfirmationData(this);
+	UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 End되었습니다."), *GetNameSafe(this));
+	BP_OnEndHeroAction();
 
 	if (OnHeroActionEnd.IsBound())
 	{
 		OnHeroActionEnd.Broadcast();
 		OnHeroActionEnd.Clear();
 	}
-	
-	BP_OnEndHeroAction();
-}
-
-void UHeroAction::DispatchHeroActionEvent(FGameplayTag EventTag, FHeroActionEventData EventData)
-{
-	check(HeroActionActorInfo.HeroActionComponent.IsValid());
-	HeroActionActorInfo.HeroActionComponent->DispatchHeroActionEvent(EventTag, EventData);
-}
-
-void UHeroAction::BindTryTriggerEvent()
-{
-	UHeroActionComponent* HeroActionComponent = HeroActionActorInfo.HeroActionComponent.Get();
-	check(HeroActionComponent);
-	for (const FGameplayTag& Tag : TriggerEventTags)
-	{
-		if (!HeroActionComponent->GetOnHeroActionEventDelegate(Tag).IsBoundToObject(this))
-		{
-			FDelegateHandle Handle = HeroActionComponent->GetOnHeroActionEventDelegate(Tag).AddLambda(
-				[this, HeroActionComponent](const FHeroActionEventData&)
-				{
-					HeroActionComponent->TryTriggerHeroAction(this);
-				});
-		}
-	}
 }
 
 void UHeroAction::InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo)
 {
 	HeroActionActorInfo = InHeroActionActorInfo;
-	BindTryTriggerEvent();
 }
 
 void UHeroAction::HandleTagOnTrigger()
@@ -144,15 +118,7 @@ void UHeroAction::HandleTagOnTrigger()
 		UHeroActionComponent* HeroActionComponent = HeroActionActorInfo.HeroActionComponent.Get();
 		check(HeroActionComponent);
 		FOnHeroActionTagMovedSignature& OnTagMoved = HeroActionComponent->GetOnTagMovedDelegate(LifeTag);
-		LifeTagRemovalDelegateHandle = OnTagMoved.AddLambda(
-			[this](const FGameplayTag& Tag, bool bIsAdded)
-			{
-				if (!bIsAdded)
-				{
-					UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]의 LifeTag가 제거되었습니다."), *GetNameSafe(this));
-					EndHeroAction();
-				}
-			});
+		LifeTagRemovalDelegateHandle = OnTagMoved.AddUObject(this, &UHeroAction::OnLifeTagMoved);
 	}
 
 	UHeroActionComponent* HeroActionComponent = HeroActionActorInfo.HeroActionComponent.Get();
@@ -172,5 +138,13 @@ void UHeroAction::HandleTagOnEnd()
 		OnTagMoved.Remove(LifeTagRemovalDelegateHandle);
 		HeroActionComponent->RemoveTag(LifeTag);
 	}
-	BindTryTriggerEvent();
+}
+
+void UHeroAction::OnLifeTagMoved(const FGameplayTag& Tag, bool bIsAdded)
+{
+	if (!bIsAdded)
+	{
+		UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]의 LifeTag가 제거되었습니다."), *GetNameSafe(this));
+		EndHeroAction();
+	}
 }
