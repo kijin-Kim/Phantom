@@ -55,6 +55,7 @@ void UHeroActionJob_WaitHeroActionPredictionConfirmed::BroadcastConfirmationDele
 		if (OnAccepted.IsBound())
 		{
 			OnAccepted.Broadcast();
+			OnAccepted.Clear();
 		}
 	}
 	else
@@ -62,6 +63,7 @@ void UHeroActionJob_WaitHeroActionPredictionConfirmed::BroadcastConfirmationDele
 		if (OnDeclined.IsBound())
 		{
 			OnDeclined.Broadcast();
+			OnDeclined.Clear();
 		}
 	}
 

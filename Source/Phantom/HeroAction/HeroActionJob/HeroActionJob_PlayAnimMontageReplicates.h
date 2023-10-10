@@ -10,11 +10,11 @@ class UHeroAction;
 class UAnimMontage;
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayAnimationMontageCompletedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayAnimationMontageCompletedSignature);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayAnimationMontageBlendingOutDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayAnimationMontageBlendingOutSingature);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayAnimationMontageInterruptedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayAnimationMontageInterruptedSignature);
 
 /**
  * 
@@ -38,11 +38,11 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable)
-	FOnPlayAnimationMontageCompletedDelegate OnCompleted;
+	FOnPlayAnimationMontageCompletedSignature OnCompleted;
 	UPROPERTY(BlueprintAssignable)
-	FOnPlayAnimationMontageBlendingOutDelegate OnBlendingOut;
+	FOnPlayAnimationMontageBlendingOutSingature OnBlendingOut;
 	UPROPERTY(BlueprintAssignable)
-	FOnPlayAnimationMontageInterruptedDelegate OnInterrupted;
+	FOnPlayAnimationMontageInterruptedSignature OnInterrupted;
 
 private:
 	UPROPERTY()

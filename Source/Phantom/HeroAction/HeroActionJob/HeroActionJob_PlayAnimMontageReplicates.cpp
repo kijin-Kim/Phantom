@@ -35,7 +35,7 @@ void UHeroActionJob_PlayAnimMontageReplicates::Activate()
 	UHeroActionComponent* HAC = HeroActionComponent.Get();
 	if (!HAC->PlayAnimMontageReplicates(HeroAction.Get(), AnimMontage, StartSection, PlayRate, StartTime))
 	{
-		UE_LOG(LogPhantom, Warning, TEXT("Animation Montage [%s]를 실행하는데 실패하였습니다"), *GetNameSafe(AnimMontage))
+		PHANTOM_LOG(Warning, TEXT("Animation Montage [%s]를 실행하는데 실패하였습니다"), *GetNameSafe(AnimMontage))
 		Cancel();
 	}
 

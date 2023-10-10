@@ -138,7 +138,6 @@ void APhantomCharacter::BeginPlay()
 		Weapon = GetWorld()->SpawnActor<AWeapon>(DefaultWeaponClass, ActorSpawnParameters);
 		Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName(TEXT("katana_r")));
 	}
-
 }
 
 void APhantomCharacter::Tick(float DeltaSeconds)
@@ -155,21 +154,20 @@ void APhantomCharacter::Tick(float DeltaSeconds)
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
-	if(IsLocallyControlled())
+	if (IsLocallyControlled())
 	{
 		// Capsule크기가 작아지면서 Capsule에 부착된 SpringArm, Camera가 같이 내려가는것을 원래 위치를 유지하도록 보정함.
-		CameraBoom->TargetOffset.Z += ScaledHalfHeightAdjust;	
+		CameraBoom->TargetOffset.Z += ScaledHalfHeightAdjust;
 	}
-	
 }
 
 void APhantomCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
 {
 	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
-	if(IsLocallyControlled())
+	if (IsLocallyControlled())
 	{
 		// Capsule크기가 작아지면서 Capsule에 부착된 SpringArm, Camera가 같이 내려가는것을 원래 위치를 유지하도록 보정함.
-		CameraBoom->TargetOffset.Z -= ScaledHalfHeightAdjust;	
+		CameraBoom->TargetOffset.Z -= ScaledHalfHeightAdjust;
 	}
 }
 
@@ -200,7 +198,7 @@ void APhantomCharacter::Attack()
 	}
 	else
 	{
-		UE_LOG(LogPhantom, Warning, TEXT("Client Attack 실패"));
+		PHANTOM_LOG(Warning, TEXT("Client Attack 실패"));
 		// 문제 Client는 Attack이후에 Attack이 인정되면 다음 Combo를 수행하는데 다음 어택의 클라이언트에서의
 		// 수행시간안에 Attack에 대한 인정 메시지가 안오면 Attack Combo를 이어나갈수가 없음.
 	}
@@ -344,7 +342,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 
 	if (NewTargetedCandidate)
 	{
-		if (!CurrentTargetedEnemy.IsValid())
+		if (!CurrentTargetedEnemy)
 		{
 			CurrentTargetedEnemy = NewTargetedCandidate;
 		}
@@ -369,7 +367,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 			DrawDebugSphere(GetWorld(), NewTargetedCandidate->GetActorLocation(), 100.0f, 12, FColor::Blue, 0.0f, 0.0f);
 		}
 
-		if (CurrentTargetedEnemy.IsValid())
+		if (CurrentTargetedEnemy)
 		{
 			DrawDebugSphere(GetWorld(), CurrentTargetedEnemy->GetActorLocation(), 100.0f, 12, FColor::Red, 0.0f, 0.0f);
 		}
@@ -442,7 +440,7 @@ void APhantomCharacter::LocalAttack(AEnemy* AttackTarget)
 		if (!HasAuthority())
 		{
 			bServerAnswered = false;
-			UE_LOG(LogPhantom, Warning, TEXT("Consume Start"));
+			PHANTOM_LOG(Warning, TEXT("Consume Start"));
 			CurrentAttackSnapshot.Time = Cast<APhantomPlayerController>(Controller)->GetServerTime();
 			CurrentAttackSnapshot.CharacterActionState = CharacterActionState;
 			CurrentAttackSnapshot.AttackSequenceComboCount = AttackSequenceComboCount;
@@ -513,7 +511,7 @@ void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget, FChara
 	const float NewestTime = Snapshots.GetHead()->GetValue().Time;
 	if (OldestTime > RequestedTime) // Too Late
 	{
-		UE_LOG(LogPhantom, Warning, TEXT("Request가 너무 늦게 도착했습니다."));
+		PHANTOM_LOG(Warning, TEXT("Request가 너무 늦게 도착했습니다."));
 		ClientDeclineAction();
 		return;
 	}
@@ -570,7 +568,7 @@ void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget, FChara
 			}
 		}
 	}
-	UE_LOG(LogPhantom, Warning, TEXT("Server Reconciliation이 실패했습니다."));
+	PHANTOM_LOG(Warning, TEXT("Server Reconciliation이 실패했습니다."));
 	ClientDeclineAction();
 	return;
 
@@ -581,22 +579,22 @@ void APhantomCharacter::ServerAttack_Implementation(AEnemy* AttackTarget, FChara
 
 	const UEnum* EnumPtr = StaticEnum<ECharacterActionState>();
 	const FString CurrentActionStateString = EnumPtr->GetDisplayNameTextByValue(static_cast<uint8>(CharacterActionState)).ToString();
-	UE_LOG(LogPhantom, Warning, TEXT("Cannot Attack!!"));
-	UE_LOG(LogPhantom, Warning, TEXT("Action State: %s"), *CurrentActionStateString);
-	UE_LOG(LogPhantom, Warning, TEXT("Attack Sequence Combo Count: %d"), AttackSequenceComboCount);
-	UE_LOG(LogPhantom, Warning, TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false"));
-	UE_LOG(LogPhantom, Warning, TEXT("Is Crouched: %s"), bIsCrouched ? TEXT("true") : TEXT("false"));
+	PHANTOM_LOG(Warning, TEXT("Cannot Attack!!"));
+	PHANTOM_LOG(Warning, TEXT("Action State: %s"), *CurrentActionStateString);
+	PHANTOM_LOG(Warning, TEXT("Attack Sequence Combo Count: %d"), AttackSequenceComboCount);
+	PHANTOM_LOG(Warning, TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false"));
+	PHANTOM_LOG(Warning, TEXT("Is Crouched: %s"), bIsCrouched ? TEXT("true") : TEXT("false"));
 }
 
 void APhantomCharacter::ClientAcceptAction_Implementation()
 {
-	UE_LOG(LogPhantom, Warning, TEXT("Accept Action"));
+	PHANTOM_LOG(Warning, TEXT("Accept Action"));
 	bServerAnswered = true;
 }
 
 void APhantomCharacter::ClientDeclineAction_Implementation()
 {
-	UE_LOG(LogPhantom, Warning, TEXT("Deny Action"));
+	PHANTOM_LOG(Warning, TEXT("Deny Action"));
 	bServerAnswered = true;
 	AcceptSnapshot(CurrentAttackSnapshot);
 	if (LastMontage)

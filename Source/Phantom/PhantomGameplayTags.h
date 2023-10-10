@@ -24,12 +24,14 @@ namespace PhantomGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Sprint);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Stealth);
 	
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Run_Trigger);
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Attack_Trigger);
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_AttackEventHandler_Trigger);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_Run);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_AttackEventHandler);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Dodge_Triggered);
+	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Notify_Combo_Opened);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Notify_Combo_Closed);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Notify_Collision_Opened);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Notify_Collision_Closed);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Notify_Attack_Completed);
 	
 }

@@ -30,7 +30,8 @@ void UHeroActionJob_WaitInputActionTriggered::SetupDelegates()
 		return;
 	}
 
-	InputEventNetID.CreateNewID();
+	NetID = HeroActionComponent->CreateNewHeroActionNetID();
+	
 	// Non-Authoritative Autonomous Proxy
 	if (!bHasAuthority && bIsLocal)
 	{
@@ -45,8 +46,7 @@ void UHeroActionJob_WaitInputActionTriggered::SetupDelegates()
 		}
 		return;
 	}
-
-	// TODO: Remove Execution.
+	
 	if (bHasAuthority && !bIsLocal)
 	{
 		/* Cached Data (InputAction)이 도착해있으면, 즉 클라이언트가 보낸 Server RPC가 도착해있으면,
@@ -54,7 +54,7 @@ void UHeroActionJob_WaitInputActionTriggered::SetupDelegates()
 		 * 그러면 서버에서 OnInputActionTriggered를 Cached Data를 가지고 Call 한다음에 다시 클라이언트에게
 		 * 알려줘야 함. */
 		BindOnInputActionTriggeredDelegate();
-		HeroActionComponent->AuthCallOnInputActionTriggeredIfAlready(InputAction, InputEventNetID);
+		HeroActionComponent->AuthCallOnInputActionTriggeredIfAlready(InputAction, NetID);
 	}
 }
 
@@ -77,7 +77,7 @@ void UHeroActionJob_WaitInputActionTriggered::SetReadyToDestroy()
 		ensure(InputAction);
 		HeroActionComponent->GetOnInputActionTriggeredDelegate(InputAction).Remove(Handle);
 		HeroActionComponent->GetOnInputActionTriggeredReplicatedDelegate(InputAction).Remove(RepHandle);
-		HeroActionComponent->RemoveCachedData(InputEventNetID);
+		HeroActionComponent->RemoveCachedData(NetID);
 	}
 }
 
@@ -103,7 +103,7 @@ void UHeroActionJob_WaitInputActionTriggered::SendServerAndWaitResponse()
 				// 만약 서버가 아랫 else에 도착해서 Bind하지 못하였다면
 				// 위에 bHandled가 false로 도착함.
 				WeakThis->HeroActionComponent->GetOnInputActionTriggeredDelegate(WeakThis->InputAction).Remove(WeakThis->Handle);
-				WeakThis->HeroActionComponent->ServerNotifyInputActionTriggered(WeakThis->InputAction, WeakThis->InputEventNetID, bTriggeredHeroAction);
+				WeakThis->HeroActionComponent->ServerNotifyInputActionTriggered(WeakThis->InputAction, WeakThis->NetID, bTriggeredHeroAction);
 			}
 		});
 }
@@ -119,7 +119,7 @@ void UHeroActionJob_WaitInputActionTriggered::SendServerAndProceed()
 				// 만약 서버가 아랫 else에 도착해서 Bind하지 못하였다면
 				// 위에 bHandled가 false로 도착함.
 				WeakThis->HeroActionComponent->GetOnInputActionTriggeredDelegate(WeakThis->InputAction).Remove(WeakThis->Handle);
-				WeakThis->HeroActionComponent->ServerHandleInputActionTriggered(WeakThis->InputAction, WeakThis->InputEventNetID, bTriggeredHeroAction);
+				WeakThis->HeroActionComponent->ServerHandleInputActionTriggered(WeakThis->InputAction, WeakThis->NetID, bTriggeredHeroAction);
 				WeakThis->BroadcastOnInputActionTriggered(bTriggeredHeroAction);
 			}
 		});

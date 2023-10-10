@@ -151,7 +151,8 @@ private:
 	FName MotionWarpAttackTargetName;
 	
 	// 현재 타겟팅된 Enemy
-	TWeakObjectPtr<AEnemy> CurrentTargetedEnemy;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<AEnemy> CurrentTargetedEnemy;
 	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
 	TArray<TWeakObjectPtr<AEnemy>> EnemiesInCombatRange;
 

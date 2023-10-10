@@ -13,14 +13,14 @@
 
 class UInputAction;
 class UHeroAction;
-class UReplicatedObject;
 
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHeroActionTagMovedSignature, const FGameplayTag& /*Tag*/, bool /*bIsAdded*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputActionTriggeredSignature, bool /*bInputTriggeredHeroAction*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInputActionTriggeredReplicatedSignature, bool /*bHandledByServer*/, bool /*bInputTriggeredHeroAction*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnHeroActionEventSignature, const FHeroActionEventData& /*EventData*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnHeroActionConfirmed, bool /*Accepted*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHeroActionConfirmedSignature, bool /*Accepted*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHeroActionNetDataArrivedSignature, const FHeroActionNetData& /*Data*/);
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -99,7 +99,6 @@ public:
 	FOnInputActionTriggeredSignature& GetOnInputActionTriggeredDelegate(UInputAction* InputAction);
 	FOnInputActionTriggeredReplicatedSignature& GetOnInputActionTriggeredReplicatedDelegate(UInputAction* InputAction);
 
-
 	void DispatchHeroActionEvent(const FGameplayTag& Tag, const FHeroActionEventData& Data);
 	
 	FOnHeroActionTagMovedSignature& GetOnTagMovedDelegate(const FGameplayTag& Tag);
@@ -107,8 +106,17 @@ public:
 
 	bool HandleHeroActionConfirmed(UHeroAction* HeroAction, bool bIsAccepted);
 	void CallHeroActionConfirmedIfAlready(UHeroAction* HeroAction);
-	FOnHeroActionConfirmed& GetOnHeroActionConfirmedDelegate(UHeroAction* HeroAction);
-	
+	FOnHeroActionConfirmedSignature& GetOnHeroActionConfirmedDelegate(UHeroAction* HeroAction);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSendHeroActionNetData(FHeroActionNetData NetData, FHeroActionNetID NetID);
+	UFUNCTION(Client, Reliable)
+	void ClientSendHeroActionNetData(FHeroActionNetData NetData, FHeroActionNetID NetID);
+	bool HandleHeroActionNetDataArrived(const FHeroActionNetData& Data, FHeroActionNetID NetID);
+	void CallHeroActionNetDataDelegateIfAlready(FHeroActionNetID NetID);
+	FOnHeroActionNetDataArrivedSignature& GetOnHeroActionNetDataArrivedDelegate(FHeroActionNetID NetID);
+
+	FHeroActionNetID CreateNewHeroActionNetID() { HeroActionNetID.CreateNewID(); return HeroActionNetID; }
 protected:
 	bool InternalTryTriggerHeroAction(UHeroAction* HeroAction);
 	void TriggerHeroAction(UHeroAction* HeroAction);
@@ -122,20 +130,27 @@ protected:
 	void ClientNotifyPredictionAccepted(UHeroAction* HeroAction);
 	UFUNCTION(Client, Reliable)
 	void ClientNotifyPredictionDeclined(UHeroAction* HeroAction);
+	
+	void CacheNetDataIfNotHandled(FHeroActionNetData NetData, FHeroActionNetID NetID);
 
 private:
-	// Tag가 추가/삭제 될 때, Delegate를 호출
-	void BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded);
+	UFUNCTION()
+	void OnRep_AvailableHeroActions(const TArray<UHeroAction*>& OldeHeroActions);
+	void OnHeroActionAdded(UHeroAction* Action);
+	
 	UFUNCTION()
 	void OnRep_ReplicatedAnimMontage();
+	// Tag가 추가/삭제 될 때, Delegate를 호출
 	float PlayAnimMontageLocal(UAnimMontage* AnimMontage, FName StartSection = NAME_None, float PlayRate = 1.0f, float StartTime = 0.0f);
 	// Authority에서 Simulated Proxy에 Replicate할 정보를 Update합니다. 
 	void AuthUpdateReplicatedAnimMontage();
 	void AuthTakeHeroActionSnapshots();
+	bool TryTriggerHeroActionWithLagCompensation(UHeroAction* HeroAction, float Time);
 
+	void BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded);
 protected:
 	FHeroActionActorInfo HeroActionActorInfo;
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing=OnRep_AvailableHeroActions)
 	TArray<TObjectPtr<UHeroAction>> AvailableHeroActions;
 	FGameplayTagContainer OwningTags;
 
@@ -143,6 +158,7 @@ protected:
 	TMap<TObjectPtr<UHeroAction>, TDeque<FHeroActionSnapshot>> HeroActionSnapshots;
 	float MaxRecordDuration = 4.0f;
 
+	FHeroActionNetID HeroActionNetID;
 private:
 	// Tag가 추가/삭제 될 때, 호출하는 Delegates
 	TMap<FGameplayTag, FOnHeroActionTagMovedSignature> OnTagMovedDelegates;
@@ -153,7 +169,7 @@ private:
 	TMap<FGameplayTag, TArray<UHeroAction*>> TriggerEventActions;
 	
 	// HeroAction이 Authority에 의해 Confirmed되었을 때, 호출되는 Delegates
-	TMap<TObjectPtr<UHeroAction>, FOnHeroActionConfirmed> OnHeroActionConfirmedDelegates;
+	TMap<TObjectPtr<UHeroAction>, FOnHeroActionConfirmedSignature> OnHeroActionConfirmedDelegates;
 	// HeroAction이 Confirm되었는데 관련 Delegate가 Bind되어있지 않으면 여기에 Accept/Decline결과가 담긴다.
 	TMap<TObjectPtr<UHeroAction>, bool> CachedConfirmationData;
 	
@@ -168,8 +184,10 @@ private:
 	 * 정보가 저장됨. Server에서 OnInputTriggered가 Bind한 후, 여기에 데이터가 있으면 Client RPC가 서버의 Bind보다 빠른 것
 	 * 이므로 여기있는 데이터를 사용하여 직접 OnInputTriggered를 호출함. (데이터는 Remove됨) */
 	TMap<FHeroActionNetID, TPair<TObjectPtr<UInputAction>, bool>> CachedInputActionData;
-	
 
+	TMap<FHeroActionNetID, FOnHeroActionNetDataArrivedSignature> OnHeroActionDataArrivedDelegates;
+	TMap<FHeroActionNetID, FHeroActionNetData> CachedHeroActionNetData;
+	
 	// Authority에서 Simulated Proxy에 Replicate할 AnimMontage에 대한 정보. 
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_ReplicatedAnimMontage)
 	FRepAnimMontageData ReplicatedAnimMontageData;

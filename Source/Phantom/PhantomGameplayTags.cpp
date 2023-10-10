@@ -20,12 +20,13 @@ namespace PhantomGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Sprint, "HeroAction.Sprint");
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Stealth, "HeroAction.Stealth");
 	
-
-	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Run_Trigger, "Event.HeroAction.Run.Trigger");
-	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Attack_Trigger, "Event.HeroAction.Attack.Trigger");
-	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_AttackEventHandler_Trigger, "Event.HeroAction.AttackEventHandler.Trigger");
+	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_Run, "Event.HeroAction.Trigger.Run");
+	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_AttackEventHandler, "Event.HeroAction.Trigger.AttackEventHandler");
+	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Dodge_Triggered, "Event.HeroAction.Dodge.Triggered");
+	
 	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Combo_Opened, "Event.Notify.Combo.Opened");
 	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Combo_Closed, "Event.Notify.Combo.Closed");
 	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Collision_Opened, "Event.Notify.Collision.Opened");
 	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Collision_Closed, "Event.Notify.Collision.Closed");
+	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Attack_Completed, "Event.Notify.Attack.Completed");
 }

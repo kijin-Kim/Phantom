@@ -82,16 +82,20 @@ struct FHeroActionNetID
 {
 	GENERATED_BODY()
 
-	FHeroActionNetID();
+	friend class UHeroActionComponent;
 
-	void CreateNewID();
-	
+	FHeroActionNetID();
 	bool IsValid() const;
 	bool operator==(const FHeroActionNetID& Other) const;
 	bool operator!=(const FHeroActionNetID& Other) const;
 	friend uint32 GetTypeHash(const FHeroActionNetID& ReplicationID);
 
 private:
+	void CreateNewID();
+
+private:
+	int32 Counter = 0;
+	UPROPERTY()
 	int32 ID;
 };
 
@@ -102,4 +106,15 @@ struct FHeroActionSnapshot
 
 	float Time = 0.0f;
 	bool bCanTrigger = false;
+};
+
+
+
+USTRUCT(BlueprintType)
+struct FHeroActionNetData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<AActor> Actor;
 };

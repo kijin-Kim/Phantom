@@ -23,7 +23,7 @@ bool UHeroAction::CanTriggerHeroAction(bool bShowDebugMessage) const
 	{
 		if (bShowDebugMessage)
 		{
-			UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]가 Block되었습니다."), *GetNameSafe(this));
+			PHANTOM_LOG(Display, TEXT("HeroAction [%s]가 Block되었습니다."), *GetNameSafe(this));
 		}
 		return false;
 	}
@@ -33,7 +33,7 @@ bool UHeroAction::CanTriggerHeroAction(bool bShowDebugMessage) const
 	{
 		if (bShowDebugMessage)
 		{
-			UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]가 Tag에 의해 Block되었습니다."), *GetNameSafe(this));
+			PHANTOM_LOG(Display, TEXT("HeroAction [%s]가 Tag에 의해 Block되었습니다."), *GetNameSafe(this));
 		}
 		return false;
 	}
@@ -42,7 +42,7 @@ bool UHeroAction::CanTriggerHeroAction(bool bShowDebugMessage) const
 	{
 		if (bShowDebugMessage)
 		{
-			UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]가 Tag에 의해 Requirement를 충족하지 못하였습니다."), *GetNameSafe(this));
+			PHANTOM_LOG(Display, TEXT("HeroAction [%s]가 Tag에 의해 Requirement를 충족하지 못하였습니다."), *GetNameSafe(this));
 		}
 		return false;
 	}
@@ -53,7 +53,8 @@ bool UHeroAction::CanTriggerHeroAction(bool bShowDebugMessage) const
 	bool bIsImplemented = Function && Function->GetOuter() && Function->GetOuter()->IsA(UBlueprintGeneratedClass::StaticClass());
 	if (bIsImplemented)
 	{
-		return BP_CanTriggerHeroAction();
+		bool bCanTrigger = BP_CanTriggerHeroAction();
+		return bCanTrigger;
 	}
 
 	return true;
@@ -76,7 +77,7 @@ void UHeroAction::TriggerHeroAction()
 
 	HandleTagOnTrigger();
 	bIsTriggering = true;
-	UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 Trigger 되었습니다."), *GetNameSafe(this));
+	PHANTOM_LOG(Display, TEXT("HeroAction [%s]이 Trigger 되었습니다."), *GetNameSafe(this));
 
 	BP_TriggerHeroAction();
 }
@@ -89,14 +90,14 @@ void UHeroAction::EndHeroAction()
 
 	if (!bIsTriggering)
 	{
-		UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 이미 End되었거나, Trigger되지 않았습니다."), *GetNameSafe(this));
+		PHANTOM_LOG(Display, TEXT("HeroAction [%s]이 이미 End되었거나, Trigger되지 않았습니다."), *GetNameSafe(this));
 		return;
 	}
 
 	HandleTagOnEnd();
 	bIsTriggering = false;
 	HeroActionActorInfo.HeroActionComponent->RemoveCachedConfirmationData(this);
-	UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]이 End되었습니다."), *GetNameSafe(this));
+	PHANTOM_LOG(Display, TEXT("HeroAction [%s]이 End되었습니다."), *GetNameSafe(this));
 	BP_OnEndHeroAction();
 
 	if (OnHeroActionEnd.IsBound())
@@ -144,7 +145,7 @@ void UHeroAction::OnLifeTagMoved(const FGameplayTag& Tag, bool bIsAdded)
 {
 	if (!bIsAdded)
 	{
-		UE_LOG(LogPhantom, Display, TEXT("HeroAction [%s]의 LifeTag가 제거되었습니다."), *GetNameSafe(this));
+		PHANTOM_LOG(Display, TEXT("HeroAction [%s]의 LifeTag가 제거되었습니다."), *GetNameSafe(this));
 		EndHeroAction();
 	}
 }

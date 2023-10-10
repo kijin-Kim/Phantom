@@ -6,6 +6,7 @@
 #include "UObject/Interface.h"
 #include "CombatInterface.generated.h"
 
+class UMotionWarpingComponent;
 // This class does not need to be modified.
 UINTERFACE(BlueprintType)
 class UCombatInterface : public UInterface
@@ -26,4 +27,14 @@ public:
 	UAnimMontage* GetDodgeMontage() const;
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
 	TArray<UAnimMontage*> GetAttackMontages() const;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
+	void SetAttackSequenceComboCount(int32 Count);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
+	int32 GetAttackSequenceComboCount() const;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
+	void SetComboWindowOpened(bool bIsOpened);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
+	bool GetComboWindowOpened() const;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
+	UMotionWarpingComponent* GetMotionWarpingComponent() const;
 };

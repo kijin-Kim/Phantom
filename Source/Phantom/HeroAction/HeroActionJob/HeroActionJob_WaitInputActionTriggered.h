@@ -39,7 +39,7 @@ public:
 	bool bIgnoreWhenHeroActionTriggered;
 
 private:
+	FHeroActionNetID NetID;
 	FDelegateHandle Handle;
 	FDelegateHandle RepHandle;
-	FHeroActionNetID InputEventNetID;
 };

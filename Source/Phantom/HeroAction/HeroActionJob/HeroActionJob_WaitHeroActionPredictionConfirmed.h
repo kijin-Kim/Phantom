@@ -7,8 +7,8 @@
 #include "HeroActionJob_WaitHeroActionPredictionConfirmed.generated.h"
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHeroActionConfirmedAccepted);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHeroActionConfirmedDeclined);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHeroActionConfirmedAcceptedSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHeroActionConfirmedDeclinedSignature);
 
 /**
  * 
@@ -30,9 +30,9 @@ private:
 
 public:
 	UPROPERTY(BlueprintAssignable)
-	FOnHeroActionConfirmedAccepted OnAccepted;
+	FOnHeroActionConfirmedAcceptedSignature OnAccepted;
 	UPROPERTY(BlueprintAssignable)
-	FOnHeroActionConfirmedDeclined OnDeclined;
+	FOnHeroActionConfirmedDeclinedSignature OnDeclined;
 
 private:
 	FDelegateHandle Handle;

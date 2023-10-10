@@ -55,7 +55,6 @@ FHeroActionNetID::FHeroActionNetID()
 
 void FHeroActionNetID::CreateNewID()
 {
-	static int32 Counter = 0;
 	ID = ++Counter;
 }
 

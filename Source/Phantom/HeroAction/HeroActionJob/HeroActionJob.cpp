@@ -22,6 +22,7 @@ void UHeroActionJob::InitHeroActionJob(UHeroAction* InHeroAction)
 {
 	check(InHeroAction);
 	HeroAction = InHeroAction;
+	
 	const FHeroActionActorInfo& HeroActionActorInfo = InHeroAction->GetHeroActionActorInfo();
 	if (HeroActionActorInfo.SourceActor.IsValid())
 	{
