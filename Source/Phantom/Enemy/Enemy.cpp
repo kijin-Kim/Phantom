@@ -4,6 +4,7 @@
 #include "Enemy.h"
 
 #include "Components/CapsuleComponent.h"
+#include "Phantom/HeroAction/HeroActionComponent.h"
 
 
 // Sets default values
@@ -63,15 +64,28 @@ void AEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 			{
 				HitMontageSectionName = FName("HitFL");
 			}
-			
+
 			if (bDebugHit)
 			{
 				DrawDebugDirectionalArrow(GetWorld(), Location, Location + ForwardVector * 100.0f, 30.0f, FColor::Red, false, 2.0f);
 				DrawDebugDirectionalArrow(GetWorld(), Location, Location + ToHitterInstigator * 100.0f, 30.0f, FColor::Green, false, 2.0f);
 				DrawDebugDirectionalArrow(GetWorld(), Location, Location + UpVector * 100.0f, 30.0f, FColor::Blue, false, 2.0f);
 			}
-			
+
 			PlayAnimMontage(HitMontage, 1.0f, HitMontageSectionName);
+		}
+	}
+}
+
+void AEnemy::BeginPlay()
+{
+	Super::BeginPlay();
+	HeroActionComponent->InitializeHeroActionActorInfo(this);
+	if (HasAuthority())
+	{
+		for (const TSubclassOf<UHeroAction> HeroActionClass : StartupActionClasses)
+		{
+			HeroActionComponent->AuthAddHeroActionByClass(HeroActionClass);
 		}
 	}
 }

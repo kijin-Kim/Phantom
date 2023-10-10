@@ -78,6 +78,7 @@ void APhantomPlayerController::BeginPlay()
 		{
 			Subsystem->AddMappingContext(NormalMovementMappingContext, 1);
 			Subsystem->AddMappingContext(CombatMappingContext, 0);
+			Subsystem->AddMappingContext(StealthMappingContext, 0);
 		}
 	}
 }

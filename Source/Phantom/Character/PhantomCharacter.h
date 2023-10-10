@@ -131,7 +131,4 @@ private:
 	TObjectPtr<AWeapon> Weapon;
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	uint8 AttackSequenceComboCount = 0;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hero Action", meta = (AllowPrivateAccess = "true"))
-	TArray<TSubclassOf<UHeroAction>> StartupActionClasses;
 };

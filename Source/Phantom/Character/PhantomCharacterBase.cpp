@@ -16,3 +16,4 @@ UHeroActionComponent* APhantomCharacterBase::GetHeroActionComponent() const
 {
 	return HeroActionComponent;
 }
+

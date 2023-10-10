@@ -371,8 +371,9 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 	check(HeroAction)
 
 	// TODO
-	APhantomPlayerController* PC = Cast<APhantomPlayerController>(HeroActionActorInfo.PlayerController.Get());
-	const float ServerTime = PC->GetServerTime();
+	// APhantomPlayerController* PC = Cast<APhantomPlayerController>(HeroActionActorInfo.PlayerController.Get());
+	// const float ServerTime = PC->GetServerTime();
+	const float ServerTime = 0.0f;	
 
 
 	const bool bHasAuthority = HeroActionActorInfo.IsOwnerHasAuthority();
