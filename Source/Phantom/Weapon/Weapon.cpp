@@ -6,6 +6,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Phantom/HitInterface.h"
 #include "Phantom/PhantomGameplayTags.h"
+#include "Phantom/Character/PhantomCharacterBase.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 #include "Phantom/HeroActionSystem/HeroActionInterface.h"
 
@@ -58,6 +59,7 @@ void AWeapon::SetHitBoxEnabled(ECollisionEnabled::Type NewType)
 void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
                                          int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	
 	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Hit"));
 	const bool bDebugHit = CVar && CVar->GetValueOnGameThread();
 
@@ -69,7 +71,7 @@ void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponen
 		this,
 		Start,
 		End,
-		FVector(5.0f, 5.0f, 5.0f),
+		FVector(10.0f, 10.0f, 10.0f),
 		TraceStart->GetComponentRotation(),
 		ETraceTypeQuery::TraceTypeQuery1,
 		false,
@@ -92,8 +94,14 @@ void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponen
 			FHeroActionEventData EventData;
 			EventData.EventInstigator = GetOwner();
 			EventData.EventHitResult = HitResult;
-			HeroActionComponent->DispatchHeroActionEvent(PhantomGameplayTags::Event_HeroAction_Trigger_HitReact, EventData);
+			
 			AlreadyHitActors.AddUnique(HitResult.GetActor());
+			
+			APhantomCharacterBase* OwnerChracter = GetOwner<APhantomCharacterBase>();
+			if(OwnerChracter->HasAuthority())
+			{
+				HeroActionComponent->DispatchHeroActionEvent(PhantomGameplayTags::Event_HeroAction_Trigger_HitReact, EventData);
+			}
 		}
 	}
 }

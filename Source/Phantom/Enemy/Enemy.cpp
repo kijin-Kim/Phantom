@@ -77,6 +77,37 @@ void AEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 	}
 }
 
+FName AEnemy::GetDirectionalSectionName_Implementation(UAnimMontage* AnimMontage, float Degree) const
+{
+	if(AnimMontage == Execute_GetHitReactMontage(this))
+	{
+		FName HitMontageSectionName = FName("HitB");
+		if (Degree >= -22.5f && Degree < 22.5f)
+		{
+			HitMontageSectionName = FName("HitF");
+		}
+		else if (Degree >= 22.5f && Degree < 45.0f)
+		{
+			HitMontageSectionName = FName("HitFR");
+		}
+		else if (Degree >= 45.0f && Degree < 135.0f)
+		{
+			HitMontageSectionName = FName("HitR");
+		}
+		else if ((Degree >= -135.0f && Degree < -45.0f))
+		{
+			HitMontageSectionName = FName("HitL");
+		}
+		else if ((Degree >= -45.0f && Degree < -22.5f))
+		{
+			HitMontageSectionName = FName("HitFL");
+		}
+		return HitMontageSectionName;
+	}
+	
+	return NAME_None;
+}
+
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();

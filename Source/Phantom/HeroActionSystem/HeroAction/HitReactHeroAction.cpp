@@ -3,7 +3,7 @@
 
 #include "HitReactHeroAction.h"
 
-float UHitReactHeroAction::CalculateHitDirection(AActor* Hitter)
+float UHitReactHeroAction::GetHitReactAngleDegree(AActor* Hitter)
 {
 	check(HeroActionActorInfo.SourceActor.IsValid() && IsValid(Hitter) && IsValid(Hitter->GetInstigator()));
 
@@ -17,6 +17,5 @@ float UHitReactHeroAction::CalculateHitDirection(AActor* Hitter)
 	const float CosTheta = FVector::DotProduct(SourceActor->GetActorForwardVector(), ToHitterInstigator);
 	float Degree = FMath::RadiansToDegrees(FMath::Acos(CosTheta));
 	const FVector UpVector = FVector::CrossProduct(SourceActor->GetActorForwardVector(), ToHitterInstigator);
-	Degree *= UpVector.Z < 0.0f ? -1.0f : 1.0f;
-	return Degree;
+	return Degree *= UpVector.Z < 0.0f ? -1.0f : 1.0f;
 }

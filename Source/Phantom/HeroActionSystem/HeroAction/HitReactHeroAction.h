@@ -15,6 +15,5 @@ class PHANTOM_API UHitReactHeroAction : public UHeroAction
 	GENERATED_BODY()
 public:
 	UFUNCTION(BlueprintCallable, Category = "HeroAction")
-	float CalculateHitDirection(AActor* Hitter);
-	
+	float GetHitReactAngleDegree(AActor* Hitter);
 };

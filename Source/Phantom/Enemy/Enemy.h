@@ -15,6 +15,7 @@ class PHANTOM_API AEnemy : public APhantomCharacterBase, public IHitInterface
 public:
 	AEnemy();
 	virtual void GetHit(const FHitResult& HitResult, AActor* Hitter) override;
+	virtual FName GetDirectionalSectionName_Implementation(UAnimMontage* AnimMontage, float Degree) const override;
 	virtual void BeginPlay() override;
 
 private:
