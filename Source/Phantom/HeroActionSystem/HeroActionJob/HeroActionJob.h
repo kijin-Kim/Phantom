@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Phantom/HeroAction/HeroAction.h"
-#include "Phantom/HeroAction/HeroActionComponent.h"
+#include "Phantom/HeroActionSystem/HeroAction.h"
+#include "Phantom/HeroActionSystem/HeroActionComponent.h"
 #include "Engine/CancellableAsyncAction.h"
 #include "HeroActionJob.generated.h"
 

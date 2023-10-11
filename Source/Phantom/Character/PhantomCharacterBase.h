@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Phantom/CombatInterface.h"
-#include "Phantom/HeroAction/HeroActionInterface.h"
+#include "Phantom/HeroActionSystem/HeroActionInterface.h"
 #include "PhantomCharacterBase.generated.h"
 
 

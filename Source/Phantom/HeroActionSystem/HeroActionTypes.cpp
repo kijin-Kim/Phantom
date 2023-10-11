@@ -46,17 +46,17 @@ AAIController* FHeroActionActorInfo::GetAIController() const
 
 bool FHeroActionActorInfo::IsSourceLocallyControlled() const
 {
-	return Controller->IsLocalController();
+	return Controller.IsValid() && Controller->IsLocalController();
 }
 
 bool FHeroActionActorInfo::IsSourcePlayerControlled() const
 {
-	return Controller->IsLocalPlayerController();
+	return Controller.IsValid() && Controller->IsLocalPlayerController();
 }
 
 bool FHeroActionActorInfo::IsOwnerHasAuthority() const
 {
-	return Owner.Get() && Owner.Get()->HasAuthority();
+	return Owner.IsValid() && Owner.Get()->HasAuthority();
 }
 
 FHeroActionNetID::FHeroActionNetID()

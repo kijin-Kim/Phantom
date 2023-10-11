@@ -11,7 +11,7 @@ class APlayerController;
 class AActor;
 
 UENUM(BlueprintType)
-enum class EHeroActionNetMethod : uint8
+enum class EHeroActionNetBehavior : uint8
 {
 	// 클라이언트에서만 실행
 	LocalOnly UMETA(DisplayName = "Local Only"),
@@ -25,13 +25,23 @@ enum class EHeroActionNetMethod : uint8
 };
 
 UENUM(BlueprintType)
-enum class EHeroActionRetriggeringMethod : uint8
+enum class EHeroActionRetriggerBehavior : uint8
 {
 	// Retrigger 불가능
 	Block UMETA(DisplayName = "Block"),
 	// Retrigger시 End
 	End UMETA(DisplayName = "End"),
 	Retrigger UMETA(DisplayName = "Retrigger"),
+	Max UMETA(hidden)
+};
+
+UENUM(BlueprintType)
+enum class EHeroActionEventTriggerBehavior : uint8
+{
+	// CanTrigger를 따릅니다.
+	Default UMETA(DisplayName = "Use Default CanTrigger"),
+	// CanTriggerByEvent를 따릅니다.
+	Override UMETA(DisplayName = "Override CanTrigger"),
 	Max UMETA(hidden)
 };
 

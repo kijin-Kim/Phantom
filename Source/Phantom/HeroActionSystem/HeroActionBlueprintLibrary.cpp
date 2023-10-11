@@ -6,7 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "HeroActionComponent.h"
 #include "HeroActionTypes.h"
-#include "Phantom/HeroAction/HeroActionInterface.h"
+#include "Phantom/HeroActionSystem/HeroActionInterface.h"
 
 UHeroActionComponent* UHeroActionBlueprintLibrary::GetHeroActionComponent(AActor* Actor)
 {

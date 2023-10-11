@@ -56,9 +56,14 @@ public:
 
 	void InitializeHeroActionActorInfo(AActor* SourceActor);
 	void AuthAddHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
-	bool CanTriggerHeroAction(UHeroAction* HeroAction, bool bShowDebugMessage = true);
+	
+	bool CallCanTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData) const;
+	bool CanTriggerHeroAction(UHeroAction* HeroAction, bool bShowDebugMessage = true) const;
+	bool CanTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData, bool bShowDebugMessage = true) const;
+	
 	bool TryTriggerHeroAction(UHeroAction* HeroAction);
 	bool TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
+	bool TryTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData);
 	void EndHeroAction(UHeroAction* HeroAction);
 	UHeroAction* FindHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 
@@ -118,14 +123,27 @@ public:
 
 	FHeroActionNetID CreateNewHeroActionNetID() { HeroActionNetID.CreateNewID(); return HeroActionNetID; }
 protected:
-	bool InternalTryTriggerHeroAction(UHeroAction* HeroAction);
+	bool InternalTryTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent = false, const FHeroActionEventData& EventData = FHeroActionEventData());
+	void CallLocalTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData);
 	void TriggerHeroAction(UHeroAction* HeroAction);
+	void TriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData);
+	
 	void AcceptHeroActionPrediction(UHeroAction* HeroAction);
 	void DeclineHeroActionPrediction(UHeroAction* HeroAction);
+
+	void CallServerTryTriggerHeroAction(UHeroAction* HeroAction, float Time, bool bTriggeredFromEvent, const FHeroActionEventData& EventData);
 	UFUNCTION(Server, Reliable)
 	void ServerTryTriggerHeroAction(UHeroAction* HeroAction, float Time);
+	UFUNCTION(Server, Reliable)
+	void ServerTryTriggerHeroActionFromEvent(UHeroAction* HeroAction, float Time, const FHeroActionEventData& EventData);
+
+	void CallClientTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData);
 	UFUNCTION(Client, Reliable)
 	void ClientTriggerHeroAction(UHeroAction* HeroAction);
+	UFUNCTION(Client, Reliable)
+	void ClientTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData);
+
+	
 	UFUNCTION(Client, Reliable)
 	void ClientNotifyPredictionAccepted(UHeroAction* HeroAction);
 	UFUNCTION(Client, Reliable)

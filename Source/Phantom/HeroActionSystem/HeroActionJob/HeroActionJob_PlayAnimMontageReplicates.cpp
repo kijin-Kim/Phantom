@@ -3,7 +3,7 @@
 
 #include "HeroActionJob_PlayAnimMontageReplicates.h"
 #include "Animation/AnimMontage.h"
-#include "Phantom/HeroAction/HeroAction.h"
+#include "Phantom/HeroActionSystem/HeroAction.h"
 #include "Phantom/Phantom.h"
 
 UHeroActionJob_PlayAnimMontageReplicates* UHeroActionJob_PlayAnimMontageReplicates::CreateHeroActionJobPlayMontage(

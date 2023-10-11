@@ -30,20 +30,28 @@ public:
 	}
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	virtual bool CanTriggerHeroAction(bool bShowDebugMessage = true) const;
+	bool CallCanTriggerHeroAction(bool bShowDebugMessage = true) const;
+	bool CallCanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage = true) const;
+	virtual bool CanTriggerHeroAction(bool bShowDebugMessage) const;
+	virtual bool CanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage) const;
 	virtual void TriggerHeroAction();
+	virtual void TriggerHeroActionFromEvent(const FHeroActionEventData& EventData);
 	UFUNCTION(BlueprintCallable)
 	virtual void EndHeroAction();
 	
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Can Trigger Hero Action"))
 	bool BP_CanTriggerHeroAction() const;
+	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Can Trigger Hero Action From Event"))
+	bool BP_CanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData) const;
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Trigger Hero Action"))
 	void BP_TriggerHeroAction();
+	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Trigger Hero Action From Event"))
+	void BP_TriggerHeroActionFromEvent(const FHeroActionEventData& EventData);
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "On End Hero Action"))
 	void BP_OnEndHeroAction();
 
 
-	EHeroActionNetMethod GetHeroActionNetMethod() const { return HeroActionNetMethod; }
+	EHeroActionNetBehavior GetHeroActionNetBehavior() const { return HeroActionNetBehavior; }
 	const FHeroActionActorInfo& GetHeroActionActorInfo() const { return HeroActionActorInfo; }
 	const FGameplayTagContainer& GetTriggerEventTags() const { return TriggerEventTags; }
 
@@ -69,20 +77,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "HeroAction")
 	bool IsOwnerHasAuthority() const { return HeroActionActorInfo.IsOwnerHasAuthority(); }
 	
-
 private:
 	void InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo);
+	bool CheckTagAndRetriggerBehavior(bool bShowDebugMessage) const;
+	void HandleHeroActionStartup();
 	void HandleTagOnTrigger();
 	void HandleTagOnEnd();
 	void OnLifeTagMoved(const FGameplayTag& Tag, bool bIsAdded);
+
+	bool IsBlueprintFunctionImplemented(FName FunctionName) const;
 public:
 	FOnHeroActionEndSignature OnHeroActionEnd;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Replication")
-	EHeroActionNetMethod HeroActionNetMethod;
+	EHeroActionNetBehavior HeroActionNetBehavior;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Triggering")
-	EHeroActionRetriggeringMethod HeroActionRetriggeringMethod;
+	EHeroActionRetriggerBehavior HeroActionRetriggeringBehavior;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Triggering")
+	EHeroActionEventTriggerBehavior HeroActionEventTriggerBehavior;
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "ActorInfo")
 	FHeroActionActorInfo HeroActionActorInfo;
 

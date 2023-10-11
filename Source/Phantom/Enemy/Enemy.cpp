@@ -4,7 +4,7 @@
 #include "Enemy.h"
 
 #include "Components/CapsuleComponent.h"
-#include "Phantom/HeroAction/HeroActionComponent.h"
+#include "Phantom/HeroActionSystem/HeroActionComponent.h"
 
 
 // Sets default values

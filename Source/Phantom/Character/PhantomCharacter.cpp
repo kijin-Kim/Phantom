@@ -15,7 +15,7 @@
 #include "Engine/Canvas.h"
 #include "Phantom/PhantomGameplayTags.h"
 #include "Phantom/Weapon/Weapon.h"
-#include "Phantom/HeroAction/HeroActionComponent.h"
+#include "Phantom/HeroActionSystem/HeroActionComponent.h"
 
 
 APhantomCharacter::APhantomCharacter()

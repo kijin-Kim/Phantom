@@ -7,7 +7,7 @@
 #include "InputAction.h"
 #include "Algo/Accumulate.h"
 #include "Engine/Canvas.h"
-#include "Phantom/HeroAction/HeroActionComponent.h"
+#include "Phantom/HeroActionSystem/HeroActionComponent.h"
 #include "Phantom/Character/PhantomCharacter.h"
 #include "Phantom/Input/PhantomInputConfig.h"
 

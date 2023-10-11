@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
-#include "Phantom/HeroAction/HeroAction.h"
+#include "Phantom/HeroActionSystem/HeroAction.h"
 #include "PhantomPlayerController.generated.h"
 
 class UInputAction;

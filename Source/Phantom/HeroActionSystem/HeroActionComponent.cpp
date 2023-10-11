@@ -35,7 +35,7 @@ bool UHeroActionComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch
 void UHeroActionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME_CONDITION(UHeroActionComponent, AvailableHeroActions, COND_OwnerOnly);
+	DOREPLIFETIME(UHeroActionComponent, AvailableHeroActions);
 	DOREPLIFETIME_CONDITION(UHeroActionComponent, ReplicatedAnimMontageData, COND_SimulatedOnly);
 	DOREPLIFETIME_CONDITION(UHeroActionComponent, HeroActionNetID, COND_InitialOnly);
 }
@@ -133,14 +133,40 @@ void UHeroActionComponent::AuthAddHeroActionByClass(TSubclassOf<UHeroAction> Her
 	OnHeroActionAdded(Action);
 }
 
-bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction, bool bShowDebugMessage)
+bool UHeroActionComponent::CallCanTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData) const
 {
-	return HeroActionActorInfo.IsInitialized() && HeroAction && HeroAction->CanTriggerHeroAction(bShowDebugMessage);
+	if (bTriggeredFromEvent)
+	{
+		return CanTriggerHeroActionFromEvent(HeroAction, EventData);
+	}
+	else
+	{
+		return CanTriggerHeroAction(HeroAction);
+	}
+}
+
+bool UHeroActionComponent::CanTriggerHeroAction(UHeroAction* HeroAction, bool bShowDebugMessage) const
+{
+	return HeroActionActorInfo.IsInitialized() && HeroAction && HeroAction->CallCanTriggerHeroAction(bShowDebugMessage);
+}
+
+bool UHeroActionComponent::CanTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData, bool bShowDebugMessage) const
+{
+	return HeroActionActorInfo.IsInitialized() && HeroAction && HeroAction->CallCanTriggerHeroActionFromEvent(EventData, bShowDebugMessage);
 }
 
 bool UHeroActionComponent::TryTriggerHeroAction(UHeroAction* HeroAction)
 {
-	return TryTriggerHeroActionByClass(HeroAction->GetClass());
+	if (AvailableHeroActions.Find(HeroAction) != INDEX_NONE)
+	{
+		return InternalTryTriggerHeroAction(HeroAction);
+	}
+
+	if (IsValid(HeroAction->GetClass()))
+	{
+		PHANTOM_LOG(Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroAction->GetClass()));
+	}
+	return false;
 }
 
 bool UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass)
@@ -153,6 +179,20 @@ bool UHeroActionComponent::TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> 
 	if (IsValid(HeroActionClass))
 	{
 		PHANTOM_LOG(Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroActionClass));
+	}
+	return false;
+}
+
+bool UHeroActionComponent::TryTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData)
+{
+	if (AvailableHeroActions.Find(HeroAction) != INDEX_NONE)
+	{
+		return InternalTryTriggerHeroAction(HeroAction, true, EventData);
+	}
+
+	if (IsValid(HeroAction->GetClass()))
+	{
+		PHANTOM_LOG(Warning, TEXT("HeroAction [%s]를 실행할 수 없습니다. 추가되지 않은 HeroAction입니다."), *GetNameSafe(HeroAction->GetClass()));
 	}
 	return false;
 }
@@ -289,7 +329,7 @@ void UHeroActionComponent::DispatchHeroActionEvent(const FGameplayTag& Tag, cons
 	{
 		for (UHeroAction* ToTrigger : *HeroActionsToTrigger)
 		{
-			TryTriggerHeroAction(ToTrigger);
+			TryTriggerHeroActionFromEvent(ToTrigger, Data);
 		}
 	}
 }
@@ -367,52 +407,52 @@ FOnHeroActionNetDataArrivedSignature& UHeroActionComponent::GetOnHeroActionNetDa
 	return OnHeroActionDataArrivedDelegates.FindOrAdd(NetID);
 }
 
-bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
+bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData)
 {
 	check(HeroAction)
 
 	// TODO
 	// APhantomPlayerController* PC = Cast<APhantomPlayerController>(HeroActionActorInfo.PlayerController.Get());
 	// const float ServerTime = PC->GetServerTime();
-	const float ServerTime = 0.0f;	
+	const float ServerTime = 0.0f;
 
 
 	const bool bHasAuthority = HeroActionActorInfo.IsOwnerHasAuthority();
 	const bool bIsLocal = HeroActionActorInfo.IsSourceLocallyControlled();
-	const EHeroActionNetMethod NetMethod = HeroAction->GetHeroActionNetMethod();
-	check(NetMethod != EHeroActionNetMethod::Max);
+	const EHeroActionNetBehavior NetBehavior = HeroAction->GetHeroActionNetBehavior();
+	check(NetBehavior != EHeroActionNetBehavior::Max);
 
-	if (!bIsLocal && (NetMethod == EHeroActionNetMethod::LocalOnly || NetMethod == EHeroActionNetMethod::LocalPredicted))
+	if (!bIsLocal && (NetBehavior == EHeroActionNetBehavior::LocalOnly || NetBehavior == EHeroActionNetBehavior::LocalPredicted))
 	{
 		ensure(false);
-		PHANTOM_LOG(Error, TEXT("Local이 아닌곳에서는 실행할 수 없는 Action입니다."));
+		PHANTOM_LOG(Error, TEXT("[%s]는 Local이 아닌곳에서는 실행할 수 없는 Action입니다."),*GetNameSafe(HeroAction));
 		return false;
 	}
 
-	if (!bHasAuthority && NetMethod == EHeroActionNetMethod::ServerOnly)
+	if (!bHasAuthority && NetBehavior == EHeroActionNetBehavior::ServerOnly)
 	{
 		ensure(false);
-		PHANTOM_LOG(Error, TEXT("Server가 아닌곳에서는 실행할 수 없는 Action입니다."));
+		PHANTOM_LOG(Error, TEXT("[%s] Server가 아닌곳에서는 실행할 수 없는 Action입니다."), *GetNameSafe(HeroAction));
 		return false;
 	}
 
-	if (!bHasAuthority && NetMethod == EHeroActionNetMethod::ServerOriginated)
+	if (!bHasAuthority && NetBehavior == EHeroActionNetBehavior::ServerOriginated)
 	{
 		// 서버에게 실행해달라고 요청.
-		const bool bCanTriggerLocal = CanTriggerHeroAction(HeroAction);
+		const bool bCanTriggerLocal = CallCanTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 		if (bCanTriggerLocal)
 		{
-			ServerTryTriggerHeroAction(HeroAction, ServerTime);
+			CallServerTryTriggerHeroAction(HeroAction, ServerTime, bTriggeredFromEvent, EventData);
 		}
 		return bCanTriggerLocal;
 	}
 
-	if (!bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted)
+	if (!bHasAuthority && NetBehavior == EHeroActionNetBehavior::LocalPredicted)
 	{
 		// Flush Server Moves
 		// Server Trigger
 		// Local Trigger
-		const bool bCanTriggerLocal = CanTriggerHeroAction(HeroAction);
+		const bool bCanTriggerLocal = CallCanTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 		if (bCanTriggerLocal)
 		{
 			if (!HeroActionActorInfo.IsOwnerHasAuthority())
@@ -422,31 +462,31 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 					CharacterMovementComponent->FlushServerMoves();
 				}
 			}
-			ServerTryTriggerHeroAction(HeroAction, ServerTime);
-			TriggerHeroAction(HeroAction);
+			CallServerTryTriggerHeroAction(HeroAction, ServerTime, bTriggeredFromEvent, EventData);
+			CallLocalTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 		}
 		return bCanTriggerLocal;
 	}
 
-	if (NetMethod == EHeroActionNetMethod::LocalOnly
-		|| NetMethod == EHeroActionNetMethod::ServerOnly
-		|| (bHasAuthority && NetMethod == EHeroActionNetMethod::LocalPredicted))
+	if (NetBehavior == EHeroActionNetBehavior::LocalOnly
+		|| NetBehavior == EHeroActionNetBehavior::ServerOnly
+		|| (bHasAuthority && NetBehavior == EHeroActionNetBehavior::LocalPredicted))
 	{
-		if (CanTriggerHeroAction(HeroAction))
+		if (CallCanTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData))
 		{
-			TriggerHeroAction(HeroAction);
+			CallLocalTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 			return true;
 		}
 		return false;
 	}
 
-	if (NetMethod == EHeroActionNetMethod::ServerOriginated)
+	if (NetBehavior == EHeroActionNetBehavior::ServerOriginated)
 	{
 		// Client Trigger
 		// Local Trigger
-		if (CanTriggerHeroAction(HeroAction))
+		if (CallCanTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData))
 		{
-			ClientTriggerHeroAction(HeroAction);
+			CallClientTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 			return true;
 		}
 		return false;
@@ -457,6 +497,18 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction)
 	return false;
 }
 
+void UHeroActionComponent::CallLocalTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData)
+{
+	if (bTriggeredFromEvent)
+	{
+		TriggerHeroActionFromEvent(HeroAction, EventData);
+	}
+	else
+	{
+		TriggerHeroAction(HeroAction);
+	}
+}
+
 void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)
 {
 	if (ensure(HeroAction))
@@ -465,10 +517,18 @@ void UHeroActionComponent::TriggerHeroAction(UHeroAction* HeroAction)
 	}
 }
 
+void UHeroActionComponent::TriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData)
+{
+	if (ensure(HeroAction))
+	{
+		HeroAction->TriggerHeroActionFromEvent(EventData);
+	}
+}
+
 void UHeroActionComponent::AcceptHeroActionPrediction(UHeroAction* HeroAction)
 {
 	ensure(!HeroActionActorInfo.IsOwnerHasAuthority());
-	ensure(HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::LocalPredicted);
+	ensure(HeroAction->GetHeroActionNetBehavior() == EHeroActionNetBehavior::LocalPredicted);
 
 	PHANTOM_LOG(Warning, TEXT("HeroAction을 [%s]이 Confirm되었습니다."), *GetNameSafe(HeroAction));
 	bool bHandled = HandleHeroActionConfirmed(HeroAction, true);
@@ -481,13 +541,25 @@ void UHeroActionComponent::AcceptHeroActionPrediction(UHeroAction* HeroAction)
 void UHeroActionComponent::DeclineHeroActionPrediction(UHeroAction* HeroAction)
 {
 	ensure(!HeroActionActorInfo.IsOwnerHasAuthority());
-	ensure(HeroAction->GetHeroActionNetMethod() == EHeroActionNetMethod::LocalPredicted);
+	ensure(HeroAction->GetHeroActionNetBehavior() == EHeroActionNetBehavior::LocalPredicted);
 
 	PHANTOM_LOG(Warning, TEXT("HeroAction을 [%s]이 Decline되었습니다."), *GetNameSafe(HeroAction));
 	bool bHandled = HandleHeroActionConfirmed(HeroAction, false);
 	if (!bHandled)
 	{
 		CachedConfirmationData.Add(HeroAction, false);
+	}
+}
+
+void UHeroActionComponent::CallServerTryTriggerHeroAction(UHeroAction* HeroAction, float Time, bool bTriggeredFromEvent, const FHeroActionEventData& EventData)
+{
+	if (bTriggeredFromEvent)
+	{
+		ServerTryTriggerHeroActionFromEvent(HeroAction, Time, EventData);
+	}
+	else
+	{
+		ServerTryTriggerHeroAction(HeroAction, Time);
 	}
 }
 
@@ -498,11 +570,10 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 		return;
 	}
 
-	PHANTOM_LOG(Warning, TEXT("ServerTry"));
-	const EHeroActionNetMethod HeroActionNetMethod = HeroAction->GetHeroActionNetMethod();
+	const EHeroActionNetBehavior HeroActionNetBehavior = HeroAction->GetHeroActionNetBehavior();
 	if (CanTriggerHeroAction(HeroAction))
 	{
-		if (HeroActionNetMethod == EHeroActionNetMethod::LocalPredicted)
+		if (HeroActionNetBehavior == EHeroActionNetBehavior::LocalPredicted)
 		{
 			ClientNotifyPredictionAccepted(HeroAction);
 		}
@@ -514,25 +585,56 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 	}
 	else
 	{
-		//ClientNotifyPredictionDeclined(HeroAction);
-		if (HeroActionNetMethod == EHeroActionNetMethod::LocalPredicted)
+		ClientNotifyPredictionDeclined(HeroAction);
+	}
+}
+
+void UHeroActionComponent::ServerTryTriggerHeroActionFromEvent_Implementation(UHeroAction* HeroAction, float Time, const FHeroActionEventData& EventData)
+{
+	if (!ensure(HeroAction))
+	{
+		return;
+	}
+
+	const EHeroActionNetBehavior HeroActionNetBehavior = HeroAction->GetHeroActionNetBehavior();
+	if (CanTriggerHeroActionFromEvent(HeroAction, EventData))
+	{
+		if (HeroActionNetBehavior == EHeroActionNetBehavior::LocalPredicted)
 		{
-			if (TryTriggerHeroActionWithLagCompensation(HeroAction, Time))
-			{
-				ClientNotifyPredictionAccepted(HeroAction);
-				TriggerHeroAction(HeroAction);
-			}
-			else
-			{
-				ClientNotifyPredictionDeclined(HeroAction);
-			}
+			ClientNotifyPredictionAccepted(HeroAction);
 		}
+		else
+		{
+			ClientTriggerHeroActionFromEvent(HeroAction, EventData);
+		}
+		TriggerHeroActionFromEvent(HeroAction, EventData);
+	}
+	else
+	{
+		ClientNotifyPredictionDeclined(HeroAction);
+	}
+}
+
+void UHeroActionComponent::CallClientTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData)
+{
+	if (bTriggeredFromEvent)
+	{
+		ClientTriggerHeroActionFromEvent(HeroAction, EventData);
+	}
+	else
+	{
+		ClientTriggerHeroAction(HeroAction);
 	}
 }
 
 void UHeroActionComponent::ClientTriggerHeroAction_Implementation(UHeroAction* HeroAction)
 {
 	TriggerHeroAction(HeroAction);
+}
+
+void UHeroActionComponent::ClientTriggerHeroActionFromEvent_Implementation(UHeroAction* HeroAction, const FHeroActionEventData& EventData)
+{
+	TriggerHeroActionFromEvent(HeroAction, EventData);
 }
 
 void UHeroActionComponent::ClientNotifyPredictionAccepted_Implementation(UHeroAction* HeroAction)

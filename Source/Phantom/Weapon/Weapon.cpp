@@ -6,8 +6,8 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Phantom/HitInterface.h"
 #include "Phantom/PhantomGameplayTags.h"
-#include "Phantom/HeroAction/HeroActionComponent.h"
-#include "Phantom/HeroAction/HeroActionInterface.h"
+#include "Phantom/HeroActionSystem/HeroActionComponent.h"
+#include "Phantom/HeroActionSystem/HeroActionInterface.h"
 
 
 // Sets default values

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HeroAction.h"
+#include "Phantom/HeroActionSystem/HeroAction.h"
 #include "HitReactHeroAction.generated.h"
 
 /**

@@ -21,10 +21,10 @@ void UHeroActionJob_WaitInputActionTriggered::SetupDelegates()
 {
 	const bool bIsLocal = HeroAction->GetHeroActionActorInfo().IsSourceLocallyControlled();
 	const bool bHasAuthority = HeroAction->GetHeroActionActorInfo().IsOwnerHasAuthority();
-	const EHeroActionNetMethod NetMethod = HeroAction->GetHeroActionNetMethod();
+	const EHeroActionNetBehavior NetBehavior = HeroAction->GetHeroActionNetBehavior();
 
 	const bool bIsListenServer = bHasAuthority && bIsLocal;
-	if (bIsListenServer || NetMethod == EHeroActionNetMethod::LocalOnly)
+	if (bIsListenServer || NetBehavior == EHeroActionNetBehavior::LocalOnly)
 	{
 		BindOnInputActionTriggeredDelegate();
 		return;
@@ -35,12 +35,12 @@ void UHeroActionJob_WaitInputActionTriggered::SetupDelegates()
 	// Non-Authoritative Autonomous Proxy
 	if (!bHasAuthority && bIsLocal)
 	{
-		check(NetMethod != EHeroActionNetMethod::ServerOnly);
-		if (NetMethod == EHeroActionNetMethod::ServerOriginated)
+		check(NetBehavior != EHeroActionNetBehavior::ServerOnly);
+		if (NetBehavior == EHeroActionNetBehavior::ServerOriginated)
 		{
 			SendServerAndWaitResponse();
 		}
-		else if (NetMethod == EHeroActionNetMethod::LocalPredicted)
+		else if (NetBehavior == EHeroActionNetBehavior::LocalPredicted)
 		{
 			SendServerAndProceed();
 		}

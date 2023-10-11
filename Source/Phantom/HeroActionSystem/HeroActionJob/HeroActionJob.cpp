@@ -2,7 +2,7 @@
 
 
 #include "HeroActionJob.h"
-#include "Phantom/HeroAction/HeroActionBlueprintLibrary.h"
+#include "Phantom/HeroActionSystem/HeroActionBlueprintLibrary.h"
 
 bool UHeroActionJob::ShouldBroadcastDelegates() const
 {

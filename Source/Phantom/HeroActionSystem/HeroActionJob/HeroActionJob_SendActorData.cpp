@@ -34,9 +34,9 @@ void UHeroActionJob_SendActorData::Activate()
 	Data.Actor = Actor;
 
 	const FHeroActionActorInfo& HeroActionActorInfo = HeroAction->GetHeroActionActorInfo();
-	const EHeroActionNetMethod NetMethod = HeroAction->GetHeroActionNetMethod();
+	const EHeroActionNetBehavior NetBehavior = HeroAction->GetHeroActionNetBehavior();
 	const bool bIsStandalone = HeroActionComponent->GetNetMode() == ENetMode::NM_Standalone;
-	if (NetMethod != EHeroActionNetMethod::ServerOriginated && NetMethod != EHeroActionNetMethod::LocalPredicted || bIsStandalone)
+	if (NetBehavior != EHeroActionNetBehavior::ServerOriginated && NetBehavior != EHeroActionNetBehavior::LocalPredicted || bIsStandalone)
 	{
 		BroadcastOnActorDataArrivedDelegate(Data);
 		return;
@@ -47,7 +47,7 @@ void UHeroActionJob_SendActorData::Activate()
 	const bool bIsOwnerHasAuthority = HeroActionActorInfo.IsOwnerHasAuthority();
 	bool bIsLocal = HeroActionActorInfo.IsSourceLocallyControlled();
 
-	if (NetMethod == EHeroActionNetMethod::ServerOriginated)
+	if (NetBehavior == EHeroActionNetBehavior::ServerOriginated)
 	{
 		if (bIsOwnerHasAuthority)
 		{

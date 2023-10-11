@@ -14,8 +14,8 @@ void UHeroActionJob_WaitHeroActionPredictionConfirmed::Activate()
 	Super::Activate();
 	check(HeroAction.IsValid() && HeroActionComponent.IsValid());
 	const FHeroActionActorInfo& HeroActionActorInfo = HeroAction->GetHeroActionActorInfo();
-	const EHeroActionNetMethod NetMethod = HeroAction->GetHeroActionNetMethod();
-	if (HeroActionActorInfo.IsOwnerHasAuthority() || NetMethod != EHeroActionNetMethod::LocalPredicted)
+	const EHeroActionNetBehavior NetBehavior = HeroAction->GetHeroActionNetBehavior();
+	if (HeroActionActorInfo.IsOwnerHasAuthority() || NetBehavior != EHeroActionNetBehavior::LocalPredicted)
 	{
 		BroadcastConfirmationDelegate(true);
 		return;
