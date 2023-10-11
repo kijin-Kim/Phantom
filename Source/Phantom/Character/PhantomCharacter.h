@@ -78,12 +78,14 @@ private:
 	// 매 프레임마다 새로 타겟팅할 후보를 계산함.
 	void CalculateNewTargetingEnemy();
 	
+	
 	UFUNCTION()
 	void OnCombatSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	                                int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	UFUNCTION()
 	void OnCombatSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
+	AActor* GetCapsuleHitActor(const FVector& TargetLocation, bool bShowDebug);
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
@@ -121,7 +123,7 @@ private:
 	
 	// 현재 타겟팅된 Enemy
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<AEnemy> CurrentTargetedEnemy;
+	TWeakObjectPtr<AEnemy> CurrentTargetedEnemy;
 	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
 	TArray<TWeakObjectPtr<AEnemy>> EnemiesInCombatRange;
 

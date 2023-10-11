@@ -13,6 +13,7 @@
 #include "Phantom/Controller/PhantomPlayerController.h"
 #include "Phantom/Enemy/Enemy.h"
 #include "Engine/Canvas.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Phantom/PhantomGameplayTags.h"
 #include "Phantom/Weapon/Weapon.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
@@ -218,25 +219,25 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 		}
 	}
 
+	if (!NewTargetedCandidate && CurrentTargetedEnemy.IsValid())
+	{
+		AEnemy* CapsuleHitActor = Cast<AEnemy>(GetCapsuleHitActor(CurrentTargetedEnemy->GetActorLocation(), bDebugTargeting));
+		if (!CapsuleHitActor || CapsuleHitActor != CurrentTargetedEnemy)
+		{
+			CurrentTargetedEnemy = nullptr;
+		}
+		return;
+	}
+
 	if (NewTargetedCandidate)
 	{
-		if (!CurrentTargetedEnemy)
+		const AEnemy* CapsuleHitActor = Cast<AEnemy>(GetCapsuleHitActor(NewTargetedCandidate->GetActorLocation(), bDebugTargeting));
+		if (CapsuleHitActor && CapsuleHitActor == NewTargetedCandidate)
 		{
 			CurrentTargetedEnemy = NewTargetedCandidate;
 		}
-		else
-		{
-			// 새로운 타겟팅 후보와 현재 타겟팅할 후보중 더 적절한 Enemy를 선택함.
-
-			FVector PhantomToTargeted = (CurrentTargetedEnemy->GetActorLocation() - GetActorLocation()).GetSafeNormal();
-			const float DotResult = FVector::DotProduct(PhantomToTargeted, DotRight);
-			const float CURRENT_TARGETED_DOT_ADVANTAGE = 0.5f; // 현재 타겟팅하는 후보를 좀 더 선호하도록 Offset을 줌. 타겟팅하는 대상이 너무 자주 바뀌는 것을 방지하기 위함. 
-			if (DotResult < MaxDot - CURRENT_TARGETED_DOT_ADVANTAGE)
-			{
-				CurrentTargetedEnemy = NewTargetedCandidate;
-			}
-		}
 	}
+
 
 	if (bDebugTargeting)
 	{
@@ -245,7 +246,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 			DrawDebugSphere(GetWorld(), NewTargetedCandidate->GetActorLocation(), 100.0f, 12, FColor::Blue, 0.0f, 0.0f);
 		}
 
-		if (CurrentTargetedEnemy)
+		if (CurrentTargetedEnemy.IsValid())
 		{
 			DrawDebugSphere(GetWorld(), CurrentTargetedEnemy->GetActorLocation(), 100.0f, 12, FColor::Red, 0.0f, 0.0f);
 		}
@@ -281,4 +282,27 @@ void APhantomCharacter::OnCombatSphereEndOverlap(UPrimitiveComponent* Overlapped
 	{
 		EnemiesInCombatRange.Remove(LeftEnemy);
 	}
+}
+
+AActor* APhantomCharacter::GetCapsuleHitActor(const FVector& TargetLocation, bool bShowDebug)
+{
+	const TArray<AActor*> ActorsToIgnore;
+	FHitResult HitResult;
+
+	const float CapsuleRadius = GetCapsuleComponent()->GetScaledCapsuleRadius();
+	const float CapsuleHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	const EDrawDebugTrace::Type DebugType = bShowDebug ? EDrawDebugTrace::ForOneFrame : EDrawDebugTrace::None;
+	UKismetSystemLibrary::CapsuleTraceSingle(
+		this,
+		GetActorLocation(),
+		TargetLocation,
+		CapsuleRadius,
+		CapsuleHalfHeight,
+		ETraceTypeQuery::TraceTypeQuery1,
+		false,
+		ActorsToIgnore,
+		DebugType,
+		HitResult,
+		true);
+	return HitResult.GetActor();
 }

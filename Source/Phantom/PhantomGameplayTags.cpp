@@ -13,6 +13,8 @@ namespace PhantomGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Climb, "HeroAction.Climb");
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Parry, "HeroAction.Parry");
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Execute, "HeroAction.Execute");
+	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Ambush, "HeroAction.Ambush");
+	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Ambushed, "HeroAction.Ambushed");
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_HitReact, "HeroAction.HitReact");
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Dead, "HeroAction.Dead");
 
