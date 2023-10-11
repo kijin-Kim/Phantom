@@ -37,6 +37,7 @@ void UHeroActionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME_CONDITION(UHeroActionComponent, AvailableHeroActions, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UHeroActionComponent, ReplicatedAnimMontageData, COND_SimulatedOnly);
+	DOREPLIFETIME_CONDITION(UHeroActionComponent, HeroActionNetID, COND_InitialOnly);
 }
 
 void UHeroActionComponent::OnUnregister()
@@ -691,58 +692,59 @@ void UHeroActionComponent::AuthTakeHeroActionSnapshots()
 
 bool UHeroActionComponent::TryTriggerHeroActionWithLagCompensation(UHeroAction* HeroAction, float Time)
 {
-	APhantomPlayerController* PC = Cast<APhantomPlayerController>(HeroActionActorInfo.PlayerController.Get());
-	const float AvgSingleTripTime = PC->GetAverageSingleTripTime();
-	const float RequestedTime = Time + AvgSingleTripTime;
-	// 처음 애니메이션을 받을때 걸린시간을 얼만데
-	// 그 시간차이가 바로 서버와 클라 사이의 애니메이션 간극이야
-	// 지금 시간부터 노티파이 까지의 시간이 이 간극보다 작다면
-	// 가능인거야
-	// 또는 서버 캐치업 애니메이션 어떤
-
-
-	UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance();
-	UAnimMontage* CurrentMontage = HeroActionActorInfo.GetAnimInstance()->GetCurrentActiveMontage();
-	if (CurrentMontage)
-	{
-		float Position = AnimInstance->Montage_GetPosition(CurrentMontage);
-		FAnimNotifyContext AnimNotifyContext;
-		CurrentMontage->GetAnimNotifies(Position, 1.0f, AnimNotifyContext);
-		FName CurrentSection = AnimInstance->Montage_GetCurrentSection(CurrentMontage);
-
-		for (auto& NotifiesRef : AnimNotifyContext.ActiveNotifies)
-		{
-			const FAnimNotifyEvent* AnimNotifyEvent = NotifiesRef.GetNotify();
-			if (AnimNotifyEvent && AnimNotifyEvent->NotifyName == FName(TEXT("AN_ComboOpen_C")))
-			{
-				AnimNotifyEvent->Notify;
-				PHANTOM_LOG(Warning, TEXT("서버클라델타: [%f], 애님노티파이델타: [%f]"), PC->GetServerTime() - Time, AnimNotifyEvent->GetTriggerTime() - Position);
-			}
-		}
-	}
-
-	return false;
-
-	TDeque<FHeroActionSnapshot>& SnapShots = HeroActionSnapshots.FindOrAdd(HeroAction);
-
-	const float OldestTime = SnapShots.Last().Time;
-	const float NewestTime = SnapShots.First().Time;
-	if (OldestTime > RequestedTime) // Too Late
-	{
-		PHANTOM_LOG(Warning, TEXT("Request가 너무 늦게 도착했습니다."));
-		return false;
-	}
-
-	for (auto& [SnapshotTime, bCanTrigger] : SnapShots)
-	{
-		if (SnapshotTime >= RequestedTime && bCanTrigger)
-		{
-			PHANTOM_LOG(Warning, TEXT("Lag Compensation 성공: 현재서버시간: [%f], 요청시간: [%f], 서버보정시간: [%f]"), PC->GetServerTime(), RequestedTime, SnapshotTime);
-			return true;
-		}
-	}
-
-	PHANTOM_LOG(Warning, TEXT("Lag Compensation 실패: 현재서버시간: [%f],  요청시간: [%f]"), PC->GetServerTime(), RequestedTime);
+	// APhantomPlayerController* PC = Cast<APhantomPlayerController>(HeroActionActorInfo.PlayerController.Get());
+	// const float AvgSingleTripTime = PC->GetAverageSingleTripTime();
+	// const float RequestedTime = Time + AvgSingleTripTime;
+	// // 처음 애니메이션을 받을때 걸린시간을 얼만데
+	// // 그 시간차이가 바로 서버와 클라 사이의 애니메이션 간극이야
+	// // 지금 시간부터 노티파이 까지의 시간이 이 간극보다 작다면
+	// // 가능인거야
+	// // 또는 서버 캐치업 애니메이션 어떤
+	//
+	//
+	// UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance();
+	// UAnimMontage* CurrentMontage = HeroActionActorInfo.GetAnimInstance()->GetCurrentActiveMontage();
+	// if (CurrentMontage)
+	// {
+	// 	float Position = AnimInstance->Montage_GetPosition(CurrentMontage);
+	// 	FAnimNotifyContext AnimNotifyContext;
+	// 	CurrentMontage->GetAnimNotifies(Position, 1.0f, AnimNotifyContext);
+	// 	FName CurrentSection = AnimInstance->Montage_GetCurrentSection(CurrentMontage);
+	//
+	// 	for (auto& NotifiesRef : AnimNotifyContext.ActiveNotifies)
+	// 	{
+	// 		const FAnimNotifyEvent* AnimNotifyEvent = NotifiesRef.GetNotify();
+	// 		if (AnimNotifyEvent && AnimNotifyEvent->NotifyName == FName(TEXT("AN_ComboOpen_C")))
+	// 		{
+	// 			AnimNotifyEvent->Notify;
+	// 			PHANTOM_LOG(Warning, TEXT("서버클라델타: [%f], 애님노티파이델타: [%f]"), PC->GetServerTime() - Time, AnimNotifyEvent->GetTriggerTime() - Position);
+	// 		}
+	// 	}
+	// }
+	//
+	// return false;
+	//
+	// TDeque<FHeroActionSnapshot>& SnapShots = HeroActionSnapshots.FindOrAdd(HeroAction);
+	//
+	// const float OldestTime = SnapShots.Last().Time;
+	// const float NewestTime = SnapShots.First().Time;
+	// if (OldestTime > RequestedTime) // Too Late
+	// {
+	// 	PHANTOM_LOG(Warning, TEXT("Request가 너무 늦게 도착했습니다."));
+	// 	return false;
+	// }
+	//
+	// for (auto& [SnapshotTime, bCanTrigger] : SnapShots)
+	// {
+	// 	if (SnapshotTime >= RequestedTime && bCanTrigger)
+	// 	{
+	// 		PHANTOM_LOG(Warning, TEXT("Lag Compensation 성공: 현재서버시간: [%f], 요청시간: [%f], 서버보정시간: [%f]"), PC->GetServerTime(), RequestedTime, SnapshotTime);
+	// 		return true;
+	// 	}
+	// }
+	//
+	// PHANTOM_LOG(Warning, TEXT("Lag Compensation 실패: 현재서버시간: [%f],  요청시간: [%f]"), PC->GetServerTime(), RequestedTime);
+	// return false;
 	return false;
 }
 

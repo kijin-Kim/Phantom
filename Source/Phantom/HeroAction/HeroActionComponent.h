@@ -157,7 +157,8 @@ protected:
 	// Lag Compensation Data. HeroAction이 Trigger가능한지 여부를 저장
 	TMap<TObjectPtr<UHeroAction>, TDeque<FHeroActionSnapshot>> HeroActionSnapshots;
 	float MaxRecordDuration = 4.0f;
-
+	
+	UPROPERTY(Transient, Replicated)
 	FHeroActionNetID HeroActionNetID;
 private:
 	// Tag가 추가/삭제 될 때, 호출하는 Delegates

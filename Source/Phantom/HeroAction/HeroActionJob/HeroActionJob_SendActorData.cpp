@@ -35,7 +35,8 @@ void UHeroActionJob_SendActorData::Activate()
 
 	const FHeroActionActorInfo& HeroActionActorInfo = HeroAction->GetHeroActionActorInfo();
 	const EHeroActionNetMethod NetMethod = HeroAction->GetHeroActionNetMethod();
-	if (NetMethod != EHeroActionNetMethod::ServerOriginated && NetMethod != EHeroActionNetMethod::LocalPredicted)
+	const bool bIsStandalone = HeroActionComponent->GetNetMode() == ENetMode::NM_Standalone;
+	if (NetMethod != EHeroActionNetMethod::ServerOriginated && NetMethod != EHeroActionNetMethod::LocalPredicted || bIsStandalone)
 	{
 		BroadcastOnActorDataArrivedDelegate(Data);
 		return;

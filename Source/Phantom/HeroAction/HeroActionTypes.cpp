@@ -1,5 +1,6 @@
 #include "HeroActionTypes.h"
 
+#include "AIController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "HeroActionComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -15,10 +16,9 @@ void FHeroActionActorInfo::Initialize(AActor* InOwner, AActor* InSourceActor, UH
 	Owner = InOwner;
 	SourceActor = InSourceActor;
 	HeroActionComponent = InHeroActionComponent;
-	const APawn* SourceActorAsPawn = Cast<APawn>(SourceActor);
-	if (SourceActorAsPawn && SourceActorAsPawn->IsPlayerControlled())
+	if (const APawn* SourceActorAsPawn = Cast<APawn>(SourceActor))
 	{
-		PlayerController = Cast<APlayerController>(SourceActorAsPawn->GetController());
+		Controller = SourceActorAsPawn->GetController();
 	}
 
 	SkeletalMeshComponent = SourceActor->FindComponentByClass<USkeletalMeshComponent>();
@@ -34,13 +34,24 @@ UAnimInstance* FHeroActionActorInfo::GetAnimInstance() const
 	return nullptr;
 }
 
+APlayerController* FHeroActionActorInfo::GetPlayerController() const
+{
+	return Cast<APlayerController>(Controller);
+}
+
+AAIController* FHeroActionActorInfo::GetAIController() const
+{
+	return Cast<AAIController>(Controller);
+}
+
 bool FHeroActionActorInfo::IsSourceLocallyControlled() const
 {
-	if (APlayerController* PC = PlayerController.Get())
-	{
-		return PC->IsLocalController();
-	}
-	return false;
+	return Controller->IsLocalController();
+}
+
+bool FHeroActionActorInfo::IsSourcePlayerControlled() const
+{
+	return Controller->IsLocalPlayerController();
 }
 
 bool FHeroActionActorInfo::IsOwnerHasAuthority() const

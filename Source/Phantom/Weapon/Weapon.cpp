@@ -5,6 +5,9 @@
 #include "Components/BoxComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Phantom/HitInterface.h"
+#include "Phantom/PhantomGameplayTags.h"
+#include "Phantom/HeroAction/HeroActionComponent.h"
+#include "Phantom/HeroAction/HeroActionInterface.h"
 
 
 // Sets default values
@@ -45,7 +48,7 @@ void AWeapon::SetHitBoxEnabled(ECollisionEnabled::Type NewType)
 			AlreadyHitActors.AddUnique(WeaponOwner);
 		}
 	}
-	
+
 	if (CollisionBox)
 	{
 		CollisionBox->SetCollisionEnabled(NewType);
@@ -76,9 +79,21 @@ void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponen
 		true
 	);
 
-	if (IHitInterface* HitActor = Cast<IHitInterface>(HitResult.GetActor()))
+	// if (IHitInterface* HitActor = Cast<IHitInterface>(HitResult.GetActor()))
+	// {
+	// 	HitActor->GetHit(HitResult, this);
+	// 	AlreadyHitActors.AddUnique(HitResult.GetActor());
+	// }
+	
+	if (IHeroActionInterface* HitActor = Cast<IHeroActionInterface>(HitResult.GetActor()))
 	{
-		HitActor->GetHit(HitResult, this);
-		AlreadyHitActors.AddUnique(HitResult.GetActor());
+		if(UHeroActionComponent* HeroActionComponent = HitActor->GetHeroActionComponent())
+		{
+			FHeroActionEventData EventData;
+			EventData.EventInstigator = GetOwner();
+			EventData.EventHitResult = HitResult;
+			HeroActionComponent->DispatchHeroActionEvent(PhantomGameplayTags::Event_HeroAction_Trigger_HitReact, EventData);
+			AlreadyHitActors.AddUnique(HitResult.GetActor());
+		}
 	}
 }

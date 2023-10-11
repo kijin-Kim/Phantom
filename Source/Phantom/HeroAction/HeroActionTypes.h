@@ -3,6 +3,7 @@
 
 // This Types are mostly impressed by GAS
 
+class AAIController;
 class UCharacterMovementComponent;
 class UHeroActionComponent;
 class UHeroAction;
@@ -47,7 +48,7 @@ struct PHANTOM_API FHeroActionActorInfo
 	UPROPERTY(BlueprintReadOnly)
 	TWeakObjectPtr<UHeroActionComponent> HeroActionComponent;
 	UPROPERTY(BlueprintReadOnly)
-	TWeakObjectPtr<APlayerController> PlayerController;
+	TWeakObjectPtr<AController> Controller;
 	UPROPERTY(BlueprintReadOnly)
 	TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
 	UPROPERTY(BlueprintReadOnly)
@@ -57,7 +58,10 @@ struct PHANTOM_API FHeroActionActorInfo
 	void Initialize(AActor* Owner, AActor* SourceActor, UHeroActionComponent* HeroActionComponent);
 	
 	UAnimInstance* GetAnimInstance() const;
+	APlayerController* GetPlayerController() const;
+	AAIController* GetAIController() const;
 	bool IsSourceLocallyControlled() const;
+	bool IsSourcePlayerControlled() const;
 	bool IsOwnerHasAuthority() const;
 
 private:
@@ -73,7 +77,7 @@ struct PHANTOM_API FHeroActionEventData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
 	TObjectPtr<AActor> EventInstigator;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
-	TObjectPtr<AActor> EventTarget;
+	FHitResult EventHitResult;
 };
 
 

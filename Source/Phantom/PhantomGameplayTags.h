@@ -26,6 +26,7 @@ namespace PhantomGameplayTags
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_Run);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_AttackEventHandler);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_HitReact);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Dodge_Triggered);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Ambush_Targeted);
 	
