@@ -53,6 +53,7 @@ public:
 	void RemoveTag(FGameplayTag Tag);
 	UFUNCTION(BlueprintCallable, Category = "HeroAction|Tag")
 	void RemoveTags(const FGameplayTagContainer& GameplayTagContainer);
+	
 
 	void InitializeHeroActionActorInfo(AActor* SourceActor);
 	void AuthAddHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);

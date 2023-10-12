@@ -19,8 +19,6 @@ class PHANTOM_API UInteractWidgetController : public UPhantomWidgetController
 public:
 	virtual void InitializeWidgetController(APlayerController* PlayerController) override;
 	virtual void BeginDestroy() override;
-	
-
 public:
 	UPROPERTY(BlueprintAssignable)
 	FOnCanTriggerAmbushSignature OnCanTriggerAmbush;

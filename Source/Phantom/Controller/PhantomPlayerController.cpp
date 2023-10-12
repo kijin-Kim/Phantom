@@ -7,6 +7,7 @@
 #include "InputAction.h"
 #include "Algo/Accumulate.h"
 #include "Engine/Canvas.h"
+#include "Phantom/Phantom.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 #include "Phantom/Character/PhantomCharacter.h"
 #include "Phantom/Input/PhantomInputConfig.h"
@@ -89,9 +90,8 @@ void APhantomPlayerController::BeginPlay()
 		UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
 		if (Subsystem)
 		{
-			Subsystem->AddMappingContext(NormalMovementMappingContext, 1);
+			Subsystem->AddMappingContext(NormalMovementMappingContext, 10);
 			Subsystem->AddMappingContext(CombatMappingContext, 0);
-			Subsystem->AddMappingContext(StealthMappingContext, 0);
 		}
 	}
 }

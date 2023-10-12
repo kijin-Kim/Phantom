@@ -3,6 +3,7 @@
 
 #include "InteractWidgetController.h"
 
+#include "EnhancedInputSubsystems.h"
 #include "Phantom/PhantomGameplayTags.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 
