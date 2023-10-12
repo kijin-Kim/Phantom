@@ -17,6 +17,11 @@ class PHANTOM_API APhantomHUD : public AHUD
 {
 	GENERATED_BODY()
 public:
-	void InitializeHUD(UHeroActionComponent* HeroActionComponent, APlayerController* PlayerController);
-	
+
+	void InitializeInteractWidgetController();
+
+private:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Widget", meta = (AllowPrivateAccess ="true"))
+	TSubclassOf<UInteractWidgetController> InteractWidgetControllerClass;
+	TObjectPtr<UInteractWidgetController> InteractWidgetController;
 };

@@ -18,7 +18,7 @@ class PHANTOM_API UPhantomWidgetController : public UObject
 {
 	GENERATED_BODY()
 public:
-	void InitializeWidgetController(UHeroActionComponent* HeroActionComponent, APlayerController* PlayerController);
+	virtual void InitializeWidgetController(APlayerController* PlayerController);
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Widget")

@@ -72,20 +72,17 @@ void APhantomCharacter::PostInitializeComponents()
 	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
 }
 
-void APhantomCharacter::PossessedBy(AController* NewController)
+void APhantomCharacter::Restart()
 {
-	Super::PossessedBy(NewController);
+	Super::Restart();
 	HeroActionComponent->InitializeHeroActionActorInfo(this);
-	for (const TSubclassOf<UHeroAction> HeroActionClass : StartupActionClasses)
+	if (HasAuthority())
 	{
-		HeroActionComponent->AuthAddHeroActionByClass(HeroActionClass);
+		for (const TSubclassOf<UHeroAction> HeroActionClass : StartupActionClasses)
+		{
+			HeroActionComponent->AuthAddHeroActionByClass(HeroActionClass);
+		}
 	}
-}
-
-void APhantomCharacter::OnRep_PlayerState()
-{
-	Super::OnRep_PlayerState();
-	HeroActionComponent->InitializeHeroActionActorInfo(this);
 }
 
 void APhantomCharacter::BeginPlay()
@@ -279,7 +276,7 @@ void APhantomCharacter::OnInteractSphereBeginOverlap(UPrimitiveComponent* Overla
 	// }
 
 
-	if (!OverlappingInteractActors.Find(OtherActor))
+	if (OverlappingInteractActors.Find(OtherActor) == INDEX_NONE)
 	{
 		OverlappingInteractActors.Add(OtherActor);
 		if (OnNewInteractActorBeginOverlap.IsBound())

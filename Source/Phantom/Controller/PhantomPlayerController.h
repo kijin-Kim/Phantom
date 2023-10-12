@@ -8,7 +8,6 @@
 #include "Phantom/HeroActionSystem/HeroAction.h"
 #include "PhantomPlayerController.generated.h"
 
-class UInteractWidgetController;
 class UInputAction;
 class UInputMappingContext;
 class UPhantomInputConfig;
@@ -41,8 +40,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetAverageSingleTripTime() const { return GetAverageRoundTripTime() * 0.5f; }
 
-	
-	UInteractWidgetController* GetInteractWidgetController() const { return InteractWidgetController; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -90,8 +87,5 @@ private:
 	float AvgRoundTripTime;
 
 	TArray<float> RoundTripTimes;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Widget", meta = (AllowPrivateAccess ="true"))
-	TSubclassOf<UInteractWidgetController> InteractWidgetControllerClass;
-	TObjectPtr<UInteractWidgetController> InteractWidgetController;
+	
 };

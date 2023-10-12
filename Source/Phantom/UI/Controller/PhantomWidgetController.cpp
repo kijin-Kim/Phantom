@@ -4,9 +4,14 @@
 #include "PhantomWidgetController.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Phantom/HeroActionSystem/HeroActionInterface.h"
 
-void UPhantomWidgetController::InitializeWidgetController(UHeroActionComponent* InHeroActionComponent, APlayerController* InPlayerController)
+void UPhantomWidgetController::InitializeWidgetController(APlayerController* InPlayerController)
 {
-	HeroActionComponent = InHeroActionComponent;
+	check(InPlayerController);
 	PlayerController = InPlayerController;
+	const IHeroActionInterface* HeroActionInterface = PlayerController->GetPawn<IHeroActionInterface>();
+	check(HeroActionInterface);
+	HeroActionComponent = HeroActionInterface->GetHeroActionComponent();
+	check(HeroActionComponent.IsValid());
 }

@@ -37,6 +37,8 @@ void UHeroActionJob_WaitHeroActionPredictionConfirmed::Activate()
 void UHeroActionJob_WaitHeroActionPredictionConfirmed::SetReadyToDestroy()
 {
 	Super::SetReadyToDestroy();
+	OnAccepted.Clear();
+	OnDeclined.Clear();
 	if (HeroActionComponent.IsValid() && HeroAction.IsValid())
 	{
 		HeroActionComponent->GetOnHeroActionConfirmedDelegate(HeroAction.Get()).Remove(Handle);

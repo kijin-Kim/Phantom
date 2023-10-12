@@ -10,7 +10,7 @@
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 #include "Phantom/Character/PhantomCharacter.h"
 #include "Phantom/Input/PhantomInputConfig.h"
-#include "Phantom/UI/Controller/InteractWidgetController.h"
+#include "Phantom/UI/HUD/PhantomHUD.h"
 
 void APhantomPlayerController::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
 {
@@ -45,8 +45,6 @@ void APhantomPlayerController::ReceivedPlayer()
 					ServerRequestServerTime(GetWorld()->GetTimeSeconds());
 				},
 				REQUEST_SERVER_TIME_RATE, true, 0.0f);
-
-		
 		}
 	}
 }
@@ -54,16 +52,11 @@ void APhantomPlayerController::ReceivedPlayer()
 void APhantomPlayerController::AcknowledgePossession(APawn* P)
 {
 	Super::AcknowledgePossession(P);
-	
-	if (ensure(InteractWidgetControllerClass))
-	{
-		InteractWidgetController = NewObject<UInteractWidgetController>(this, InteractWidgetControllerClass);
-		check(InteractWidgetController);
 
-		const IHeroActionInterface* HeroActionInterface = GetPawn<IHeroActionInterface>();
-		check(HeroActionInterface);
-		UHeroActionComponent* HeroActionComponent = HeroActionInterface->GetHeroActionComponent();
-		InteractWidgetController->InitializeWidgetController(HeroActionComponent, this);
+	APhantomHUD* PhantomHUD = GetHUD<APhantomHUD>();
+	if(PhantomHUD)
+	{
+		PhantomHUD->InitializeInteractWidgetController();		
 	}
 }
 
