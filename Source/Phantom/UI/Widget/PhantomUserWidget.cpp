@@ -3,8 +3,12 @@
 
 #include "PhantomUserWidget.h"
 
-void UPhantomUserWidget::InitializeWidget(UObject* InWidgetController)
+void UPhantomUserWidget::SetWidgetController(UObject* InWidgetController)
 {
-	WidgetController = InWidgetController;
+	if(!InWidgetController || WidgetController == InWidgetController)
+	{
+		return;
+	}
+	
 	OnPhantomWidgetInitialized();
 }

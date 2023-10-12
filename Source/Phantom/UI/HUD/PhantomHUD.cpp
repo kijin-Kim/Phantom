@@ -16,3 +16,8 @@ void APhantomHUD::InitializeInteractWidgetController()
 		InteractWidgetController->InitializeWidgetController(PlayerController);
 	}
 }
+
+UInteractWidgetController* APhantomHUD::GetInteractWidgetController() const
+{
+	return InteractWidgetController;
+}

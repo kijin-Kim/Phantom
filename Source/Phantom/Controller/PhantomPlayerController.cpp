@@ -54,9 +54,9 @@ void APhantomPlayerController::AcknowledgePossession(APawn* P)
 	Super::AcknowledgePossession(P);
 
 	APhantomHUD* PhantomHUD = GetHUD<APhantomHUD>();
-	if(PhantomHUD)
+	if(PhantomHUD && P && P->Implements<UHeroActionInterface>())
 	{
-		PhantomHUD->InitializeInteractWidgetController();		
+		PhantomHUD->InitializeInteractWidgetController();
 	}
 }
 

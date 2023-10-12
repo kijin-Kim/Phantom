@@ -4,6 +4,7 @@
 #include "InteractWidgetController.h"
 
 #include "Phantom/Character/PhantomCharacter.h"
+#include "Phantom/UI/Widget/PhantomUserWidget.h"
 
 void UInteractWidgetController::InitializeWidgetController(APlayerController* InPlayerController)
 {
@@ -15,6 +16,7 @@ void UInteractWidgetController::InitializeWidgetController(APlayerController* In
 
 void UInteractWidgetController::OnNewInteractActorBeginOverlap(AActor* BeginOverlapActor)
 {
+
 }
 
 void UInteractWidgetController::OnInteractActorEndOverlap(AActor* EndOverlapActor)

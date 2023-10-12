@@ -21,11 +21,16 @@ class PHANTOM_API APhantomCharacterBase : public ACharacter, public IHeroActionI
 
 public:
 	APhantomCharacterBase();
+	virtual void BeginPlay() override;
 	virtual UHeroActionComponent* GetHeroActionComponent() const override;
 	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
 
 	virtual UPhantomUserWidget* GetInteractWidget_Implementation() const override;
-	
+
+private:
+	UFUNCTION()
+	void OnInteractWidgetControllerCreated(APawn* Pawn);
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hero Action")
 	TObjectPtr<UHeroActionComponent> HeroActionComponent;

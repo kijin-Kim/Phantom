@@ -12,13 +12,15 @@ class UPhantomUserWidget;
 /**
  * 
  */
+
+
 UCLASS()
 class PHANTOM_API APhantomHUD : public AHUD
 {
 	GENERATED_BODY()
 public:
-
 	void InitializeInteractWidgetController();
+	UInteractWidgetController* GetInteractWidgetController() const;;
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Widget", meta = (AllowPrivateAccess ="true"))
