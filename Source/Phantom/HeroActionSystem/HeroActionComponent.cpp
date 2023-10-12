@@ -4,6 +4,7 @@
 #include "HeroActionComponent.h"
 #include "HeroAction.h"
 #include "Engine/ActorChannel.h"
+#include "Engine/Canvas.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Phantom/Phantom.h"
@@ -63,6 +64,21 @@ void UHeroActionComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 		AuthUpdateReplicatedAnimMontage();
 		AuthTakeHeroActionSnapshots();
 	}
+}
+
+void UHeroActionComponent::DisplayDebugComponent(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
+{
+	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
+	DisplayDebugManager.SetFont(GEngine->GetSmallFont());
+	DisplayDebugManager.SetDrawColor(FColor::Yellow);
+	DisplayDebugManager.DrawString(TEXT("HEROACTIONCOMPONENT"));
+	DisplayDebugManager.SetDrawColor(FColor::White);
+	DisplayDebugManager.DrawString(TEXT("  OwnedTags"));
+	for(FGameplayTag Tag : OwningTags)
+	{
+		DisplayDebugManager.DrawString(FString::Printf(TEXT("    %s"), *Tag.ToString()));
+	}
+	
 }
 
 void UHeroActionComponent::GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const

@@ -7,14 +7,12 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Net/UnrealNetwork.h"
-#include "Phantom/Phantom.h"
 #include "MotionWarpingComponent.h"
 #include "Components/SphereComponent.h"
 #include "Phantom/Controller/PhantomPlayerController.h"
 #include "Phantom/Enemy/Enemy.h"
 #include "Engine/Canvas.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "Phantom/PhantomGameplayTags.h"
 #include "Phantom/Weapon/Weapon.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 
@@ -53,8 +51,8 @@ APhantomCharacter::APhantomCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
-	CombatRangeSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CombatRangeSphere"));
-	CombatRangeSphere->SetupAttachment(RootComponent);
+	InteractSphere = CreateDefaultSubobject<USphereComponent>(TEXT("InteractSphere"));
+	InteractSphere->SetupAttachment(RootComponent);
 
 	MotionWarping = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
 }
@@ -62,21 +60,14 @@ APhantomCharacter::APhantomCharacter()
 void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
 {
 	Super::DisplayDebug(Canvas, DebugDisplay, YL, YPos);
-
-	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
-	DisplayDebugManager.SetFont(GEngine->GetSmallFont());
-	DisplayDebugManager.SetDrawColor(FColor::Yellow);
-	DisplayDebugManager.DrawString(TEXT("PHANTOM CHARACTER"));
-	DisplayDebugManager.SetDrawColor(FColor::White);
-	//DisplayDebugManager.DrawString(FString::Printf(TEXT("Can Combo: %s"), bCanCombo ? TEXT("true") : TEXT("false")));
-	DisplayDebugManager.DrawString(FString::Printf(TEXT("Attack Sequence Combo Count: %d"), AttackSequenceComboCount));
 }
 
 void APhantomCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-	CombatRangeSphere->OnComponentBeginOverlap.AddDynamic(this, &APhantomCharacter::OnCombatSphereBeginOverlap);
-	CombatRangeSphere->OnComponentEndOverlap.AddDynamic(this, &APhantomCharacter::OnCombatSphereEndOverlap);
+
+	InteractSphere->OnComponentBeginOverlap.AddDynamic(this, &APhantomCharacter::OnInteractSphereBeginOverlap);
+	InteractSphere->OnComponentEndOverlap.AddDynamic(this, &APhantomCharacter::OnInteractSphereEndOverlap);
 	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
 	MaxWalkSpeedCrouchedCache = GetCharacterMovement()->MaxWalkSpeedCrouched;
 }
@@ -254,23 +245,52 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 }
 
 
-void APhantomCharacter::OnCombatSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-                                                   int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+void APhantomCharacter::OnInteractSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+                                                     int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (!OtherActor || OtherActor == this)
 	{
 		return;
 	}
-
 	AEnemy* NewEnemy = Cast<AEnemy>(OtherActor);
 	if (NewEnemy)
 	{
 		EnemiesInCombatRange.AddUnique(NewEnemy);
 	}
+
+	// const IInteractInterface* InteractInterface = Cast<IInteractInterface>(OtherActor);
+	// if (!InteractInterface)
+	// {
+	// 	return;
+	// }
+	//
+	// const APhantomPlayerController* PhantomPlayerController = GetController<APhantomPlayerController>();
+	// if (!PhantomPlayerController)
+	// {
+	// 	return;
+	// }
+	//
+	// if (UInteractWidgetController* InteractWidgetController = PhantomPlayerController->GetInteractWidgetController())
+	// {
+	// 	if (UPhantomUserWidget* Widget = IInteractInterface::Execute_GetInteractWidget(OtherActor))
+	// 	{
+	// 		Widget->InitializeWidget(InteractWidgetController);
+	// 	}
+	// }
+
+
+	if (!OverlappingInteractActors.Find(OtherActor))
+	{
+		OverlappingInteractActors.Add(OtherActor);
+		if (OnNewInteractActorBeginOverlap.IsBound())
+		{
+			OnNewInteractActorBeginOverlap.Broadcast(OtherActor);
+		}
+	}
 }
 
-void APhantomCharacter::OnCombatSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-                                                 int32 OtherBodyIndex)
+void APhantomCharacter::OnInteractSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+                                                   int32 OtherBodyIndex)
 {
 	if (!OtherActor || OtherActor == this)
 	{
@@ -281,6 +301,14 @@ void APhantomCharacter::OnCombatSphereEndOverlap(UPrimitiveComponent* Overlapped
 	if (LeftEnemy)
 	{
 		EnemiesInCombatRange.Remove(LeftEnemy);
+	}
+
+	if (OverlappingInteractActors.Remove(OtherActor) > 0)
+	{
+		if (OnInteractActorEndOverlap.IsBound())
+		{
+			OnInteractActorEndOverlap.Broadcast(OtherActor);
+		}
 	}
 }
 

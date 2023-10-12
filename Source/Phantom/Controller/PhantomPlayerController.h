@@ -8,6 +8,7 @@
 #include "Phantom/HeroActionSystem/HeroAction.h"
 #include "PhantomPlayerController.generated.h"
 
+class UInteractWidgetController;
 class UInputAction;
 class UInputMappingContext;
 class UPhantomInputConfig;
@@ -24,17 +25,24 @@ class PHANTOM_API APhantomPlayerController : public APlayerController
 public:
 	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
 	virtual void ReceivedPlayer() override;
+	virtual void AcknowledgePossession(APawn* P) override;
 	void AuthInitializeRandomSeed();
 	UFUNCTION(BlueprintCallable)
 	float GetServerTime() const;
 	UFUNCTION(BlueprintCallable)
 	float GetLatestRoundTripTime() const { return RoundTripTimes.IsEmpty() ? 0.0f : RoundTripTimes.Last(); }
+
 	UFUNCTION(BlueprintCallable)
 	float GetAverageRoundTripTime() const { return AvgRoundTripTime; }
+
 	UFUNCTION(BlueprintCallable)
 	float GetLatestSingleTripTime() const { return GetLatestRoundTripTime() * 0.5f; }
+
 	UFUNCTION(BlueprintCallable)
 	float GetAverageSingleTripTime() const { return GetAverageRoundTripTime() * 0.5f; }
+
+	
+	UInteractWidgetController* GetInteractWidgetController() const { return InteractWidgetController; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -61,8 +69,8 @@ public:
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UPhantomInputConfig> PhantomInputConfig; 
-	
+	TObjectPtr<UPhantomInputConfig> PhantomInputConfig;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> WalkFRAction;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -82,4 +90,8 @@ private:
 	float AvgRoundTripTime;
 
 	TArray<float> RoundTripTimes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Widget", meta = (AllowPrivateAccess ="true"))
+	TSubclassOf<UInteractWidgetController> InteractWidgetControllerClass;
+	TObjectPtr<UInteractWidgetController> InteractWidgetController;
 };

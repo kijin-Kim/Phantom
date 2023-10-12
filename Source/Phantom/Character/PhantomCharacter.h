@@ -19,6 +19,11 @@ class UMotionWarpingComponent;
 class USphereComponent;
 class USpringArmComponent;
 
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNewInteractActorBeginOverlapSignature, AActor*, BeingOverlapActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractActorEndOverlapSignature, AActor*, EndOverlapActor);
+
+
 USTRUCT(BlueprintType)
 struct PHANTOM_API FCharacterSnapshot
 {
@@ -80,12 +85,18 @@ private:
 	
 	
 	UFUNCTION()
-	void OnCombatSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+	void OnInteractSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	                                int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 	UFUNCTION()
-	void OnCombatSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	void OnInteractSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	AActor* GetCapsuleHitActor(const FVector& TargetLocation, bool bShowDebug);
+
+public:
+	UPROPERTY(BlueprintAssignable)
+	FOnNewInteractActorBeginOverlapSignature OnNewInteractActorBeginOverlap;
+	UPROPERTY(BlueprintAssignable)
+	FOnInteractActorEndOverlapSignature OnInteractActorEndOverlap;
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
@@ -93,8 +104,8 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> FollowCamera;
 	// 주변 Enemy를 감지하기 위한 SphereComponent.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<USphereComponent> CombatRangeSphere;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interact", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USphereComponent> InteractSphere;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMotionWarpingComponent> MotionWarping;
 	
@@ -126,6 +137,9 @@ private:
 	TWeakObjectPtr<AEnemy> CurrentTargetedEnemy;
 	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
 	TArray<TWeakObjectPtr<AEnemy>> EnemiesInCombatRange;
+
+	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
+	TArray<TWeakObjectPtr<AActor>> OverlappingInteractActors;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AWeapon> DefaultWeaponClass;

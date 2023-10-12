@@ -79,7 +79,7 @@ void AEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 
 FName AEnemy::GetDirectionalSectionName_Implementation(UAnimMontage* AnimMontage, float Degree) const
 {
-	if(AnimMontage == Execute_GetHitReactMontage(this))
+	if(AnimMontage == ICombatInterface::Execute_GetHitReactMontage(this))
 	{
 		FName HitMontageSectionName = FName("HitB");
 		if (Degree >= -22.5f && Degree < 22.5f)
