@@ -31,12 +31,12 @@ bool UHeroAction::CallCanTriggerHeroAction(bool bShowDebugMessage) const
 
 bool UHeroAction::CallCanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage) const
 {
-	if (HeroActionEventTriggerBehavior == EHeroActionEventTriggerBehavior::Default)
+	if (HeroActionEventTriggerBehavior == EHeroActionEventTriggerCheckBehavior::Default)
 	{
 		return CallCanTriggerHeroAction(bShowDebugMessage);
 	}
 
-	if (HeroActionEventTriggerBehavior == EHeroActionEventTriggerBehavior::Override)
+	if (HeroActionEventTriggerBehavior == EHeroActionEventTriggerCheckBehavior::Override)
 	{
 		if (!CheckTagAndRetriggerBehavior(bShowDebugMessage))
 		{

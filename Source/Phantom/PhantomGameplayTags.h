@@ -21,6 +21,7 @@ namespace PhantomGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Ambushed);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_HitReact);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Dead);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_EventObserver);
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Run);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Sprint);
@@ -30,7 +31,10 @@ namespace PhantomGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_AttackEventHandler);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_HitReact);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_Ambushed);
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Dodge_Triggered);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Dodge);
+	
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_CanTrigger_Ambush_Succeed);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_CanTrigger_Ambush_Failed);
 	
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Notify_Combo_Opened);

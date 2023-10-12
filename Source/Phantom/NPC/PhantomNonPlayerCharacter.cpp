@@ -1,14 +1,14 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Enemy.h"
+#include "PhantomNonPlayerCharacter.h"
 
 #include "Components/CapsuleComponent.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 
 
 // Sets default values
-AEnemy::AEnemy()
+APhantomNonPlayerCharacter::APhantomNonPlayerCharacter()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = true;
@@ -17,7 +17,7 @@ AEnemy::AEnemy()
 	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 }
 
-void AEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
+void APhantomNonPlayerCharacter::GetHit(const FHitResult& HitResult, AActor* Hitter)
 {
 	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Hit"));
 	const bool bDebugHit = CVar && CVar->GetValueOnGameThread();
@@ -77,9 +77,9 @@ void AEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 	}
 }
 
-FName AEnemy::GetDirectionalSectionName_Implementation(UAnimMontage* AnimMontage, float Degree) const
+FName APhantomNonPlayerCharacter::GetDirectionalSectionName_Implementation(UAnimMontage* AnimMontage, float Degree) const
 {
-	if(AnimMontage == ICombatInterface::Execute_GetHitReactMontage(this))
+	if (AnimMontage == ICombatInterface::Execute_GetHitReactMontage(this))
 	{
 		FName HitMontageSectionName = FName("HitB");
 		if (Degree >= -22.5f && Degree < 22.5f)
@@ -104,17 +104,17 @@ FName AEnemy::GetDirectionalSectionName_Implementation(UAnimMontage* AnimMontage
 		}
 		return HitMontageSectionName;
 	}
-	
+
 	return NAME_None;
 }
 
-void AEnemy::BeginPlay()
+void APhantomNonPlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	HeroActionComponent->InitializeHeroActionActorInfo(this);
 	if (HasAuthority())
 	{
-		for (const TSubclassOf<UHeroAction> HeroActionClass : StartupActionClasses)
+		for (const TSubclassOf<UHeroAction> HeroActionClass : OriginHeroActionClasses)
 		{
 			HeroActionComponent->AuthAddHeroActionByClass(HeroActionClass);
 		}

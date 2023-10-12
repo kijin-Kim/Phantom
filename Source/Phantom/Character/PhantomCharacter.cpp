@@ -10,7 +10,7 @@
 #include "MotionWarpingComponent.h"
 #include "Components/SphereComponent.h"
 #include "Phantom/Controller/PhantomPlayerController.h"
-#include "Phantom/Enemy/Enemy.h"
+#include "Phantom/NPC/PhantomNonPlayerCharacter.h"
 #include "Engine/Canvas.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Phantom/Weapon/Weapon.h"
@@ -78,7 +78,7 @@ void APhantomCharacter::Restart()
 	HeroActionComponent->InitializeHeroActionActorInfo(this);
 	if (HasAuthority())
 	{
-		for (const TSubclassOf<UHeroAction> HeroActionClass : StartupActionClasses)
+		for (const TSubclassOf<UHeroAction> HeroActionClass : OriginHeroActionClasses)
 		{
 			HeroActionComponent->AuthAddHeroActionByClass(HeroActionClass);
 		}
@@ -174,7 +174,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 	const bool bDebugTargeting = CVar && CVar->GetValueOnGameThread();
 
 	float MaxDot = 0.0f;
-	AEnemy* NewTargetedCandidate = nullptr;
+	APhantomNonPlayerCharacter* NewTargetedCandidate = nullptr;
 	const FVector LastInputVector = GetCharacterMovement()->GetLastInputVector();
 	// 플레이어의 입력이 있으면 입력을 새로 타겟팅할 Enemy를 뽑는데 반영합니다
 	const FVector ProjectedCameraForward = {FollowCamera->GetForwardVector().X, FollowCamera->GetForwardVector().Y, 0.0f};
@@ -186,7 +186,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 	}
 
 	// 새로운 타겟팅 후보를 찾는다.
-	for (TWeakObjectPtr<AEnemy> Enemy : EnemiesInCombatRange)
+	for (TWeakObjectPtr<APhantomNonPlayerCharacter> Enemy : EnemiesInCombatRange)
 	{
 		if (!Enemy.IsValid())
 		{
@@ -209,7 +209,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 
 	if (!NewTargetedCandidate && CurrentTargetedEnemy.IsValid())
 	{
-		AEnemy* CapsuleHitActor = Cast<AEnemy>(GetCapsuleHitActor(CurrentTargetedEnemy->GetActorLocation(), bDebugTargeting));
+		APhantomNonPlayerCharacter* CapsuleHitActor = Cast<APhantomNonPlayerCharacter>(GetCapsuleHitActor(CurrentTargetedEnemy->GetActorLocation(), bDebugTargeting));
 		if (!CapsuleHitActor || CapsuleHitActor != CurrentTargetedEnemy)
 		{
 			CurrentTargetedEnemy = nullptr;
@@ -219,7 +219,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 
 	if (NewTargetedCandidate)
 	{
-		const AEnemy* CapsuleHitActor = Cast<AEnemy>(GetCapsuleHitActor(NewTargetedCandidate->GetActorLocation(), bDebugTargeting));
+		const APhantomNonPlayerCharacter* CapsuleHitActor = Cast<APhantomNonPlayerCharacter>(GetCapsuleHitActor(NewTargetedCandidate->GetActorLocation(), bDebugTargeting));
 		if (CapsuleHitActor && CapsuleHitActor == NewTargetedCandidate)
 		{
 			CurrentTargetedEnemy = NewTargetedCandidate;
@@ -249,7 +249,7 @@ void APhantomCharacter::OnInteractSphereBeginOverlap(UPrimitiveComponent* Overla
 	{
 		return;
 	}
-	AEnemy* NewEnemy = Cast<AEnemy>(OtherActor);
+	APhantomNonPlayerCharacter* NewEnemy = Cast<APhantomNonPlayerCharacter>(OtherActor);
 	if (NewEnemy)
 	{
 		EnemiesInCombatRange.AddUnique(NewEnemy);
@@ -294,7 +294,7 @@ void APhantomCharacter::OnInteractSphereEndOverlap(UPrimitiveComponent* Overlapp
 		return;
 	}
 
-	AEnemy* LeftEnemy = Cast<AEnemy>(OtherActor);
+	APhantomNonPlayerCharacter* LeftEnemy = Cast<APhantomNonPlayerCharacter>(OtherActor);
 	if (LeftEnemy)
 	{
 		EnemiesInCombatRange.Remove(LeftEnemy);

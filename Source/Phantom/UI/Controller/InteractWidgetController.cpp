@@ -3,22 +3,51 @@
 
 #include "InteractWidgetController.h"
 
-#include "Phantom/Character/PhantomCharacter.h"
-#include "Phantom/UI/Widget/PhantomUserWidget.h"
+#include "Phantom/PhantomGameplayTags.h"
+#include "Phantom/HeroActionSystem/HeroActionComponent.h"
 
 void UInteractWidgetController::InitializeWidgetController(APlayerController* InPlayerController)
 {
 	Super::InitializeWidgetController(InPlayerController);
-	APhantomCharacter* PhantomCharacter = PlayerController->GetPawn<APhantomCharacter>();
-	PhantomCharacter->OnNewInteractActorBeginOverlap.AddDynamic(this, &UInteractWidgetController::OnNewInteractActorBeginOverlap);
-	PhantomCharacter->OnInteractActorEndOverlap.AddDynamic(this, &UInteractWidgetController::OnInteractActorEndOverlap);
+	FOnHeroActionEventSignature& OnCanTriggerAmbushSucceed = HeroActionComponent->GetOnHeroActionEventDelegate(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Succeed);
+	SucceedHandle = OnCanTriggerAmbushSucceed.AddLambda(
+		[WeakThis =TWeakObjectPtr<UInteractWidgetController>(this)](const FHeroActionEventData& Data)
+		{
+			if (WeakThis->OnCanTriggerAmbush.IsBound())
+			{
+				WeakThis->OnCanTriggerAmbush.Broadcast(true);
+			}
+		});
+
+	FOnHeroActionEventSignature& OnCanTriggerAmbushFailed = HeroActionComponent->GetOnHeroActionEventDelegate(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Failed);
+	FailedHandle = OnCanTriggerAmbushFailed.AddLambda(
+		[WeakThis =TWeakObjectPtr<UInteractWidgetController>(this)](const FHeroActionEventData& Data)
+		{
+			if (WeakThis->OnCanTriggerAmbush.IsBound())
+			{
+				WeakThis->OnCanTriggerAmbush.Broadcast(false);
+			}
+		});
 }
 
-void UInteractWidgetController::OnNewInteractActorBeginOverlap(AActor* BeginOverlapActor)
+void UInteractWidgetController::BeginDestroy()
 {
+	Super::BeginDestroy();
 
-}
+	if(!HeroActionComponent.IsValid())
+	{
+		return;
+	}
+	
+	FOnHeroActionEventSignature& OnCanTriggerAmbushSucceed = HeroActionComponent->GetOnHeroActionEventDelegate(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Succeed);
+	if (OnCanTriggerAmbushSucceed.IsBound())
+	{
+		OnCanTriggerAmbushSucceed.Remove(SucceedHandle);
+	}
 
-void UInteractWidgetController::OnInteractActorEndOverlap(AActor* EndOverlapActor)
-{
+	FOnHeroActionEventSignature& OnCanTriggerAmbushFailed = HeroActionComponent->GetOnHeroActionEventDelegate(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Failed);
+	if (OnCanTriggerAmbushFailed.IsBound())
+	{
+		OnCanTriggerAmbushFailed.Remove(FailedHandle);
+	}
 }

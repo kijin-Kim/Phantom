@@ -9,6 +9,6 @@ void UPhantomUserWidget::SetWidgetController(UObject* InWidgetController)
 	{
 		return;
 	}
-	
-	OnPhantomWidgetInitialized();
+	WidgetController = InWidgetController;
+	OnPhantomWidgetControllerChanged();
 }

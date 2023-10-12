@@ -64,6 +64,14 @@ void UHeroActionComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 		AuthUpdateReplicatedAnimMontage();
 		AuthTakeHeroActionSnapshots();
 	}
+
+	for (const auto& [HeroAction, TriggerEvent] : ObservingCanTriggerHeroActions)
+	{
+		FHeroActionEventData Data;
+		Data.EventInstigator = GetOwner();
+		const FGameplayTag EventToTrigger = CanTriggerHeroAction(HeroAction, false) ? TriggerEvent.OnSucceed : TriggerEvent.OnFailed;
+		DispatchHeroActionEvent(EventToTrigger, Data);
+	}
 }
 
 void UHeroActionComponent::DisplayDebugComponent(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
@@ -74,11 +82,10 @@ void UHeroActionComponent::DisplayDebugComponent(UCanvas* Canvas, const FDebugDi
 	DisplayDebugManager.DrawString(TEXT("HEROACTIONCOMPONENT"));
 	DisplayDebugManager.SetDrawColor(FColor::White);
 	DisplayDebugManager.DrawString(TEXT("  OwnedTags"));
-	for(FGameplayTag Tag : OwningTags)
+	for (FGameplayTag Tag : OwningTags)
 	{
 		DisplayDebugManager.DrawString(FString::Printf(TEXT("    %s"), *Tag.ToString()));
 	}
-	
 }
 
 void UHeroActionComponent::GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const
@@ -336,12 +343,10 @@ void UHeroActionComponent::DispatchHeroActionEvent(const FGameplayTag& Tag, cons
 	FOnHeroActionEventSignature& Delegate = GetOnHeroActionEventDelegate(Tag);
 	if (Delegate.IsBound())
 	{
-		FOnHeroActionEventSignature Temp = Delegate;
-		Delegate.Clear();
-		Temp.Broadcast(Data);
+		Delegate.Broadcast(Data);
 	}
 
-	if (TArray<UHeroAction*>* HeroActionsToTrigger = TriggerEventActions.Find(Tag))
+	if (TArray<TObjectPtr<UHeroAction>>* HeroActionsToTrigger = TriggerEventHeroActions.Find(Tag))
 	{
 		for (UHeroAction* ToTrigger : *HeroActionsToTrigger)
 		{
@@ -441,7 +446,7 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction,
 	if (!bIsLocal && (NetBehavior == EHeroActionNetBehavior::LocalOnly || NetBehavior == EHeroActionNetBehavior::LocalPredicted))
 	{
 		ensure(false);
-		PHANTOM_LOG(Error, TEXT("[%s]는 Local이 아닌곳에서는 실행할 수 없는 Action입니다."),*GetNameSafe(HeroAction));
+		PHANTOM_LOG(Error, TEXT("[%s]는 Local이 아닌곳에서는 실행할 수 없는 Action입니다."), *GetNameSafe(HeroAction));
 		return false;
 	}
 
@@ -679,7 +684,13 @@ void UHeroActionComponent::OnHeroActionAdded(UHeroAction* Action)
 	const FGameplayTagContainer& TriggerEventTags = Action->GetTriggerEventTags();
 	for (FGameplayTag Tag : TriggerEventTags)
 	{
-		TriggerEventActions.FindOrAdd(Tag).AddUnique(Action);
+		TriggerEventHeroActions.FindOrAdd(Tag).AddUnique(Action);
+	}
+
+	const FHeroActionCanTriggerEvent& CanTriggerEvent = Action->GetCanTriggerEvent();
+	if (Action->ShouldObserverCanTrigger() && CanTriggerEvent.IsValid())
+	{
+		ensure(ObservingCanTriggerHeroActions.Add(Action, CanTriggerEvent).IsValid());
 	}
 }
 

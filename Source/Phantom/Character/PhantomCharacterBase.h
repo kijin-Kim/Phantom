@@ -36,7 +36,7 @@ protected:
 	TObjectPtr<UHeroActionComponent> HeroActionComponent;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hero Action")
-	TArray<TSubclassOf<UHeroAction>> StartupActionClasses;
+	TArray<TSubclassOf<UHeroAction>> OriginHeroActionClasses;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hero Action")
 	TObjectPtr<UWidgetComponent> InteractWidget;

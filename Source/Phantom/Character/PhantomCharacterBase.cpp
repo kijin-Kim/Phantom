@@ -40,7 +40,8 @@ void APhantomCharacterBase::BeginPlay()
 	}
 	else
 	{
-		if (APawn* PlayerPawn = LocalPlayerController->GetPawn())
+		APawn* PlayerPawn = LocalPlayerController->GetPawn();
+		if (PlayerPawn && PlayerPawn->Implements<UHeroActionInterface>())
 		{
 			PlayerPawn->ReceiveRestartedDelegate.AddDynamic(this, &APhantomCharacterBase::OnInteractWidgetControllerCreated);
 		}

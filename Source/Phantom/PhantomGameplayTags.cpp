@@ -17,6 +17,7 @@ namespace PhantomGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Ambushed, "HeroAction.Ambushed");
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_HitReact, "HeroAction.HitReact");
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Dead, "HeroAction.Dead");
+	UE_DEFINE_GAMEPLAY_TAG(HeroAction_EventObserver, "HeroAction.EventObserver");
 
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Run, "HeroAction.Run");
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Sprint, "HeroAction.Sprint");
@@ -26,7 +27,10 @@ namespace PhantomGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_AttackEventHandler, "Event.HeroAction.Trigger.AttackEventHandler");
 	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_HitReact, "Event.HeroAction.Trigger.HitReact");
 	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_Ambushed, "Event.HeroAction.Trigger.Ambushed");
-	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Dodge_Triggered, "Event.HeroAction.Dodge.Triggered");
+	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Dodge, "Event.HeroAction.Dodge");
+
+	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_CanTrigger_Ambush_Succeed, "Event.HeroAction.CanTrigger.Ambush.Succeed");
+	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_CanTrigger_Ambush_Failed, "Event.HeroAction.CanTrigger.Ambush.Failed");
 	
 	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Combo_Opened, "Event.Notify.Combo.Opened");
 	UE_DEFINE_GAMEPLAY_TAG(Event_Notify_Combo_Closed, "Event.Notify.Combo.Closed");

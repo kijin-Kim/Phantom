@@ -13,7 +13,7 @@
 class UHeroAction;
 class UHeroActionComponent;
 class AWeapon;
-class AEnemy;
+class APhantomNonPlayerCharacter;
 class UCameraComponent;
 class UMotionWarpingComponent;
 class USphereComponent;
@@ -133,9 +133,9 @@ private:
 	
 	// 현재 타겟팅된 Enemy
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	TWeakObjectPtr<AEnemy> CurrentTargetedEnemy;
+	TWeakObjectPtr<APhantomNonPlayerCharacter> CurrentTargetedEnemy;
 	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
-	TArray<TWeakObjectPtr<AEnemy>> EnemiesInCombatRange;
+	TArray<TWeakObjectPtr<APhantomNonPlayerCharacter>> EnemiesInCombatRange;
 
 	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
 	TArray<TWeakObjectPtr<AActor>> OverlappingInteractActors;

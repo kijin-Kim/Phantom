@@ -1,4 +1,5 @@
 #pragma once
+#include "GameplayTagContainer.h"
 #include "HeroActionTypes.generated.h"
 
 // This Types are mostly impressed by GAS
@@ -36,13 +37,26 @@ enum class EHeroActionRetriggerBehavior : uint8
 };
 
 UENUM(BlueprintType)
-enum class EHeroActionEventTriggerBehavior : uint8
+enum class EHeroActionEventTriggerCheckBehavior : uint8
 {
 	// CanTrigger를 따릅니다.
 	Default UMETA(DisplayName = "Use Default CanTrigger"),
 	// CanTriggerByEvent를 따릅니다.
 	Override UMETA(DisplayName = "Override CanTrigger"),
 	Max UMETA(hidden)
+};
+
+USTRUCT(BlueprintType)
+struct PHANTOM_API FHeroActionCanTriggerEvent
+{
+	GENERATED_BODY()
+
+	bool IsValid() const;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
+	FGameplayTag OnSucceed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
+	FGameplayTag OnFailed;
 };
 
 USTRUCT(BlueprintType)
@@ -121,7 +135,6 @@ struct FHeroActionSnapshot
 	float Time = 0.0f;
 	bool bCanTrigger = false;
 };
-
 
 
 USTRUCT(BlueprintType)

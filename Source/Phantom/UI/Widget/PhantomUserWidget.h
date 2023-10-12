@@ -19,7 +19,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	void SetWidgetController(UObject* WidgetController);
 	UFUNCTION(BlueprintImplementableEvent)
-	void OnPhantomWidgetInitialized();
+	void OnPhantomWidgetControllerChanged();
 	
 
 protected:

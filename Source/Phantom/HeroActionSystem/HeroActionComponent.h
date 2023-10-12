@@ -192,7 +192,9 @@ private:
 	// Dispatch Event함수에 의하여 호출되는 Delegates
 	TMap<FGameplayTag, FOnHeroActionEventSignature> OnHeroActionEventDelegates;
 
-	TMap<FGameplayTag, TArray<UHeroAction*>> TriggerEventActions;
+	TMap<FGameplayTag, TArray<TObjectPtr<UHeroAction>>> TriggerEventHeroActions;
+
+	TMap<TObjectPtr<UHeroAction>, FHeroActionCanTriggerEvent> ObservingCanTriggerHeroActions;
 
 	// HeroAction이 Authority에 의해 Confirmed되었을 때, 호출되는 Delegates
 	TMap<TObjectPtr<UHeroAction>, FOnHeroActionConfirmedSignature> OnHeroActionConfirmedDelegates;

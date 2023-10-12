@@ -5,15 +5,15 @@
 #include "CoreMinimal.h"
 #include "Phantom/HitInterface.h"
 #include "Phantom/Character/PhantomCharacterBase.h"
-#include "Enemy.generated.h"
+#include "PhantomNonPlayerCharacter.generated.h"
 
 UCLASS()
-class PHANTOM_API AEnemy : public APhantomCharacterBase, public IHitInterface
+class PHANTOM_API APhantomNonPlayerCharacter : public APhantomCharacterBase, public IHitInterface
 {
 	GENERATED_BODY()
 
 public:
-	AEnemy();
+	APhantomNonPlayerCharacter();
 	virtual void GetHit(const FHitResult& HitResult, AActor* Hitter) override;
 	virtual FName GetDirectionalSectionName_Implementation(UAnimMontage* AnimMontage, float Degree) const override;
 	virtual void BeginPlay() override;
