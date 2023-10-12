@@ -57,6 +57,16 @@ APhantomCharacter::APhantomCharacter()
 	MotionWarping = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
 }
 
+
+void APhantomCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(APhantomCharacter, Weapon);
+	DOREPLIFETIME(APhantomCharacter, Health);
+	DOREPLIFETIME(APhantomCharacter, MaxHealth);
+}
+
+
 void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
 {
 	Super::DisplayDebug(Canvas, DebugDisplay, YL, YPos);
@@ -88,7 +98,7 @@ void APhantomCharacter::Restart()
 void APhantomCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
+	
 	if (HasAuthority() && DefaultWeaponClass)
 	{
 		FActorSpawnParameters ActorSpawnParameters;
@@ -155,12 +165,16 @@ void APhantomCharacter::Move(const FInputActionValue& Value)
 	}
 }
 
-void APhantomCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+
+int32 APhantomCharacter::GetHealth_Implementation() const
 {
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(APhantomCharacter, Weapon);
+	return Health;
 }
 
+int32 APhantomCharacter::GetMaxHealth_Implementation() const
+{
+	return MaxHealth;
+}
 
 void APhantomCharacter::CalculateNewTargetingEnemy()
 {
@@ -254,36 +268,7 @@ void APhantomCharacter::OnInteractSphereBeginOverlap(UPrimitiveComponent* Overla
 	{
 		EnemiesInCombatRange.AddUnique(NewEnemy);
 	}
-
-	// const IInteractInterface* InteractInterface = Cast<IInteractInterface>(OtherActor);
-	// if (!InteractInterface)
-	// {
-	// 	return;
-	// }
-	//
-	// const APhantomPlayerController* PhantomPlayerController = GetController<APhantomPlayerController>();
-	// if (!PhantomPlayerController)
-	// {
-	// 	return;
-	// }
-	//
-	// if (UInteractWidgetController* InteractWidgetController = PhantomPlayerController->GetInteractWidgetController())
-	// {
-	// 	if (UPhantomUserWidget* Widget = IInteractInterface::Execute_GetInteractWidget(OtherActor))
-	// 	{
-	// 		Widget->InitializeWidget(InteractWidgetController);
-	// 	}
-	// }
-
-
-	if (OverlappingInteractActors.Find(OtherActor) == INDEX_NONE)
-	{
-		OverlappingInteractActors.Add(OtherActor);
-		if (OnNewInteractActorBeginOverlap.IsBound())
-		{
-			OnNewInteractActorBeginOverlap.Broadcast(OtherActor);
-		}
-	}
+	
 }
 
 void APhantomCharacter::OnInteractSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
@@ -299,14 +284,7 @@ void APhantomCharacter::OnInteractSphereEndOverlap(UPrimitiveComponent* Overlapp
 	{
 		EnemiesInCombatRange.Remove(LeftEnemy);
 	}
-
-	if (OverlappingInteractActors.Remove(OtherActor) > 0)
-	{
-		if (OnInteractActorEndOverlap.IsBound())
-		{
-			OnInteractActorEndOverlap.Broadcast(OtherActor);
-		}
-	}
+	
 }
 
 AActor* APhantomCharacter::GetCapsuleHitActor(const FVector& TargetLocation, bool bShowDebug)
@@ -330,4 +308,17 @@ AActor* APhantomCharacter::GetCapsuleHitActor(const FVector& TargetLocation, boo
 		HitResult,
 		true);
 	return HitResult.GetActor();
+}
+
+void APhantomCharacter::OnRep_Health()
+{
+	OnHealthChanged();
+}
+
+void APhantomCharacter::OnHealthChanged()
+{
+	if(OnPhantomCharacterHealthChanged.IsBound())
+	{
+		OnPhantomCharacterHealthChanged.Broadcast(Health, MaxHealth);
+	}
 }

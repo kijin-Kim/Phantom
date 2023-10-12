@@ -17,7 +17,7 @@ class PHANTOM_API UPhantomUserWidget : public UUserWidget
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetWidgetController(UObject* WidgetController);
+	void InitializeWidget(UObject* WidgetController);
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnPhantomWidgetControllerChanged();
 	

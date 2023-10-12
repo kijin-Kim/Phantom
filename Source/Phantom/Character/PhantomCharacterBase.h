@@ -6,7 +6,6 @@
 #include "GameFramework/Character.h"
 #include "Phantom/CombatInterface.h"
 #include "Phantom/HeroActionSystem/HeroActionInterface.h"
-#include "Phantom/UI/InteractInterface.h"
 #include "PhantomCharacterBase.generated.h"
 
 
@@ -15,7 +14,7 @@ class UHeroActionComponent;
 class UHeroAction;
 
 UCLASS(Abstract)
-class PHANTOM_API APhantomCharacterBase : public ACharacter, public IHeroActionInterface, public ICombatInterface, public IInteractInterface
+class PHANTOM_API APhantomCharacterBase : public ACharacter, public IHeroActionInterface
 {
 	GENERATED_BODY()
 
@@ -24,8 +23,6 @@ public:
 	virtual void BeginPlay() override;
 	virtual UHeroActionComponent* GetHeroActionComponent() const override;
 	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
-
-	virtual UPhantomUserWidget* GetInteractWidget_Implementation() const override;
 
 private:
 	UFUNCTION()

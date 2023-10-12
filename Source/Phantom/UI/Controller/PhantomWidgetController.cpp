@@ -15,3 +15,7 @@ void UPhantomWidgetController::InitializeWidgetController(APlayerController* InP
 	HeroActionComponent = HeroActionInterface->GetHeroActionComponent();
 	check(HeroActionComponent.IsValid());
 }
+
+void UPhantomWidgetController::BroadcastOnInitialized()
+{
+}

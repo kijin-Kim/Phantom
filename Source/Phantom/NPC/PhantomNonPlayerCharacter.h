@@ -8,7 +8,7 @@
 #include "PhantomNonPlayerCharacter.generated.h"
 
 UCLASS()
-class PHANTOM_API APhantomNonPlayerCharacter : public APhantomCharacterBase, public IHitInterface
+class PHANTOM_API APhantomNonPlayerCharacter : public APhantomCharacterBase, public IHitInterface, public ICombatInterface
 {
 	GENERATED_BODY()
 

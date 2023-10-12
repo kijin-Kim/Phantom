@@ -20,8 +20,7 @@ class USphereComponent;
 class USpringArmComponent;
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNewInteractActorBeginOverlapSignature, AActor*, BeingOverlapActor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractActorEndOverlapSignature, AActor*, EndOverlapActor);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPhantomCharacterHealthChanged, int32 /*Health*/, int32 /*MaxHealth*/);
 
 
 USTRUCT(BlueprintType)
@@ -54,12 +53,13 @@ struct PHANTOM_API FCharacterSnapshot
 
 
 UCLASS(config=Game)
-class PHANTOM_API APhantomCharacter : public APhantomCharacterBase
+class PHANTOM_API APhantomCharacter : public APhantomCharacterBase, public ICombatInterface
 {
 	GENERATED_BODY()
 
 public:
 	APhantomCharacter();
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
 	virtual void PostInitializeComponents() override;
 	virtual void Restart() override;
@@ -75,8 +75,12 @@ public:
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
-protected:
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual int32 GetHealth_Implementation() const override;
+	virtual int32 GetMaxHealth_Implementation() const override;
+
+public:
+	FOnPhantomCharacterHealthChanged OnPhantomCharacterHealthChanged;
+	
 
 private:
 	// 매 프레임마다 새로 타겟팅할 후보를 계산함.
@@ -91,12 +95,9 @@ private:
 
 	AActor* GetCapsuleHitActor(const FVector& TargetLocation, bool bShowDebug);
 
-public:
-	UPROPERTY(BlueprintAssignable)
-	FOnNewInteractActorBeginOverlapSignature OnNewInteractActorBeginOverlap;
-	UPROPERTY(BlueprintAssignable)
-	FOnInteractActorEndOverlapSignature OnInteractActorEndOverlap;
-
+	UFUNCTION()
+	void OnRep_Health();
+	void OnHealthChanged();
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -146,4 +147,10 @@ private:
 	TObjectPtr<AWeapon> Weapon;
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	uint8 AttackSequenceComboCount = 0;
+
+	UPROPERTY(Transient, ReplicatedUsing=OnRep_Health, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	int32 Health = 100;
+	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	int32 MaxHealth = 100;
+	
 };

@@ -24,6 +24,10 @@ class PHANTOM_API ICombatInterface
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
+	int32 GetHealth() const;
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")	
+	int32 GetMaxHealth() const;	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
 	AActor* GetTargetedActor() const;
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat Interface")
 	UAnimMontage* GetHitReactMontage() const;

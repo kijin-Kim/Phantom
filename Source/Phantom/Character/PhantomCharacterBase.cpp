@@ -62,10 +62,6 @@ void APhantomCharacterBase::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInf
 	}
 }
 
-UPhantomUserWidget* APhantomCharacterBase::GetInteractWidget_Implementation() const
-{
-	return Cast<UPhantomUserWidget>(InteractWidget->GetUserWidgetObject());
-}
 
 void APhantomCharacterBase::OnInteractWidgetControllerCreated(APawn* Pawn)
 {
@@ -83,6 +79,6 @@ void APhantomCharacterBase::OnInteractWidgetControllerCreated(APawn* Pawn)
 	UInteractWidgetController* InteractWidgetController = PhantomHUD->GetInteractWidgetController();
 	if (UPhantomUserWidget* PhantomUserWidget = Cast<UPhantomUserWidget>(InteractWidget->GetUserWidgetObject()))
 	{
-		PhantomUserWidget->SetWidgetController(InteractWidgetController);
+		PhantomUserWidget->InitializeWidget(InteractWidgetController);
 	}
 }

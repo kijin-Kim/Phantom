@@ -9,6 +9,7 @@
 class UHeroActionComponent;
 class UInteractWidgetController;
 class UPhantomUserWidget;
+class UOverlayWidgetController;
 /**
  * 
  */
@@ -19,11 +20,18 @@ class PHANTOM_API APhantomHUD : public AHUD
 {
 	GENERATED_BODY()
 public:
-	void InitializeInteractWidgetController();
+	void InitializeHUD();
 	UInteractWidgetController* GetInteractWidgetController() const;;
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Widget", meta = (AllowPrivateAccess ="true"))
 	TSubclassOf<UInteractWidgetController> InteractWidgetControllerClass;
 	TObjectPtr<UInteractWidgetController> InteractWidgetController;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Widget", meta = (AllowPrivateAccess ="true"))
+	TSubclassOf<UPhantomUserWidget> OverlayWidgetClass;
+	TObjectPtr<UPhantomUserWidget> OverlayWidget;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Widget", meta = (AllowPrivateAccess ="true"))
+	TSubclassOf<UOverlayWidgetController> OverlayWidgetControllerClass;
+	TObjectPtr<UOverlayWidgetController> OverlayWidgetController;
 };
