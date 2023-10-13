@@ -3,6 +3,10 @@
 
 #include "PhantomEnemy.h"
 
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "Controller/PhantomAIController.h"
+#include "Phantom/PhantomTypes.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 
 
@@ -11,6 +15,32 @@ APhantomEnemy::APhantomEnemy()
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	TeamID = PHANTOM_GENERIC_TEAM_ID_ENEMY;
+}
+
+void APhantomEnemy::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (!BehaviorTree)
+	{
+		return;
+	}
+
+	APhantomAIController* PhantomAIController = Cast<APhantomAIController>(NewController);
+	if (!PhantomAIController)
+	{
+		return;
+	}
+
+	UBlackboardComponent* BlackboardComponent = PhantomAIController->GetBlackboardComponent();
+	if (!BlackboardComponent)
+	{
+		return;
+	}
+
+	BlackboardComponent->InitializeBlackboard(*BehaviorTree->BlackboardAsset);
+	PhantomAIController->RunBehaviorTree(BehaviorTree);
 }
 
 void APhantomEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
@@ -24,7 +54,7 @@ void APhantomEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 
 	if (APawn* HitterInstigator = Hitter->GetInstigator())
 	{
-		if (HitMontage)
+		if (false)
 		{
 			const FVector Location = GetActorLocation();
 			FVector HitterInstigatorLocation = HitterInstigator->GetActorLocation();
@@ -68,7 +98,7 @@ void APhantomEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 				DrawDebugDirectionalArrow(GetWorld(), Location, Location + UpVector * 100.0f, 30.0f, FColor::Blue, false, 2.0f);
 			}
 
-			PlayAnimMontage(HitMontage, 1.0f, HitMontageSectionName);
+			//PlayAnimMontage(HitMontage, 1.0f, HitMontageSectionName);
 		}
 	}
 }
@@ -116,5 +146,4 @@ void APhantomEnemy::BeginPlay()
 			HeroActionComponent->AuthAddHeroActionByClass(HeroActionClass);
 		}
 	}
-	
 }

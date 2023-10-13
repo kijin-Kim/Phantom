@@ -55,6 +55,9 @@ APhantomCharacter::APhantomCharacter()
 	InteractSphere->SetupAttachment(RootComponent);
 
 	MotionWarping = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
+	
+	Tags.Add(PHANTOM_PLAYER_NAME_TAG);
+	TeamID = PHANTOM_GENERIC_TEAM_ID_PLAYER;
 }
 
 

@@ -6,7 +6,6 @@
 #include "InputActionValue.h"
 #include "PhantomCharacterBase.h"
 #include "Phantom/PhantomTypes.h"
-#include "Phantom/RepAnimMontageData.h"
 #include "PhantomCharacter.generated.h"
 
 
@@ -152,5 +151,4 @@ private:
 	int32 Health = 100;
 	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	int32 MaxHealth = 100;
-	
 };

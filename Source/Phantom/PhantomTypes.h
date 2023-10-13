@@ -24,3 +24,8 @@ enum class ECharacterMovementState : uint8
 	Sprinting UMETA(DisplayName = "Sprinting"),
 	Max UMETA(hidden)
 };
+
+
+#define PHANTOM_PLAYER_NAME_TAG TEXT("Player")
+#define PHANTOM_GENERIC_TEAM_ID_PLAYER 0
+#define PHANTOM_GENERIC_TEAM_ID_ENEMY 1

@@ -15,6 +15,8 @@ class PHANTOM_API APhantomAIController : public AAIController
 
 public:
 	APhantomAIController();
+	virtual void BeginPlay() override;
+	
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBehaviorTreeComponent> BehaviorTreeComponent;

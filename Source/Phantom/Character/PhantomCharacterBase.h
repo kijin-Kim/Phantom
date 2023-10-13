@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GenericTeamAgentInterface.h"
 #include "GameFramework/Character.h"
 #include "Phantom/CombatInterface.h"
 #include "Phantom/HeroActionSystem/HeroActionInterface.h"
@@ -14,7 +15,7 @@ class UHeroActionComponent;
 class UHeroAction;
 
 UCLASS(Abstract)
-class PHANTOM_API APhantomCharacterBase : public ACharacter, public IHeroActionInterface
+class PHANTOM_API APhantomCharacterBase : public ACharacter, public IHeroActionInterface, public IGenericTeamAgentInterface
 {
 	GENERATED_BODY()
 
@@ -23,6 +24,9 @@ public:
 	virtual void BeginPlay() override;
 	virtual UHeroActionComponent* GetHeroActionComponent() const override;
 	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
+
+	virtual void SetGenericTeamId(const FGenericTeamId& InTeamID) override { TeamID = InTeamID; }
+	virtual FGenericTeamId GetGenericTeamId() const override { return TeamID; }
 
 private:
 	UFUNCTION()
@@ -37,4 +41,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hero Action")
 	TObjectPtr<UWidgetComponent> InteractWidget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AIPerception", meta = (AllowPrivateAccess = "true"))
+	FGenericTeamId TeamID;
 };
