@@ -13,23 +13,38 @@ void UHeroAction::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME_CONDITION(UHeroAction, HeroActionActorInfo, COND_InitialOnly);
 }
 
-bool UHeroAction::CallCanTriggerHeroAction(bool bShowDebugMessage) const
+bool UHeroAction::CallCanTriggerHeroAction(bool bShowDebugMessage)
 {
-	if (!CheckTagAndRetriggerBehavior(bShowDebugMessage))
+	if (!bObserveCanTrigger)
 	{
-		return false;
-	}
+		if (!CheckTagAndRetriggerBehavior(bShowDebugMessage))
+		{
+			return false;
+		}
 
-	bool bCanTrigger = true;
-	if (IsBlueprintFunctionImplemented(TEXT("BP_CanTriggerHeroAction")))
+		bool bCanTrigger = true;
+		if (IsBlueprintFunctionImplemented(TEXT("BP_CanTriggerHeroAction")))
+		{
+			bCanTrigger &= BP_CanTriggerHeroAction();
+		}
+		return bCanTrigger && CanTriggerHeroAction(bShowDebugMessage);
+	}
+	else
 	{
-		bCanTrigger &= BP_CanTriggerHeroAction();
-	}
+		bool bCanTrigger = true;
+		bCanTrigger &= CheckTagAndRetriggerBehavior(bShowDebugMessage);
+		if (IsBlueprintFunctionImplemented(TEXT("BP_CanTriggerHeroAction")))
+		{
+			bCanTrigger &= BP_CanTriggerHeroAction();
+		}
 
-	return bCanTrigger && CanTriggerHeroAction(bShowDebugMessage);
+		bCanTrigger &= CanTriggerHeroAction(bShowDebugMessage);
+		OnObserveCanTrigger(bCanTrigger);
+		return bCanTrigger;
+	}
 }
 
-bool UHeroAction::CallCanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage) const
+bool UHeroAction::CallCanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage)
 {
 	if (HeroActionEventTriggerBehavior == EHeroActionEventTriggerCheckBehavior::Default)
 	{
@@ -55,12 +70,12 @@ bool UHeroAction::CallCanTriggerHeroActionFromEvent(const FHeroActionEventData& 
 	return false;
 }
 
-bool UHeroAction::CanTriggerHeroAction(bool bShowDebugMessage) const
+bool UHeroAction::CanTriggerHeroAction(bool bShowDebugMessage)
 {
 	return true;
 }
 
-bool UHeroAction::CanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage) const
+bool UHeroAction::CanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage)
 {
 	return true;
 }
@@ -102,6 +117,10 @@ void UHeroAction::EndHeroAction()
 		OnHeroActionEnd.Broadcast();
 		OnHeroActionEnd.Clear();
 	}
+}
+
+void UHeroAction::OnObserveCanTrigger_Implementation(bool bCanTriggerSucceed)
+{
 }
 
 void UHeroAction::InitHeroAction(const FHeroActionActorInfo& InHeroActionActorInfo)

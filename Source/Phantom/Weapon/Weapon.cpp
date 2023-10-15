@@ -93,15 +93,9 @@ void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponen
 		{
 			FHeroActionEventData EventData;
 			EventData.EventInstigator = GetOwner();
-			EventData.EventHitResult = HitResult;
 			
 			AlreadyHitActors.AddUnique(HitResult.GetActor());
-			
-			APhantomCharacterBase* OwnerChracter = GetOwner<APhantomCharacterBase>();
-			if(OwnerChracter->HasAuthority())
-			{
-				HeroActionComponent->DispatchHeroActionEvent(PhantomGameplayTags::Event_HeroAction_Trigger_HitReact, EventData);
-			}
+			HeroActionComponent->DispatchHeroActionEvent(PhantomGameplayTags::Event_HeroAction_Trigger_HitReact, EventData);
 		}
 	}
 }

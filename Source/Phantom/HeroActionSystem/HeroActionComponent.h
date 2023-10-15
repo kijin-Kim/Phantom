@@ -137,11 +137,11 @@ protected:
 	void AcceptHeroActionPrediction(UHeroAction* HeroAction);
 	void DeclineHeroActionPrediction(UHeroAction* HeroAction);
 
-	void CallServerTryTriggerHeroAction(UHeroAction* HeroAction, float Time, bool bTriggeredFromEvent, const FHeroActionEventData& EventData);
+	void CallServerTryTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData);
 	UFUNCTION(Server, Reliable)
-	void ServerTryTriggerHeroAction(UHeroAction* HeroAction, float Time);
+	void ServerTryTriggerHeroAction(UHeroAction* HeroAction);
 	UFUNCTION(Server, Reliable)
-	void ServerTryTriggerHeroActionFromEvent(UHeroAction* HeroAction, float Time, const FHeroActionEventData& EventData);
+	void ServerTryTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData);
 
 	void CallClientTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData);
 	UFUNCTION(Client, Reliable)
@@ -168,19 +168,15 @@ private:
 	float PlayAnimMontageLocal(UAnimMontage* AnimMontage, FName StartSection = NAME_None, float PlayRate = 1.0f, float StartTime = 0.0f);
 	// Authority에서 Simulated Proxy에 Replicate할 정보를 Update합니다. 
 	void AuthUpdateReplicatedAnimMontage();
-	void AuthTakeHeroActionSnapshots();
-	bool TryTriggerHeroActionWithLagCompensation(UHeroAction* HeroAction, float Time);
 
 	void BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded);
 
 protected:
+	UPROPERTY(Replicated)
 	FHeroActionActorInfo HeroActionActorInfo;
 	UPROPERTY(ReplicatedUsing=OnRep_AvailableHeroActions)
 	TArray<TObjectPtr<UHeroAction>> AvailableHeroActions;
 	FGameplayTagContainer OwningTags;
-
-	// Lag Compensation Data. HeroAction이 Trigger가능한지 여부를 저장
-	TMap<TObjectPtr<UHeroAction>, TDeque<FHeroActionSnapshot>> HeroActionSnapshots;
 	float MaxRecordDuration = 4.0f;
 
 	UPROPERTY(Transient, Replicated)
@@ -194,8 +190,6 @@ private:
 	TMap<FGameplayTag, FOnHeroActionEventSignature> OnHeroActionEventDelegates;
 
 	TMap<FGameplayTag, TArray<TObjectPtr<UHeroAction>>> TriggerEventHeroActions;
-
-	TMap<TObjectPtr<UHeroAction>, FHeroActionCanTriggerEvent> ObservingCanTriggerHeroActions;
 
 	// HeroAction이 Authority에 의해 Confirmed되었을 때, 호출되는 Delegates
 	TMap<TObjectPtr<UHeroAction>, FOnHeroActionConfirmedSignature> OnHeroActionConfirmedDelegates;

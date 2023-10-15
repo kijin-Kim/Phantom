@@ -13,6 +13,7 @@
 #include "Phantom/NPC/PhantomNonPlayerCharacter.h"
 #include "Engine/Canvas.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Phantom/Phantom.h"
 #include "Phantom/Weapon/Weapon.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 
@@ -55,7 +56,7 @@ APhantomCharacter::APhantomCharacter()
 	InteractSphere->SetupAttachment(RootComponent);
 
 	MotionWarping = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
-	
+
 	Tags.Add(PHANTOM_PLAYER_NAME_TAG);
 	TeamID = PHANTOM_GENERIC_TEAM_ID_PLAYER;
 }
@@ -101,7 +102,7 @@ void APhantomCharacter::Restart()
 void APhantomCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	if (HasAuthority() && DefaultWeaponClass)
 	{
 		FActorSpawnParameters ActorSpawnParameters;
@@ -186,7 +187,7 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 		CurrentTargetedEnemy = nullptr;
 		return;
 	}
-
+	
 	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Targeting"));
 	const bool bDebugTargeting = CVar && CVar->GetValueOnGameThread();
 
@@ -226,7 +227,8 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 
 	if (!NewTargetedCandidate && CurrentTargetedEnemy.IsValid())
 	{
-		APhantomNonPlayerCharacter* CapsuleHitActor = Cast<APhantomNonPlayerCharacter>(GetCapsuleHitActor(CurrentTargetedEnemy->GetActorLocation(), bDebugTargeting));
+		APhantomNonPlayerCharacter* CapsuleHitActor = Cast<APhantomNonPlayerCharacter>(
+			GetCapsuleHitActor(GetActorLocation(), CurrentTargetedEnemy->GetActorLocation(), bDebugTargeting));
 		if (!CapsuleHitActor || CapsuleHitActor != CurrentTargetedEnemy)
 		{
 			CurrentTargetedEnemy = nullptr;
@@ -236,13 +238,15 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 
 	if (NewTargetedCandidate)
 	{
-		const APhantomNonPlayerCharacter* CapsuleHitActor = Cast<APhantomNonPlayerCharacter>(GetCapsuleHitActor(NewTargetedCandidate->GetActorLocation(), bDebugTargeting));
+		FVector CapsuleStartLocation = GetActorLocation();
+		CapsuleStartLocation += (DotRight * GetCapsuleComponent()->GetScaledCapsuleRadius() * 2.0f);
+		const APhantomNonPlayerCharacter* CapsuleHitActor = Cast<APhantomNonPlayerCharacter>(
+			GetCapsuleHitActor(CapsuleStartLocation, NewTargetedCandidate->GetActorLocation(), bDebugTargeting));
 		if (CapsuleHitActor && CapsuleHitActor == NewTargetedCandidate)
 		{
 			CurrentTargetedEnemy = NewTargetedCandidate;
 		}
 	}
-
 
 	if (bDebugTargeting)
 	{
@@ -271,7 +275,6 @@ void APhantomCharacter::OnInteractSphereBeginOverlap(UPrimitiveComponent* Overla
 	{
 		EnemiesInCombatRange.AddUnique(NewEnemy);
 	}
-	
 }
 
 void APhantomCharacter::OnInteractSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
@@ -287,10 +290,9 @@ void APhantomCharacter::OnInteractSphereEndOverlap(UPrimitiveComponent* Overlapp
 	{
 		EnemiesInCombatRange.Remove(LeftEnemy);
 	}
-	
 }
 
-AActor* APhantomCharacter::GetCapsuleHitActor(const FVector& TargetLocation, bool bShowDebug)
+AActor* APhantomCharacter::GetCapsuleHitActor(const FVector& StartLocation, const FVector& TargetLocation, bool bShowDebug)
 {
 	const TArray<AActor*> ActorsToIgnore;
 	FHitResult HitResult;
@@ -300,7 +302,7 @@ AActor* APhantomCharacter::GetCapsuleHitActor(const FVector& TargetLocation, boo
 	const EDrawDebugTrace::Type DebugType = bShowDebug ? EDrawDebugTrace::ForOneFrame : EDrawDebugTrace::None;
 	UKismetSystemLibrary::CapsuleTraceSingle(
 		this,
-		GetActorLocation(),
+		StartLocation,
 		TargetLocation,
 		CapsuleRadius,
 		CapsuleHalfHeight,
@@ -320,7 +322,7 @@ void APhantomCharacter::OnRep_Health()
 
 void APhantomCharacter::OnHealthChanged()
 {
-	if(OnPhantomCharacterHealthChanged.IsBound())
+	if (OnPhantomCharacterHealthChanged.IsBound())
 	{
 		OnPhantomCharacterHealthChanged.Broadcast(Health, MaxHealth);
 	}

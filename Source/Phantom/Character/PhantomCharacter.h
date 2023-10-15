@@ -92,7 +92,7 @@ private:
 	UFUNCTION()
 	void OnInteractSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	AActor* GetCapsuleHitActor(const FVector& TargetLocation, bool bShowDebug);
+	AActor* GetCapsuleHitActor(const FVector& StartLocation, const FVector& TargetLocation, bool bShowDebug);
 
 	UFUNCTION()
 	void OnRep_Health();
@@ -134,6 +134,8 @@ private:
 	// 현재 타겟팅된 Enemy
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	TWeakObjectPtr<APhantomNonPlayerCharacter> CurrentTargetedEnemy;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	float MaxTargetingHeightDiff;
 	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
 	TArray<TWeakObjectPtr<APhantomNonPlayerCharacter>> EnemiesInCombatRange;
 

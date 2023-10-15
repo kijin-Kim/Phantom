@@ -5,11 +5,6 @@
 #include "HeroActionComponent.h"
 #include "GameFramework/PlayerController.h"
 
-bool FHeroActionCanTriggerEvent::IsValid() const
-{
-	return OnSucceed.IsValid() && OnFailed.IsValid();
-}
-
 bool FHeroActionActorInfo::IsInitialized() const
 {
 	return bIsInitialized;

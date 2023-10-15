@@ -24,8 +24,10 @@ namespace PhantomGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG(HeroAction_Stealth, "HeroAction.Stealth");
 	
 	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_Run, "Event.HeroAction.Trigger.Run");
+	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_Attack, "Event.HeroAction.Trigger.Attack");
 	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_AttackEventHandler, "Event.HeroAction.Trigger.AttackEventHandler");
 	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_HitReact, "Event.HeroAction.Trigger.HitReact");
+	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_Ambush, "Event.HeroAction.Trigger.Ambush");
 	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Trigger_Ambushed, "Event.HeroAction.Trigger.Ambushed");
 	UE_DEFINE_GAMEPLAY_TAG(Event_HeroAction_Dodge, "Event.HeroAction.Dodge");
 

@@ -8,6 +8,7 @@
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 #include "Phantom/UI/Controller/InteractWidgetController.h"
 #include "Phantom/UI/HUD/PhantomHUD.h"
+#include "Phantom/UI/Widget/PhantomInteractWidget.h"
 #include "Phantom/UI/Widget/PhantomUserWidget.h"
 
 // Sets default values
@@ -75,10 +76,11 @@ void APhantomCharacterBase::OnInteractWidgetControllerCreated(APawn* Pawn)
 	{
 		return;
 	}
-
-	UInteractWidgetController* InteractWidgetController = PhantomHUD->GetInteractWidgetController();
-	if (UPhantomUserWidget* PhantomUserWidget = Cast<UPhantomUserWidget>(InteractWidget->GetUserWidgetObject()))
+	
+	if (UPhantomInteractWidget* PhantomInteractWidget = Cast<UPhantomInteractWidget>(InteractWidget->GetUserWidgetObject()))
 	{
-		PhantomUserWidget->InitializeWidget(InteractWidgetController);
+		UInteractWidgetController* InteractWidgetController = PhantomHUD->GetInteractWidgetController();
+		PhantomInteractWidget->InitializeWidget(InteractWidgetController);
+		PhantomInteractWidget->SetInteractTargetActor(this);
 	}
 }

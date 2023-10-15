@@ -16,17 +16,17 @@ void UInteractWidgetController::InitializeWidgetController(APlayerController* In
 		{
 			if (WeakThis.IsValid() && WeakThis->OnCanTriggerAmbush.IsBound())
 			{
-				WeakThis->OnCanTriggerAmbush.Broadcast(true);
+				WeakThis->OnCanTriggerAmbush.Broadcast(Data, true);
 			}
 		});
-
+	
 	FOnHeroActionEventSignature& OnCanTriggerAmbushFailed = HeroActionComponent->GetOnHeroActionEventDelegate(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Failed);
 	FailedHandle = OnCanTriggerAmbushFailed.AddLambda(
 		[WeakThis =TWeakObjectPtr<UInteractWidgetController>(this)](const FHeroActionEventData& Data)
 		{
 			if (WeakThis.IsValid() && WeakThis->OnCanTriggerAmbush.IsBound())
 			{
-				WeakThis->OnCanTriggerAmbush.Broadcast(false);
+				WeakThis->OnCanTriggerAmbush.Broadcast(Data, false);
 			}
 		});
 }

@@ -37,6 +37,7 @@ void UHeroActionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UHeroActionComponent, AvailableHeroActions);
+	DOREPLIFETIME(UHeroActionComponent, HeroActionActorInfo);
 	DOREPLIFETIME_CONDITION(UHeroActionComponent, ReplicatedAnimMontageData, COND_SimulatedOnly);
 	DOREPLIFETIME_CONDITION(UHeroActionComponent, HeroActionNetID, COND_InitialOnly);
 }
@@ -62,15 +63,14 @@ void UHeroActionComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 	if (HeroActionActorInfo.IsOwnerHasAuthority())
 	{
 		AuthUpdateReplicatedAnimMontage();
-		AuthTakeHeroActionSnapshots();
 	}
 
-	for (const auto& [HeroAction, TriggerEvent] : ObservingCanTriggerHeroActions)
+	for (UHeroAction* HeroAction : AvailableHeroActions)
 	{
-		FHeroActionEventData Data;
-		Data.EventInstigator = GetOwner();
-		const FGameplayTag EventToTrigger = CanTriggerHeroAction(HeroAction, false) ? TriggerEvent.OnSucceed : TriggerEvent.OnFailed;
-		DispatchHeroActionEvent(EventToTrigger, Data);
+		if (HeroAction->ShouldObserverCanTrigger())
+		{
+			CanTriggerHeroAction(HeroAction, false);
+		}
 	}
 }
 
@@ -431,13 +431,6 @@ FOnHeroActionNetDataArrivedSignature& UHeroActionComponent::GetOnHeroActionNetDa
 bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData)
 {
 	check(HeroAction)
-
-	// TODO
-	// APhantomPlayerController* PC = Cast<APhantomPlayerController>(HeroActionActorInfo.PlayerController.Get());
-	// const float ServerTime = PC->GetServerTime();
-	const float ServerTime = 0.0f;
-
-
 	const bool bHasAuthority = HeroActionActorInfo.IsOwnerHasAuthority();
 	const bool bIsLocal = HeroActionActorInfo.IsSourceLocallyControlled();
 	const EHeroActionNetBehavior NetBehavior = HeroAction->GetHeroActionNetBehavior();
@@ -463,7 +456,7 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction,
 		const bool bCanTriggerLocal = CallCanTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 		if (bCanTriggerLocal)
 		{
-			CallServerTryTriggerHeroAction(HeroAction, ServerTime, bTriggeredFromEvent, EventData);
+			CallServerTryTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 		}
 		return bCanTriggerLocal;
 	}
@@ -483,13 +476,14 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction,
 					CharacterMovementComponent->FlushServerMoves();
 				}
 			}
-			CallServerTryTriggerHeroAction(HeroAction, ServerTime, bTriggeredFromEvent, EventData);
+			CallServerTryTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 			CallLocalTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 		}
 		return bCanTriggerLocal;
 	}
 
-	if (NetBehavior == EHeroActionNetBehavior::LocalOnly
+	if (NetBehavior == EHeroActionNetBehavior::None
+		|| NetBehavior == EHeroActionNetBehavior::LocalOnly
 		|| NetBehavior == EHeroActionNetBehavior::ServerOnly
 		|| (bHasAuthority && NetBehavior == EHeroActionNetBehavior::LocalPredicted))
 	{
@@ -572,19 +566,19 @@ void UHeroActionComponent::DeclineHeroActionPrediction(UHeroAction* HeroAction)
 	}
 }
 
-void UHeroActionComponent::CallServerTryTriggerHeroAction(UHeroAction* HeroAction, float Time, bool bTriggeredFromEvent, const FHeroActionEventData& EventData)
+void UHeroActionComponent::CallServerTryTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData)
 {
 	if (bTriggeredFromEvent)
 	{
-		ServerTryTriggerHeroActionFromEvent(HeroAction, Time, EventData);
+		ServerTryTriggerHeroActionFromEvent(HeroAction, EventData);
 	}
 	else
 	{
-		ServerTryTriggerHeroAction(HeroAction, Time);
+		ServerTryTriggerHeroAction(HeroAction);
 	}
 }
 
-void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction* HeroAction, float Time)
+void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction* HeroAction)
 {
 	if (!ensure(HeroAction))
 	{
@@ -592,7 +586,7 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 	}
 
 	const EHeroActionNetBehavior HeroActionNetBehavior = HeroAction->GetHeroActionNetBehavior();
-	if (CanTriggerHeroAction(HeroAction))
+	if (const bool bCanTrigger = CanTriggerHeroAction(HeroAction))
 	{
 		if (HeroActionNetBehavior == EHeroActionNetBehavior::LocalPredicted)
 		{
@@ -604,13 +598,13 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 		}
 		TriggerHeroAction(HeroAction);
 	}
-	else
+	else if (HeroActionNetBehavior == EHeroActionNetBehavior::LocalPredicted)
 	{
 		ClientNotifyPredictionDeclined(HeroAction);
 	}
 }
 
-void UHeroActionComponent::ServerTryTriggerHeroActionFromEvent_Implementation(UHeroAction* HeroAction, float Time, const FHeroActionEventData& EventData)
+void UHeroActionComponent::ServerTryTriggerHeroActionFromEvent_Implementation(UHeroAction* HeroAction, const FHeroActionEventData& EventData)
 {
 	if (!ensure(HeroAction))
 	{
@@ -618,7 +612,7 @@ void UHeroActionComponent::ServerTryTriggerHeroActionFromEvent_Implementation(UH
 	}
 
 	const EHeroActionNetBehavior HeroActionNetBehavior = HeroAction->GetHeroActionNetBehavior();
-	if (CanTriggerHeroActionFromEvent(HeroAction, EventData))
+	if (const bool bCanTrigger = CanTriggerHeroAction(HeroAction))
 	{
 		if (HeroActionNetBehavior == EHeroActionNetBehavior::LocalPredicted)
 		{
@@ -630,7 +624,7 @@ void UHeroActionComponent::ServerTryTriggerHeroActionFromEvent_Implementation(UH
 		}
 		TriggerHeroActionFromEvent(HeroAction, EventData);
 	}
-	else
+	else if (HeroActionNetBehavior == EHeroActionNetBehavior::LocalPredicted)
 	{
 		ClientNotifyPredictionDeclined(HeroAction);
 	}
@@ -685,12 +679,6 @@ void UHeroActionComponent::OnHeroActionAdded(UHeroAction* Action)
 	for (FGameplayTag Tag : TriggerEventTags)
 	{
 		TriggerEventHeroActions.FindOrAdd(Tag).AddUnique(Action);
-	}
-
-	const FHeroActionCanTriggerEvent& CanTriggerEvent = Action->GetCanTriggerEvent();
-	if (Action->ShouldObserverCanTrigger() && CanTriggerEvent.IsValid())
-	{
-		ensure(ObservingCanTriggerHeroActions.Add(Action, CanTriggerEvent).IsValid());
 	}
 }
 
@@ -793,88 +781,6 @@ void UHeroActionComponent::AuthUpdateReplicatedAnimMontage()
 		ReplicatedAnimMontageData.Position = AnimInstance->Montage_GetPosition(ReplicatedAnimMontageData.AnimMontage);
 		ReplicatedAnimMontageData.bIsStopped = AnimInstance->Montage_GetIsStopped(ReplicatedAnimMontageData.AnimMontage);
 	}
-}
-
-void UHeroActionComponent::AuthTakeHeroActionSnapshots()
-{
-	const float CurrentTime = GetWorld()->GetTimeSeconds();
-	for (UHeroAction* HeroAction : AvailableHeroActions)
-	{
-		const bool bCanTrigger = CanTriggerHeroAction(HeroAction, false);
-		TDeque<FHeroActionSnapshot>& Snapshots = HeroActionSnapshots.FindOrAdd(HeroAction);
-		if (Snapshots.Num() <= 1)
-		{
-			Snapshots.PushFirst({CurrentTime, bCanTrigger});
-		}
-		else
-		{
-			float CurrentDuration = Snapshots.First().Time - Snapshots.Last().Time;
-			while (CurrentDuration > MaxRecordDuration)
-			{
-				Snapshots.PopLast();
-				CurrentDuration = Snapshots.First().Time - Snapshots.Last().Time;
-			}
-			Snapshots.PushFirst({CurrentTime, bCanTrigger});
-		}
-	}
-}
-
-bool UHeroActionComponent::TryTriggerHeroActionWithLagCompensation(UHeroAction* HeroAction, float Time)
-{
-	// APhantomPlayerController* PC = Cast<APhantomPlayerController>(HeroActionActorInfo.PlayerController.Get());
-	// const float AvgSingleTripTime = PC->GetAverageSingleTripTime();
-	// const float RequestedTime = Time + AvgSingleTripTime;
-	// // 처음 애니메이션을 받을때 걸린시간을 얼만데
-	// // 그 시간차이가 바로 서버와 클라 사이의 애니메이션 간극이야
-	// // 지금 시간부터 노티파이 까지의 시간이 이 간극보다 작다면
-	// // 가능인거야
-	// // 또는 서버 캐치업 애니메이션 어떤
-	//
-	//
-	// UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance();
-	// UAnimMontage* CurrentMontage = HeroActionActorInfo.GetAnimInstance()->GetCurrentActiveMontage();
-	// if (CurrentMontage)
-	// {
-	// 	float Position = AnimInstance->Montage_GetPosition(CurrentMontage);
-	// 	FAnimNotifyContext AnimNotifyContext;
-	// 	CurrentMontage->GetAnimNotifies(Position, 1.0f, AnimNotifyContext);
-	// 	FName CurrentSection = AnimInstance->Montage_GetCurrentSection(CurrentMontage);
-	//
-	// 	for (auto& NotifiesRef : AnimNotifyContext.ActiveNotifies)
-	// 	{
-	// 		const FAnimNotifyEvent* AnimNotifyEvent = NotifiesRef.GetNotify();
-	// 		if (AnimNotifyEvent && AnimNotifyEvent->NotifyName == FName(TEXT("AN_ComboOpen_C")))
-	// 		{
-	// 			AnimNotifyEvent->Notify;
-	// 			PHANTOM_LOG(Warning, TEXT("서버클라델타: [%f], 애님노티파이델타: [%f]"), PC->GetServerTime() - Time, AnimNotifyEvent->GetTriggerTime() - Position);
-	// 		}
-	// 	}
-	// }
-	//
-	// return false;
-	//
-	// TDeque<FHeroActionSnapshot>& SnapShots = HeroActionSnapshots.FindOrAdd(HeroAction);
-	//
-	// const float OldestTime = SnapShots.Last().Time;
-	// const float NewestTime = SnapShots.First().Time;
-	// if (OldestTime > RequestedTime) // Too Late
-	// {
-	// 	PHANTOM_LOG(Warning, TEXT("Request가 너무 늦게 도착했습니다."));
-	// 	return false;
-	// }
-	//
-	// for (auto& [SnapshotTime, bCanTrigger] : SnapShots)
-	// {
-	// 	if (SnapshotTime >= RequestedTime && bCanTrigger)
-	// 	{
-	// 		PHANTOM_LOG(Warning, TEXT("Lag Compensation 성공: 현재서버시간: [%f], 요청시간: [%f], 서버보정시간: [%f]"), PC->GetServerTime(), RequestedTime, SnapshotTime);
-	// 		return true;
-	// 	}
-	// }
-	//
-	// PHANTOM_LOG(Warning, TEXT("Lag Compensation 실패: 현재서버시간: [%f],  요청시간: [%f]"), PC->GetServerTime(), RequestedTime);
-	// return false;
-	return false;
 }
 
 void UHeroActionComponent::BroadcastTagMoved(const FGameplayTag& Tag, bool bIsAdded)

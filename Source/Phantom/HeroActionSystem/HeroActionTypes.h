@@ -14,9 +14,11 @@ class AActor;
 UENUM(BlueprintType)
 enum class EHeroActionNetBehavior : uint8
 {
+	// 각자의 GameInstance에서만 실행됩니다.
+	None UMETA(DisplayName = "None"),
 	// 클라이언트에서만 실행
 	LocalOnly UMETA(DisplayName = "Local Only"),
-	// 클라이언트에서 예측해서 실행하고 서버에 의해 Verify. 실패시 Rollback
+	// 클라이언트에서 예측해서 실행하고 서버에 의해 Verify.
 	LocalPredicted UMETA(DisplayName = "Local Predicted"),
 	// 서버에서 먼저 실행되고, 실행이 가능할 시 Owning Client도 따라서 실행함.
 	ServerOriginated UMETA(DisplayName = "Server Originated"),
@@ -44,19 +46,6 @@ enum class EHeroActionEventTriggerCheckBehavior : uint8
 	// CanTriggerByEvent를 따릅니다.
 	Override UMETA(DisplayName = "Override CanTrigger"),
 	Max UMETA(hidden)
-};
-
-USTRUCT(BlueprintType)
-struct PHANTOM_API FHeroActionCanTriggerEvent
-{
-	GENERATED_BODY()
-
-	bool IsValid() const;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
-	FGameplayTag OnSucceed;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
-	FGameplayTag OnFailed;
 };
 
 USTRUCT(BlueprintType)
@@ -101,7 +90,7 @@ struct PHANTOM_API FHeroActionEventData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
 	TObjectPtr<AActor> EventInstigator;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HeroAction")
-	FHitResult EventHitResult;
+	TObjectPtr<AActor> TargetActor;
 };
 
 
@@ -126,16 +115,6 @@ private:
 	UPROPERTY()
 	int32 ID;
 };
-
-USTRUCT()
-struct FHeroActionSnapshot
-{
-	GENERATED_BODY()
-
-	float Time = 0.0f;
-	bool bCanTrigger = false;
-};
-
 
 USTRUCT(BlueprintType)
 struct FHeroActionNetData

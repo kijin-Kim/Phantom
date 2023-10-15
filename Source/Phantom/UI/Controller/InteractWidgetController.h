@@ -6,9 +6,10 @@
 #include "PhantomWidgetController.h"
 #include "InteractWidgetController.generated.h"
 
+struct FHeroActionEventData;
 class UHeroAction;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCanTriggerAmbushSignature, bool, bCanAmbush);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCanTriggerAmbushSignature, const FHeroActionEventData&, EventData, bool, bCanAmbush);
 /**
  * 
  */
@@ -22,6 +23,7 @@ public:
 public:
 	UPROPERTY(BlueprintAssignable)
 	FOnCanTriggerAmbushSignature OnCanTriggerAmbush;
+
 
 private:
 	FDelegateHandle SucceedHandle;

@@ -6,7 +6,6 @@
 #include "HeroActionJob.h"
 #include "HeroActionJob_SendActorData.generated.h"
 
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHeroActionActorDataArrivedSignature, FHeroActionNetData, Data);
 /**
  * 
@@ -36,4 +35,5 @@ private:
 	FDelegateHandle Handle;
 	TObjectPtr<AActor> Actor;
 	FHeroActionNetID NetID;
+	bool bSendToClient;
 };

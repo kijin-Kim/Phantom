@@ -30,19 +30,23 @@ public:
 	}
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	bool CallCanTriggerHeroAction(bool bShowDebugMessage = true) const;
-	bool CallCanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage = true) const;
-	virtual bool CanTriggerHeroAction(bool bShowDebugMessage) const;
-	virtual bool CanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage) const;
+	bool CallCanTriggerHeroAction(bool bShowDebugMessage = true);
+	bool CallCanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage = true);
+	virtual bool CanTriggerHeroAction(bool bShowDebugMessage);
+	virtual bool CanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData, bool bShowDebugMessage);
 	virtual void TriggerHeroAction();
 	virtual void TriggerHeroActionFromEvent(const FHeroActionEventData& EventData);
 	UFUNCTION(BlueprintCallable)
 	virtual void EndHeroAction();
 
+	UFUNCTION(BlueprintNativeEvent, Category = "Hero Action")
+	void OnObserveCanTrigger(bool bCanTriggerSucceed);
+
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Can Trigger Hero Action"))
-	bool BP_CanTriggerHeroAction() const;
+	bool BP_CanTriggerHeroAction();
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Can Trigger Hero Action From Event"))
-	bool BP_CanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData) const;
+	bool BP_CanTriggerHeroActionFromEvent(const FHeroActionEventData& EventData);
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Trigger Hero Action"))
 	void BP_TriggerHeroAction();
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hero Action", meta = (DisplayName = "Trigger Hero Action From Event"))
@@ -55,7 +59,6 @@ public:
 	const FHeroActionActorInfo& GetHeroActionActorInfo() const { return HeroActionActorInfo; }
 	const FGameplayTagContainer& GetTriggerEventTags() const { return TriggerEventTags; }
 	bool ShouldObserverCanTrigger() const { return bObserveCanTrigger; }
-	const FHeroActionCanTriggerEvent& GetCanTriggerEvent() const{  return CanTriggerEvent; }
 
 
 	// ----------------------------------------------------
@@ -129,10 +132,8 @@ protected:
 	FGameplayTagContainer ConsumeTags;
 
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameplayTag|Event|Callback", meta = (InlineEditConditionToggle))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameplayTag|Event|Callback")
 	bool bObserveCanTrigger = false;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameplayTag|Event|Callback", meta = (EditCondition = "bObserveCanTrigger"))
-	FHeroActionCanTriggerEvent CanTriggerEvent;
 
 
 private:
