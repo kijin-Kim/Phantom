@@ -73,6 +73,9 @@ public:
 
 	USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	APhantomNonPlayerCharacter* CaculateParryTarget() const;
+	FVector GetUserDesiredDirection() const;
 
 	virtual int32 GetHealth_Implementation() const override;
 	virtual int32 GetMaxHealth_Implementation() const override;
@@ -83,7 +86,7 @@ public:
 
 private:
 	// 매 프레임마다 새로 타겟팅할 후보를 계산함.
-	void CalculateNewTargetingEnemy();
+	void CalculateNewTargeted();
 	
 	
 	UFUNCTION()
@@ -113,14 +116,6 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UAnimMontage> AttackMontage;
 
-	// 블루프린트에서 설정된 Max Walk Speed를 저장해놓는 변수.
-	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
-	float MaxWalkSpeedCache;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
-	float MaxRunSpeed;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true", ClampMin="0", UIMin="0", ForceUnits="cm/s"))
-	float MaxSprintSpeed;
-
 	// 블루프린트에서 설정된 Max Walk Speed Crouched를 저장해놓는 변수.
 	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement|Crouch", meta = (AllowPrivateAccess = "true"))
 	float MaxWalkSpeedCrouchedCache;
@@ -133,14 +128,14 @@ private:
 	
 	// 현재 타겟팅된 Enemy
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	TWeakObjectPtr<APhantomNonPlayerCharacter> CurrentTargetedEnemy;
+	TWeakObjectPtr<APhantomNonPlayerCharacter> CurrentTargeted;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	float MaxTargetingHeightDiff;
 	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
-	TArray<TWeakObjectPtr<APhantomNonPlayerCharacter>> EnemiesInCombatRange;
-
-	// SphereComponent에 Overlap된 Enemy를 저장하는 변수
-	TArray<TWeakObjectPtr<AActor>> OverlappingInteractActors;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	TArray<TObjectPtr<APhantomNonPlayerCharacter>> NPCInRange;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	FVector LastUserDesiredDirection;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AWeapon> DefaultWeaponClass;
@@ -153,4 +148,6 @@ private:
 	int32 Health = 100;
 	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	int32 MaxHealth = 100;
+
+
 };

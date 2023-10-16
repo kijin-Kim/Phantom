@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "AIModule/Classes/DetourCrowdAIController.h"
 #include "PhantomAIController.generated.h"
 
 class UBehaviorTreeComponent;

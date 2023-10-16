@@ -8,8 +8,8 @@
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 #include "Phantom/UI/Controller/InteractWidgetController.h"
 #include "Phantom/UI/HUD/PhantomHUD.h"
-#include "Phantom/UI/Widget/PhantomInteractWidget.h"
 #include "Phantom/UI/Widget/PhantomUserWidget.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
 APhantomCharacterBase::APhantomCharacterBase()
@@ -23,6 +23,8 @@ APhantomCharacterBase::APhantomCharacterBase()
 void APhantomCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	MaxWalkSpeedCache = GetCharacterMovement()->MaxWalkSpeed;
 
 	const APlayerController* LocalPlayerController = UGameplayStatics::GetPlayerController(this, 0);
 	if (!LocalPlayerController)
@@ -47,6 +49,7 @@ void APhantomCharacterBase::BeginPlay()
 			PlayerPawn->ReceiveRestartedDelegate.AddDynamic(this, &APhantomCharacterBase::OnInteractWidgetControllerCreated);
 		}
 	}
+
 }
 
 UHeroActionComponent* APhantomCharacterBase::GetHeroActionComponent() const
@@ -77,10 +80,9 @@ void APhantomCharacterBase::OnInteractWidgetControllerCreated(APawn* Pawn)
 		return;
 	}
 	
-	if (UPhantomInteractWidget* PhantomInteractWidget = Cast<UPhantomInteractWidget>(InteractWidget->GetUserWidgetObject()))
+	if (UPhantomUserWidget* PhantomInteractWidget = Cast<UPhantomUserWidget>(InteractWidget->GetUserWidgetObject()))
 	{
 		UInteractWidgetController* InteractWidgetController = PhantomHUD->GetInteractWidgetController();
-		PhantomInteractWidget->InitializeWidget(InteractWidgetController);
-		PhantomInteractWidget->SetInteractTargetActor(this);
+		PhantomInteractWidget->InitializeWidget(InteractWidgetController, this);
 	}
 }

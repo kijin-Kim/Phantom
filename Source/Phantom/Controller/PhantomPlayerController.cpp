@@ -35,6 +35,7 @@ void APhantomPlayerController::ReceivedPlayer()
 	}
 	else
 	{
+	
 		if (IsLocalController())
 		{
 			FTimerHandle RequestServerTimeTimerHandle;

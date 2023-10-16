@@ -8,6 +8,14 @@
 #include "Controller/PhantomAIController.h"
 #include "Phantom/PhantomTypes.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "UMG/Public/Components/WidgetComponent.h"
+#include "Phantom/UI/HUD/PhantomHUD.h"
+#include "Phantom/UI/Controller/InteractWidgetController.h"
+#include "Kismet/GameplayStatics.h"
+#include "../UI/Widget/PhantomUserWidget.h"
+#include "Net/UnrealNetwork.h"
+#include "../PhantomGameplayTags.h"
 
 
 // Sets default values
@@ -15,12 +23,32 @@ APhantomEnemy::APhantomEnemy()
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	bReplicates = true;
 	TeamID = PHANTOM_GENERIC_TEAM_ID_ENEMY;
+
+	EnemyParryWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("EnemyParryWidgetComponent"));
+	EnemyParryWidgetComponent->SetupAttachment(RootComponent);
+}
+
+void APhantomEnemy::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(APhantomEnemy, bIsParryWindowOpened);
+	DOREPLIFETIME(APhantomEnemy, PrivateInvader);
 }
 
 void APhantomEnemy::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
+
+	HeroActionComponent->InitializeHeroActionActorInfo(this);
+	if (HasAuthority())
+	{
+		for (const TSubclassOf<UHeroAction> HeroActionClass : OriginHeroActionClasses)
+		{
+			HeroActionComponent->AuthAddHeroActionByClass(HeroActionClass);
+		}
+	}
 
 	if (!BehaviorTree)
 	{
@@ -97,10 +125,14 @@ void APhantomEnemy::GetHit(const FHitResult& HitResult, AActor* Hitter)
 				DrawDebugDirectionalArrow(GetWorld(), Location, Location + ToHitterInstigator * 100.0f, 30.0f, FColor::Green, false, 2.0f);
 				DrawDebugDirectionalArrow(GetWorld(), Location, Location + UpVector * 100.0f, 30.0f, FColor::Blue, false, 2.0f);
 			}
-
-			//PlayAnimMontage(HitMontage, 1.0f, HitMontageSectionName);
 		}
 	}
+}
+
+void APhantomEnemy::SetParryWindowOpened(bool bIsOpened)
+{
+	bIsParryWindowOpened = bIsOpened;
+	DispatchParryEventToPrivateInvader();
 }
 
 FName APhantomEnemy::GetDirectionalSectionName_Implementation(UAnimMontage* AnimMontage, float Degree) const
@@ -134,16 +166,54 @@ FName APhantomEnemy::GetDirectionalSectionName_Implementation(UAnimMontage* Anim
 	return NAME_None;
 }
 
-// Called when the game starts or when spawned
-void APhantomEnemy::BeginPlay()
+void APhantomEnemy::OnInteractWidgetControllerCreated(APawn* Pawn)
 {
-	Super::BeginPlay();
-	HeroActionComponent->InitializeHeroActionActorInfo(this);
-	if (HasAuthority())
+	Super::OnInteractWidgetControllerCreated(Pawn);
+
+	const APlayerController* LocalPlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (!LocalPlayerController)
 	{
-		for (const TSubclassOf<UHeroAction> HeroActionClass : OriginHeroActionClasses)
-		{
-			HeroActionComponent->AuthAddHeroActionByClass(HeroActionClass);
-		}
+		return;
+	}
+	const APhantomHUD* PhantomHUD = LocalPlayerController->GetHUD<APhantomHUD>();
+	if (!PhantomHUD)
+	{
+		return;
+	}
+
+	if (UPhantomUserWidget* PhantomInteractWidget = Cast<UPhantomUserWidget>(EnemyParryWidgetComponent->GetUserWidgetObject()))
+	{
+		UInteractWidgetController* InteractWidgetController = PhantomHUD->GetInteractWidgetController();
+		PhantomInteractWidget->InitializeWidget(InteractWidgetController, this);
+	}
+}
+
+void APhantomEnemy::OnRep_bIsParryWindowOpened()
+{
+	DispatchParryEventToPrivateInvader();
+}
+
+void APhantomEnemy::DispatchParryEventToPrivateInvader()
+{
+	if (!HeroActionComponent || !PrivateInvader.IsValid())
+	{
+		return;
+	}
+
+	UHeroActionComponent* HAC = PrivateInvader->GetHeroActionComponent();
+	if (!HAC)
+	{
+		return;
+	}
+
+	FHeroActionEventData Data;
+	Data.TargetActor = this;
+	if (bIsParryWindowOpened)
+	{
+		HAC->DispatchHeroActionEvent(PhantomGameplayTags::Event_HeroAction_Parry_Opened, Data);
+	}
+	else
+	{
+		HAC->DispatchHeroActionEvent(PhantomGameplayTags::Event_HeroAction_Parry_Closed, Data);
 	}
 }

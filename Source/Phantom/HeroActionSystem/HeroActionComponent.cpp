@@ -140,7 +140,7 @@ void UHeroActionComponent::AuthAddHeroActionByClass(TSubclassOf<UHeroAction> Her
 
 	if (!HeroActionActorInfo.IsOwnerHasAuthority())
 	{
-		PHANTOM_LOG(Warning, TEXT("HeroAction을 [%s]추가하는데 실패하였습니다. Authority가 없습니다."), *GetNameSafe(HeroActionClass));
+		PHANTOM_LOG(Warning, TEXT("HeroAction [%s]을추가하는데 실패하였습니다. Authority가 없습니다."), *GetNameSafe(HeroActionClass));
 		return;
 	}
 
@@ -734,7 +734,7 @@ void UHeroActionComponent::OnRep_ReplicatedAnimMontage()
 		}
 
 		// AnimMontage Position의 최대 오류 허용치
-		const float MONTAGE_POSITION_DELTA_TOLERANCE = 0.1f;
+		const float MONTAGE_POSITION_DELTA_TOLERANCE = 0.3f;
 		const float LocalMontagePosition = AnimInstance->Montage_GetPosition(LocalAnimMontageData.AnimMontage);
 		// Server와 Simulated Proxy사이의 Position의 차이가 허용치를 넘으면 Server의 값으로 갱신함.
 		if (!FMath::IsNearlyEqual(LocalMontagePosition, ReplicatedAnimMontageData.Position, MONTAGE_POSITION_DELTA_TOLERANCE))
@@ -755,7 +755,7 @@ float UHeroActionComponent::PlayAnimMontageLocal(UAnimMontage* AnimMontage, FNam
 	UAnimInstance* AnimInstance = HeroActionActorInfo.GetAnimInstance();
 	if (AnimMontage && AnimInstance)
 	{
-		float const Duration = AnimInstance->Montage_Play(AnimMontage, PlayRate);
+		float const Duration = AnimInstance->Montage_Play(AnimMontage, PlayRate, EMontagePlayReturnType::MontageLength, StartTime);
 
 		if (Duration > 0.f)
 		{

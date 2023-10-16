@@ -63,6 +63,7 @@ public:
 	bool CanTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData, bool bShowDebugMessage = true) const;
 
 	bool TryTriggerHeroAction(UHeroAction* HeroAction);
+	UFUNCTION(BlueprintCallable, Category = "HeroAction")
 	bool TryTriggerHeroActionByClass(TSubclassOf<UHeroAction> HeroActionClass);
 	bool TryTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData);
 	void EndHeroAction(UHeroAction* HeroAction);

@@ -31,7 +31,7 @@ void UHeroActionJob_PlayAnimMontageReplicates::Activate()
 	{
 		return;
 	}
-
+	
 	UHeroActionComponent* HAC = HeroActionComponent.Get();
 	if (!HAC->PlayAnimMontageReplicates(HeroAction.Get(), AnimMontage, StartSection, PlayRate, StartTime))
 	{

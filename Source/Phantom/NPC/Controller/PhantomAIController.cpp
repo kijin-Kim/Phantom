@@ -8,6 +8,7 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Phantom/PhantomTypes.h"
+#include "AIModule/Classes/Navigation/CrowdFollowingComponent.h"
 
 
 // Sets default values
@@ -18,6 +19,7 @@ APhantomAIController::APhantomAIController()
 	Blackboard = CreateDefaultSubobject<UBlackboardComponent>(TEXT("BlackboardComponent"));
 	BehaviorTreeComponent = CreateDefaultSubobject<UBehaviorTreeComponent>(TEXT("BehaviorTreeComponent"));
 	PerceptionComponent = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("Perception"));
+
 }
 
 void APhantomAIController::BeginPlay()
@@ -25,3 +27,4 @@ void APhantomAIController::BeginPlay()
 	Super::BeginPlay();
 	SetGenericTeamId(PHANTOM_GENERIC_TEAM_ID_ENEMY);
 }
+

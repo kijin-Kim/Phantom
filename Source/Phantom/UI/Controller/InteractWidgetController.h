@@ -4,12 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "PhantomWidgetController.h"
+#include "GameplayTagContainer.h"
 #include "InteractWidgetController.generated.h"
 
 struct FHeroActionEventData;
 class UHeroAction;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCanTriggerAmbushSignature, const FHeroActionEventData&, EventData, bool, bCanAmbush);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOpenCloseEventSignature, const FHeroActionEventData&, EventData, bool, bIsOpened);
 /**
  * 
  */
@@ -22,10 +23,13 @@ public:
 	virtual void BeginDestroy() override;
 public:
 	UPROPERTY(BlueprintAssignable)
-	FOnCanTriggerAmbushSignature OnCanTriggerAmbush;
-
+	FOnOpenCloseEventSignature OnCanTriggerAmbush;
+	UPROPERTY(BlueprintAssignable)
+	FOnOpenCloseEventSignature OnParryWindowNotified;
 
 private:
-	FDelegateHandle SucceedHandle;
-	FDelegateHandle FailedHandle;
+	void BindOpenCloseEvent(FGameplayTag Tag, FOnOpenCloseEventSignature& Delegate, bool bIsOpened);
+
+private:
+	TMap<FGameplayTag, FDelegateHandle> DelegateHandles;
 };

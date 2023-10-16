@@ -28,9 +28,9 @@ public:
 	virtual void SetGenericTeamId(const FGenericTeamId& InTeamID) override { TeamID = InTeamID; }
 	virtual FGenericTeamId GetGenericTeamId() const override { return TeamID; }
 
-private:
+protected:
 	UFUNCTION()
-	void OnInteractWidgetControllerCreated(APawn* Pawn);
+	virtual void OnInteractWidgetControllerCreated(APawn* Pawn);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hero Action")
@@ -44,4 +44,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AIPerception", meta = (AllowPrivateAccess = "true"))
 	FGenericTeamId TeamID;
+
+protected:
+	UPROPERTY(Transient, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
+	float MaxWalkSpeedCache;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true", ClampMin = "0", UIMin = "0", ForceUnits = "cm/s"))
+	float MaxRunSpeed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true", ClampMin = "0", UIMin = "0", ForceUnits = "cm/s"))
+	float MaxSprintSpeed;
 };

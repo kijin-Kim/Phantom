@@ -25,3 +25,8 @@ static TAutoConsoleVariable<bool> CVarPhantomHitDebug(
 	TEXT("Hit 관련 정보 출력"),
 	ECVF_Cheat);
 
+static TAutoConsoleVariable<bool> CVarPhantomAIDebug(
+	TEXT("Phantom.Debug.AI"),
+	false,
+	TEXT("AI 관련 정보 출력"),
+	ECVF_Cheat);

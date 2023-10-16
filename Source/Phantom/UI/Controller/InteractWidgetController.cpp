@@ -2,7 +2,6 @@
 
 
 #include "InteractWidgetController.h"
-
 #include "EnhancedInputSubsystems.h"
 #include "Phantom/PhantomGameplayTags.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
@@ -10,25 +9,11 @@
 void UInteractWidgetController::InitializeWidgetController(APlayerController* InPlayerController)
 {
 	Super::InitializeWidgetController(InPlayerController);
-	FOnHeroActionEventSignature& OnCanTriggerAmbushSucceed = HeroActionComponent->GetOnHeroActionEventDelegate(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Succeed);
-	SucceedHandle = OnCanTriggerAmbushSucceed.AddLambda(
-		[WeakThis =TWeakObjectPtr<UInteractWidgetController>(this)](const FHeroActionEventData& Data)
-		{
-			if (WeakThis.IsValid() && WeakThis->OnCanTriggerAmbush.IsBound())
-			{
-				WeakThis->OnCanTriggerAmbush.Broadcast(Data, true);
-			}
-		});
-	
-	FOnHeroActionEventSignature& OnCanTriggerAmbushFailed = HeroActionComponent->GetOnHeroActionEventDelegate(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Failed);
-	FailedHandle = OnCanTriggerAmbushFailed.AddLambda(
-		[WeakThis =TWeakObjectPtr<UInteractWidgetController>(this)](const FHeroActionEventData& Data)
-		{
-			if (WeakThis.IsValid() && WeakThis->OnCanTriggerAmbush.IsBound())
-			{
-				WeakThis->OnCanTriggerAmbush.Broadcast(Data, false);
-			}
-		});
+
+	BindOpenCloseEvent(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Succeed, OnCanTriggerAmbush, true);
+	BindOpenCloseEvent(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Failed, OnCanTriggerAmbush, false);
+	BindOpenCloseEvent(PhantomGameplayTags::Event_HeroAction_Parry_Opened, OnParryWindowNotified, true);
+	BindOpenCloseEvent(PhantomGameplayTags::Event_HeroAction_Parry_Closed, OnParryWindowNotified, false);
 }
 
 void UInteractWidgetController::BeginDestroy()
@@ -40,15 +25,24 @@ void UInteractWidgetController::BeginDestroy()
 		return;
 	}
 
-	FOnHeroActionEventSignature& OnCanTriggerAmbushSucceed = HeroActionComponent->GetOnHeroActionEventDelegate(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Succeed);
-	if (OnCanTriggerAmbushSucceed.IsBound())
-	{
-		OnCanTriggerAmbushSucceed.Remove(SucceedHandle);
-	}
 
-	FOnHeroActionEventSignature& OnCanTriggerAmbushFailed = HeroActionComponent->GetOnHeroActionEventDelegate(PhantomGameplayTags::Event_HeroAction_CanTrigger_Ambush_Failed);
-	if (OnCanTriggerAmbushFailed.IsBound())
+	for (auto& [Tag, Handle] : DelegateHandles)
 	{
-		OnCanTriggerAmbushFailed.Remove(FailedHandle);
+		FOnHeroActionEventSignature& Delegate = HeroActionComponent->GetOnHeroActionEventDelegate(Tag);
+		Delegate.Remove(Handle);
 	}
+}
+
+void UInteractWidgetController::BindOpenCloseEvent(FGameplayTag Tag, FOnOpenCloseEventSignature& Delegate, bool bIsOpend)
+{
+	FOnHeroActionEventSignature& OnHeroActionEvent = HeroActionComponent->GetOnHeroActionEventDelegate(Tag);
+	FDelegateHandle Handle = OnHeroActionEvent.AddLambda(
+		[&Delegate, bIsOpend](const FHeroActionEventData& Data)
+		{
+			if (Delegate.IsBound())
+			{
+				Delegate.Broadcast(Data, bIsOpend);
+			}
+		});
+	DelegateHandles.Add(Tag, Handle);
 }

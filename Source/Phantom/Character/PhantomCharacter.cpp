@@ -16,6 +16,8 @@
 #include "Phantom/Phantom.h"
 #include "Phantom/Weapon/Weapon.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
+#include "Phantom/PhantomGameplayTags.h"
+#include "../NPC/PhantomEnemy.h"
 
 
 APhantomCharacter::APhantomCharacter()
@@ -118,8 +120,9 @@ void APhantomCharacter::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	if (IsLocallyControlled())
 	{
-		CalculateNewTargetingEnemy();
+		CalculateNewTargeted();
 	}
+
 }
 
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
@@ -153,6 +156,39 @@ void APhantomCharacter::Look(const FInputActionValue& Value)
 	}
 }
 
+APhantomNonPlayerCharacter* APhantomCharacter::CaculateParryTarget() const
+{
+	float MaxDot = 0.0f;
+	FVector UserDesiredDirection = GetUserDesiredDirection();
+	APhantomNonPlayerCharacter* ParryTarget = nullptr;
+	for (APhantomNonPlayerCharacter* NPC : NPCInRange)
+	{
+		APhantomEnemy* Enemy = Cast<APhantomEnemy>(NPC);
+		if (!Enemy || !Enemy->IsParryWindowOpened())
+		{
+			continue;
+		}
+
+		FVector PhantomToEnemy = (Enemy->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+		float DotResult = UserDesiredDirection.Dot(PhantomToEnemy);
+		if (DotResult > MaxDot)
+		{
+			MaxDot = DotResult;
+			ParryTarget = NPC;
+		}
+	}
+
+	return ParryTarget;
+}
+
+FVector APhantomCharacter::GetUserDesiredDirection() const
+{
+	const FVector LastInputVector = GetCharacterMovement()->GetLastInputVector();
+	// 플레이어의 입력이 있으면 입력을 반영합니다.
+	FVector ProjectedCameraForward = { FollowCamera->GetForwardVector().X, FollowCamera->GetForwardVector().Y, 0.0f };
+	return LastInputVector.IsNearlyZero() ? ProjectedCameraForward.GetSafeNormal() : LastInputVector;
+}
+
 void APhantomCharacter::Move(const FInputActionValue& Value)
 {
 	const FVector2D MovementVector = Value.Get<FVector2D>();
@@ -180,23 +216,20 @@ int32 APhantomCharacter::GetMaxHealth_Implementation() const
 	return MaxHealth;
 }
 
-void APhantomCharacter::CalculateNewTargetingEnemy()
+void APhantomCharacter::CalculateNewTargeted()
 {
-	if (EnemiesInCombatRange.IsEmpty())
+	if (NPCInRange.IsEmpty())
 	{
-		CurrentTargetedEnemy = nullptr;
+		CurrentTargeted = nullptr;
 		return;
 	}
-	
+
 	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Targeting"));
 	const bool bDebugTargeting = CVar && CVar->GetValueOnGameThread();
 
 	float MaxDot = 0.0f;
 	APhantomNonPlayerCharacter* NewTargetedCandidate = nullptr;
-	const FVector LastInputVector = GetCharacterMovement()->GetLastInputVector();
-	// 플레이어의 입력이 있으면 입력을 새로 타겟팅할 Enemy를 뽑는데 반영합니다
-	const FVector ProjectedCameraForward = {FollowCamera->GetForwardVector().X, FollowCamera->GetForwardVector().Y, 0.0f};
-	const FVector DotRight = LastInputVector.IsNearlyZero() ? ProjectedCameraForward : LastInputVector;
+	const FVector DotRight = GetUserDesiredDirection();
 
 	if (bDebugTargeting)
 	{
@@ -204,34 +237,34 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 	}
 
 	// 새로운 타겟팅 후보를 찾는다.
-	for (TWeakObjectPtr<APhantomNonPlayerCharacter> Enemy : EnemiesInCombatRange)
+	for (TWeakObjectPtr<APhantomNonPlayerCharacter> Candidate : NPCInRange)
 	{
-		if (!Enemy.IsValid())
+		if (!Candidate.IsValid())
 		{
 			continue;
 		}
 
-		FVector PhantomToEnemy = (Enemy->GetActorLocation() - GetActorLocation()).GetSafeNormal();
-		const float DotResult = FVector::DotProduct(PhantomToEnemy, DotRight);
+		FVector PhantomToCandidate = (Candidate->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+		const float DotResult = FVector::DotProduct(PhantomToCandidate, DotRight);
 		if (MaxDot < DotResult)
 		{
 			MaxDot = DotResult;
-			NewTargetedCandidate = Enemy.Get();
+			NewTargetedCandidate = Candidate.Get();
 		}
 
 		if (bDebugTargeting)
 		{
-			DrawDebugString(GetWorld(), FVector::ZeroVector, FString::Printf(TEXT("%f"), DotResult), Enemy.Get(), FColor::White, 0.0f, true);
+			DrawDebugString(GetWorld(), FVector::ZeroVector, FString::Printf(TEXT("%f"), DotResult), Candidate.Get(), FColor::White, 0.0f, true);
 		}
 	}
 
-	if (!NewTargetedCandidate && CurrentTargetedEnemy.IsValid())
+	if (!NewTargetedCandidate && CurrentTargeted.IsValid())
 	{
 		APhantomNonPlayerCharacter* CapsuleHitActor = Cast<APhantomNonPlayerCharacter>(
-			GetCapsuleHitActor(GetActorLocation(), CurrentTargetedEnemy->GetActorLocation(), bDebugTargeting));
-		if (!CapsuleHitActor || CapsuleHitActor != CurrentTargetedEnemy)
+			GetCapsuleHitActor(GetActorLocation(), CurrentTargeted->GetActorLocation(), bDebugTargeting));
+		if (!CapsuleHitActor || CapsuleHitActor != CurrentTargeted)
 		{
-			CurrentTargetedEnemy = nullptr;
+			CurrentTargeted = nullptr;
 		}
 		return;
 	}
@@ -244,27 +277,27 @@ void APhantomCharacter::CalculateNewTargetingEnemy()
 			GetCapsuleHitActor(CapsuleStartLocation, NewTargetedCandidate->GetActorLocation(), bDebugTargeting));
 		if (CapsuleHitActor && CapsuleHitActor == NewTargetedCandidate)
 		{
-			CurrentTargetedEnemy = NewTargetedCandidate;
+			CurrentTargeted = NewTargetedCandidate;
 		}
 	}
 
 	if (bDebugTargeting)
 	{
-		if (NewTargetedCandidate && NewTargetedCandidate != CurrentTargetedEnemy)
+		if (NewTargetedCandidate && NewTargetedCandidate != CurrentTargeted)
 		{
 			DrawDebugSphere(GetWorld(), NewTargetedCandidate->GetActorLocation(), 100.0f, 12, FColor::Blue, 0.0f, 0.0f);
 		}
 
-		if (CurrentTargetedEnemy.IsValid())
+		if (CurrentTargeted.IsValid())
 		{
-			DrawDebugSphere(GetWorld(), CurrentTargetedEnemy->GetActorLocation(), 100.0f, 12, FColor::Red, 0.0f, 0.0f);
+			DrawDebugSphere(GetWorld(), CurrentTargeted->GetActorLocation(), 100.0f, 12, FColor::Red, 0.0f, 0.0f);
 		}
 	}
 }
 
 
 void APhantomCharacter::OnInteractSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-                                                     int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (!OtherActor || OtherActor == this)
 	{
@@ -273,12 +306,12 @@ void APhantomCharacter::OnInteractSphereBeginOverlap(UPrimitiveComponent* Overla
 	APhantomNonPlayerCharacter* NewEnemy = Cast<APhantomNonPlayerCharacter>(OtherActor);
 	if (NewEnemy)
 	{
-		EnemiesInCombatRange.AddUnique(NewEnemy);
+		NPCInRange.AddUnique(NewEnemy);
 	}
 }
 
 void APhantomCharacter::OnInteractSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-                                                   int32 OtherBodyIndex)
+	int32 OtherBodyIndex)
 {
 	if (!OtherActor || OtherActor == this)
 	{
@@ -288,7 +321,7 @@ void APhantomCharacter::OnInteractSphereEndOverlap(UPrimitiveComponent* Overlapp
 	APhantomNonPlayerCharacter* LeftEnemy = Cast<APhantomNonPlayerCharacter>(OtherActor);
 	if (LeftEnemy)
 	{
-		EnemiesInCombatRange.Remove(LeftEnemy);
+		NPCInRange.Remove(LeftEnemy);
 	}
 }
 

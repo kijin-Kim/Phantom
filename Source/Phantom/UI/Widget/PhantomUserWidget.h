@@ -17,12 +17,14 @@ class PHANTOM_API UPhantomUserWidget : public UUserWidget
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void InitializeWidget(UObject* WidgetController);
-	UFUNCTION(BlueprintImplementableEvent)
+	void InitializeWidget(UObject* WidgetController, AActor* OwningActor);
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Widget")
 	void OnPhantomWidgetControllerChanged();
-	
+
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Widget")
 	TObjectPtr<UObject> WidgetController;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Widget")
+	TWeakObjectPtr<AActor> OwningActor;
 };

@@ -23,7 +23,7 @@ void APhantomHUD::InitializeHUD()
 		UUserWidget* Widget = CreateWidget<UUserWidget>(GetWorld(), OverlayWidgetClass);
 		OverlayWidget = Cast<UPhantomUserWidget>(Widget);
 		check(OverlayWidget);
-		OverlayWidget->InitializeWidget(OverlayWidgetController);
+		OverlayWidget->InitializeWidget(OverlayWidgetController, GetOwningPawn());
 		OverlayWidget->AddToViewport();
 
 		OverlayWidgetController->BroadcastOnInitialized();
