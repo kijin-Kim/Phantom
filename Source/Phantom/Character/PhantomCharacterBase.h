@@ -21,6 +21,7 @@ class PHANTOM_API APhantomCharacterBase : public ACharacter, public IHeroActionI
 
 public:
 	APhantomCharacterBase();
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void BeginPlay() override;
 	virtual UHeroActionComponent* GetHeroActionComponent() const override;
 	virtual void DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
@@ -42,7 +43,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hero Action")
 	TObjectPtr<UWidgetComponent> InteractWidget;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AIPerception", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Replicated, EditAnywhere, BlueprintReadOnly, Category = "AIPerception", meta = (AllowPrivateAccess = "true"))
 	FGenericTeamId TeamID;
 
 protected:

@@ -14,7 +14,7 @@ class AActor;
 UENUM(BlueprintType)
 enum class EHeroActionNetBehavior : uint8
 {
-	// 각자의 GameInstance에서만 실행됩니다.
+	// 각자의 호스트에서만 실행됩니다.
 	None UMETA(DisplayName = "None"),
 	// 클라이언트에서만 실행
 	LocalOnly UMETA(DisplayName = "Local Only"),

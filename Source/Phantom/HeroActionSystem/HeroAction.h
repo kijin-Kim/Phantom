@@ -75,6 +75,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "HeroAction")
 	APlayerController* GetPlayerController() const { return HeroActionActorInfo.GetPlayerController(); }
+	
+	UFUNCTION(BlueprintCallable, Category = "HeroAction")
+	AController* GetController() const { return HeroActionActorInfo.Controller.Get(); }
 
 	UFUNCTION(BlueprintCallable, Category = "HeroAction")
 	USkeletalMeshComponent* GetSkeletalMeshComponent() const { return HeroActionActorInfo.SkeletalMeshComponent.Get(); }

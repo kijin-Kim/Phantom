@@ -18,11 +18,12 @@ namespace PhantomGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Parry);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Parried);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Execute);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Executed);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Ambush);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Ambushed);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_HitReact);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Dead);
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_EventObserver);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_InstantDead);
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Run);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(HeroAction_Sprint);
@@ -41,13 +42,16 @@ namespace PhantomGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_Ambushed);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_Parry);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_Parried);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_Execute);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_Executed);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Dodge);
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_AIWalk);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_AIRun);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_AIAttack);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_ParryEventHandler);
-	
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_Dead);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Trigger_InstantDead);
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_CanTrigger_Ambush_Succeed);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_CanTrigger_Ambush_Failed);
@@ -55,6 +59,8 @@ namespace PhantomGameplayTags
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Parry_Opened);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Parry_Closed);
+	
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_HeroAction_Execute);
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Notify_Combo_Opened);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Notify_Combo_Closed);

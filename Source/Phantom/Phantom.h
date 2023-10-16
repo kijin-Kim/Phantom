@@ -4,11 +4,9 @@
 
 #include "CoreMinimal.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogPhantom, Log, All); //추가
+DECLARE_LOG_CATEGORY_EXTERN(LogPhantom, Log, All);
 
 
-#define ECC_Weapon ECC_GameTraceChannel1
-#define ECC_HittableMesh ECC_GameTraceChannel2
 
 #define PHANTOM_LOG(Verbosity, Format, ...) \
 { \

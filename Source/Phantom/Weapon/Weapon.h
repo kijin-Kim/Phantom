@@ -10,6 +10,10 @@ class UBoxComponent;
 class UStaticMeshComponent;
 
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponHit, AActor*, HitInstigator, const FHitResult&, HitResult);
+
+
+
 UCLASS()
 class PHANTOM_API AWeapon : public AActor
 {
@@ -20,21 +24,30 @@ public:
 	virtual void PostInitializeComponents() override;
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void SetHitBoxEnabled(ECollisionEnabled::Type NewType);
-
+	virtual void SetOwner(AActor* NewOwner) override;
+	
 private:
 	UFUNCTION()
 	void OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	                                int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
+public:
+	UPROPERTY(BlueprintAssignable)
+	FOnWeaponHit OnWeaponHit;
+
+
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh", meta=(AllowPrivateAccess = true))
-	UStaticMeshComponent* WeaponMesh;
+	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision", meta=(AllowPrivateAccess = true))
-	UBoxComponent* CollisionBox;
+	TObjectPtr<UBoxComponent> CollisionBox;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision", meta=(AllowPrivateAccess = true))
-	USceneComponent* TraceStart;
+	TObjectPtr<USceneComponent> TraceStart;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision", meta=(AllowPrivateAccess = true))
-	USceneComponent* TraceEnd;
+	TObjectPtr<USceneComponent> TraceEnd;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision", meta=(AllowPrivateAccess = true))
-	TArray<AActor*> AlreadyHitActors;
+	TArray<TObjectPtr<AActor>> AlreadyHitActors;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = true))
+	int32 WeaponDamage;
 };

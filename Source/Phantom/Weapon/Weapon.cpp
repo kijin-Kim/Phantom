@@ -2,13 +2,17 @@
 
 
 #include "Weapon.h"
+
+#include "Chaos/Collision/CollisionVisitor.h"
 #include "Components/BoxComponent.h"
+#include "Engine/DamageEvents.h"
 #include "Kismet/KismetSystemLibrary.h"
-#include "Phantom/HitInterface.h"
 #include "Phantom/PhantomGameplayTags.h"
 #include "Phantom/Character/PhantomCharacterBase.h"
 #include "Phantom/HeroActionSystem/HeroActionComponent.h"
 #include "Phantom/HeroActionSystem/HeroActionInterface.h"
+#include "Phantom/PhantomTypes.h"
+#include "Phantom/Phantom.h"
 
 
 // Sets default values
@@ -18,12 +22,11 @@ AWeapon::AWeapon()
 	bReplicates = true;
 
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
-	WeaponMesh->SetCollisionProfileName(FName("NoCollision"));
+	WeaponMesh->SetCollisionProfileName(TEXT("NoCollision"));
 	SetRootComponent(WeaponMesh);
 
 	CollisionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("CollisionBox"));
 	CollisionBox->SetupAttachment(GetRootComponent());
-	CollisionBox->SetCollisionProfileName(FName("Weapon"));
 	CollisionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	TraceStart = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStart"));
@@ -31,7 +34,6 @@ AWeapon::AWeapon()
 	TraceEnd = CreateDefaultSubobject<USceneComponent>(TEXT("TraceEnd"));
 	TraceEnd->SetupAttachment(RootComponent);
 }
-
 
 void AWeapon::PostInitializeComponents()
 {
@@ -56,10 +58,22 @@ void AWeapon::SetHitBoxEnabled(ECollisionEnabled::Type NewType)
 	}
 }
 
+void AWeapon::SetOwner(AActor* NewOwner)
+{
+	Super::SetOwner(NewOwner);
+	AlreadyHitActors.Add(NewOwner);
+
+	if (IGenericTeamAgentInterface* GenericTeamAgentInterface = Cast<IGenericTeamAgentInterface>(NewOwner))
+	{
+		CollisionBox->SetCollisionProfileName(GenericTeamAgentInterface->GetGenericTeamId() == PHANTOM_GENERIC_TEAM_ID_PLAYER
+			                                      ? PHANTOM_PLAYER_WEAPON_PRESET
+			                                      : PHANTOM_ENEMY_WEAPON_PRESET);
+	}
+}
+
 void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
                                          int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	
 	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Hit"));
 	const bool bDebugHit = CVar && CVar->GetValueOnGameThread();
 
@@ -71,7 +85,7 @@ void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponen
 		this,
 		Start,
 		End,
-		FVector(10.0f, 10.0f, 10.0f),
+		FVector(5.0f, 5.0f, 5.0f),
 		TraceStart->GetComponentRotation(),
 		ETraceTypeQuery::TraceTypeQuery1,
 		false,
@@ -81,21 +95,43 @@ void AWeapon::OnCollisionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponen
 		true
 	);
 
-	// if (IHitInterface* HitActor = Cast<IHitInterface>(HitResult.GetActor()))
-	// {
-	// 	HitActor->GetHit(HitResult, this);
-	// 	AlreadyHitActors.AddUnique(HitResult.GetActor());
-	// }
-	
-	if (IHeroActionInterface* HitActor = Cast<IHeroActionInterface>(HitResult.GetActor()))
+	IHeroActionInterface* HitActor = Cast<IHeroActionInterface>(HitResult.GetActor());
+	if (!HitActor)
 	{
-		if(UHeroActionComponent* HeroActionComponent = HitActor->GetHeroActionComponent())
+		return;
+	}
+
+	if (UHeroActionComponent* HeroActionComponent = HitActor->GetHeroActionComponent())
+	{
+		const TArray<FGameplayTag> InvulnerableTag = {
+			PhantomGameplayTags::HeroAction_Dodge,
+			PhantomGameplayTags::HeroAction_Execute,
+			PhantomGameplayTags::HeroAction_Ambush,
+			PhantomGameplayTags::HeroAction_Parry
+		};
+		HeroActionComponent->HasAnyMatchingGameplayTags(FGameplayTagContainer::CreateFromArray(InvulnerableTag));
+		if (HeroActionComponent->HasMatchingGameplayTag(PhantomGameplayTags::HeroAction_Dodge))
 		{
-			FHeroActionEventData EventData;
-			EventData.EventInstigator = GetOwner();
-			
-			AlreadyHitActors.AddUnique(HitResult.GetActor());
-			HeroActionComponent->DispatchHeroActionEvent(PhantomGameplayTags::Event_HeroAction_Trigger_HitReact, EventData);
+			return;
+		}
+
+		if (OnWeaponHit.IsBound())
+		{
+			OnWeaponHit.Broadcast(this, HitResult);
+		}
+		FHeroActionEventData EventData;
+		EventData.EventInstigator = GetOwner();
+		AlreadyHitActors.AddUnique(HitResult.GetActor());
+		HeroActionComponent->DispatchHeroActionEvent(PhantomGameplayTags::Event_HeroAction_Trigger_HitReact, EventData);
+
+		FDamageEvent DamageEvent = {};
+		if (APawn* Pawn = GetOwner<APawn>())
+		{
+			HitResult.GetActor()->TakeDamage(WeaponDamage, DamageEvent, Pawn->GetController(), this);
 		}
 	}
+
+
+
+	
 }

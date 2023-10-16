@@ -59,7 +59,7 @@ bool UHeroAction::CallCanTriggerHeroActionFromEvent(const FHeroActionEventData& 
 		}
 
 		bool bCanTrigger = true;
-		if (IsBlueprintFunctionImplemented(TEXT("BP_CanTriggerHeroActionByEvent")))
+		if (IsBlueprintFunctionImplemented(TEXT("BP_CanTriggerHeroActionFromEvent")))
 		{
 			bCanTrigger &= BP_CanTriggerHeroActionFromEvent(EventData);
 		}

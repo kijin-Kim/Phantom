@@ -723,6 +723,11 @@ void UHeroActionComponent::OnRep_ReplicatedAnimMontage()
 			AnimInstance->Montage_Stop(LocalAnimMontageData.AnimMontage->BlendOut.GetBlendTime(), ReplicatedAnimMontageData.AnimMontage);
 		}
 
+		if(ReplicatedAnimMontageData.bIsPaused)
+		{
+			AnimInstance->Montage_Pause(LocalAnimMontageData.AnimMontage);
+		}
+
 		if (AnimInstance->Montage_GetPlayRate(LocalAnimMontageData.AnimMontage) != ReplicatedAnimMontageData.PlayRate)
 		{
 			AnimInstance->Montage_SetPlayRate(LocalAnimMontageData.AnimMontage, ReplicatedAnimMontageData.PlayRate);
@@ -780,6 +785,7 @@ void UHeroActionComponent::AuthUpdateReplicatedAnimMontage()
 		ReplicatedAnimMontageData.StartSectionName = AnimInstance->Montage_GetCurrentSection(ReplicatedAnimMontageData.AnimMontage);
 		ReplicatedAnimMontageData.Position = AnimInstance->Montage_GetPosition(ReplicatedAnimMontageData.AnimMontage);
 		ReplicatedAnimMontageData.bIsStopped = AnimInstance->Montage_GetIsStopped(ReplicatedAnimMontageData.AnimMontage);
+		ReplicatedAnimMontageData.bIsPaused = !AnimInstance->Montage_IsPlaying(ReplicatedAnimMontageData.AnimMontage);
 	}
 }
 

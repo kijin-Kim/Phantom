@@ -55,6 +55,9 @@ APhantomCharacter::APhantomCharacter()
 	FollowCamera->bUsePawnControlRotation = false;
 
 	InteractSphere = CreateDefaultSubobject<USphereComponent>(TEXT("InteractSphere"));
+	InteractSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+	InteractSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	InteractSphere->SetGenerateOverlapEvents(true);
 	InteractSphere->SetupAttachment(RootComponent);
 
 	MotionWarping = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
@@ -70,12 +73,8 @@ void APhantomCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(APhantomCharacter, Weapon);
 	DOREPLIFETIME(APhantomCharacter, Health);
 	DOREPLIFETIME(APhantomCharacter, MaxHealth);
-}
-
-
-void APhantomCharacter::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
-{
-	Super::DisplayDebug(Canvas, DebugDisplay, YL, YPos);
+	DOREPLIFETIME_CONDITION(APhantomCharacter, HitCombo, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(APhantomCharacter, SpecialMovePoint, COND_OwnerOnly);
 }
 
 void APhantomCharacter::PostInitializeComponents()
@@ -112,6 +111,12 @@ void APhantomCharacter::BeginPlay()
 		ActorSpawnParameters.Instigator = this;
 		Weapon = GetWorld()->SpawnActor<AWeapon>(DefaultWeaponClass, ActorSpawnParameters);
 		Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, FName(TEXT("katana_r")));
+		Weapon->OnWeaponHit.AddDynamic(this, &APhantomCharacter::OnOwningWeaponHit);
+		
+		FOnHeroActionTagMovedSignature& OnParry = HeroActionComponent->GetOnTagMovedDelegate(PhantomGameplayTags::HeroAction_Parry);
+		OnParry.AddUObject(this, &APhantomCharacter::OnParryTagMoved);
+		FOnHeroActionTagMovedSignature& OnExecute = HeroActionComponent->GetOnTagMovedDelegate(PhantomGameplayTags::HeroAction_Execute);
+		OnExecute.AddUObject(this, &APhantomCharacter::OnExecute);
 	}
 }
 
@@ -122,7 +127,6 @@ void APhantomCharacter::Tick(float DeltaSeconds)
 	{
 		CalculateNewTargeted();
 	}
-
 }
 
 void APhantomCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
@@ -156,9 +160,16 @@ void APhantomCharacter::Look(const FInputActionValue& Value)
 	}
 }
 
+float APhantomCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	Health = FMath::Max(Health - DamageAmount, 0);
+	OnHealthChanged();
+	return DamageAmount;
+}
+
 APhantomNonPlayerCharacter* APhantomCharacter::CaculateParryTarget() const
 {
-	float MaxDot = 0.0f;
+	float MaxDot = -1.0f;
 	FVector UserDesiredDirection = GetUserDesiredDirection();
 	APhantomNonPlayerCharacter* ParryTarget = nullptr;
 	for (APhantomNonPlayerCharacter* NPC : NPCInRange)
@@ -171,7 +182,7 @@ APhantomNonPlayerCharacter* APhantomCharacter::CaculateParryTarget() const
 
 		FVector PhantomToEnemy = (Enemy->GetActorLocation() - GetActorLocation()).GetSafeNormal();
 		float DotResult = UserDesiredDirection.Dot(PhantomToEnemy);
-		if (DotResult > MaxDot)
+		if (DotResult >= MaxDot)
 		{
 			MaxDot = DotResult;
 			ParryTarget = NPC;
@@ -185,9 +196,47 @@ FVector APhantomCharacter::GetUserDesiredDirection() const
 {
 	const FVector LastInputVector = GetCharacterMovement()->GetLastInputVector();
 	// 플레이어의 입력이 있으면 입력을 반영합니다.
-	FVector ProjectedCameraForward = { FollowCamera->GetForwardVector().X, FollowCamera->GetForwardVector().Y, 0.0f };
+	FVector ProjectedCameraForward = {FollowCamera->GetForwardVector().X, FollowCamera->GetForwardVector().Y, 0.0f};
 	return LastInputVector.IsNearlyZero() ? ProjectedCameraForward.GetSafeNormal() : LastInputVector;
 }
+
+AWeapon* APhantomCharacter::GetWeapon_Implementation() const
+{
+	return Weapon;
+}
+
+FName APhantomCharacter::GetDirectionalSectionName_Implementation(UAnimMontage* AnimMontage, float Degree) const
+{
+	if (AnimMontage == ICombatInterface::Execute_GetHitReactMontage(this))
+	{
+		FName HitMontageSectionName = FName("HitB");
+		if (Degree >= -22.5f && Degree < 22.5f)
+		{
+			HitMontageSectionName = FName("HitF");
+		}
+		else if (Degree >= 22.5f && Degree < 45.0f)
+		{
+			HitMontageSectionName = FName("HitFR");
+		}
+		else if (Degree >= 45.0f && Degree < 135.0f)
+		{
+			HitMontageSectionName = FName("HitR");
+		}
+		else if ((Degree >= -135.0f && Degree < -45.0f))
+		{
+			HitMontageSectionName = FName("HitL");
+		}
+		else if ((Degree >= -45.0f && Degree < -22.5f))
+		{
+			HitMontageSectionName = FName("HitFL");
+		}
+		return HitMontageSectionName;
+	}
+
+	return NAME_None;
+}
+
+
 
 void APhantomCharacter::Move(const FInputActionValue& Value)
 {
@@ -227,7 +276,7 @@ void APhantomCharacter::CalculateNewTargeted()
 	static const TConsoleVariableData<bool>* CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("Phantom.Debug.Targeting"));
 	const bool bDebugTargeting = CVar && CVar->GetValueOnGameThread();
 
-	float MaxDot = 0.0f;
+	float MaxDot = -1.0f;
 	APhantomNonPlayerCharacter* NewTargetedCandidate = nullptr;
 	const FVector DotRight = GetUserDesiredDirection();
 
@@ -236,7 +285,7 @@ void APhantomCharacter::CalculateNewTargeted()
 		DrawDebugDirectionalArrow(GetWorld(), GetActorLocation(), GetActorLocation() + DotRight * 100.0f, 100.0f, FColor::Magenta, false);
 	}
 
-	// 새로운 타겟팅 후보를 찾는다.
+	// 새로운 타겟팅 후보를 찾는다.`
 	for (TWeakObjectPtr<APhantomNonPlayerCharacter> Candidate : NPCInRange)
 	{
 		if (!Candidate.IsValid())
@@ -246,7 +295,7 @@ void APhantomCharacter::CalculateNewTargeted()
 
 		FVector PhantomToCandidate = (Candidate->GetActorLocation() - GetActorLocation()).GetSafeNormal();
 		const float DotResult = FVector::DotProduct(PhantomToCandidate, DotRight);
-		if (MaxDot < DotResult)
+		if (MaxDot <= DotResult)
 		{
 			MaxDot = DotResult;
 			NewTargetedCandidate = Candidate.Get();
@@ -297,7 +346,7 @@ void APhantomCharacter::CalculateNewTargeted()
 
 
 void APhantomCharacter::OnInteractSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+                                                     int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (!OtherActor || OtherActor == this)
 	{
@@ -311,7 +360,7 @@ void APhantomCharacter::OnInteractSphereBeginOverlap(UPrimitiveComponent* Overla
 }
 
 void APhantomCharacter::OnInteractSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-	int32 OtherBodyIndex)
+                                                   int32 OtherBodyIndex)
 {
 	if (!OtherActor || OtherActor == this)
 	{
@@ -360,3 +409,68 @@ void APhantomCharacter::OnHealthChanged()
 		OnPhantomCharacterHealthChanged.Broadcast(Health, MaxHealth);
 	}
 }
+
+void APhantomCharacter::OnRep_HitCombo()
+{
+	OnHitComboChanged();
+}
+
+void APhantomCharacter::OnHitComboChanged()
+{
+	if (OnPhantomCharacterHitComboChanged.IsBound())
+	{
+		OnPhantomCharacterHitComboChanged.Broadcast(HitCombo);
+	}
+}
+
+void APhantomCharacter::OnOwningWeaponHit(AActor* HitInstigator, const FHitResult& HitResult)
+{
+	IGenericTeamAgentInterface* HitAgent = Cast<IGenericTeamAgentInterface>(HitResult.GetActor());
+	if (!HitAgent || HitAgent->GetGenericTeamId() == GetGenericTeamId())
+	{
+		return;
+	}
+
+	if (HitResult.bBlockingHit)
+	{
+		HitCombo++;
+	}
+	SpecialMovePoint = FMath::Clamp(SpecialMovePoint + 10, SpecialMovePoint, MaxSpecialMovePoint);
+	OnSpecialMovePointChanged();
+	OnHitComboChanged();
+}
+
+void APhantomCharacter::OnRep_SpecialMovePoint()
+{
+	OnSpecialMovePointChanged();
+}
+
+void APhantomCharacter::OnSpecialMovePointChanged()
+{
+	if (OnPhantomSpecialMovePointChanged.IsBound())
+	{
+		OnPhantomSpecialMovePointChanged.Broadcast(SpecialMovePoint, MaxSpecialMovePoint);
+	}
+}
+
+
+void APhantomCharacter::OnParryTagMoved(const FGameplayTag& GameplayTag, bool bIsAdded)
+{
+	if (bIsAdded)
+	{
+		HitCombo++;
+		SpecialMovePoint = FMath::Clamp(SpecialMovePoint + 10, SpecialMovePoint, MaxSpecialMovePoint);
+		OnSpecialMovePointChanged();
+		OnHitComboChanged();
+	}
+}
+
+void APhantomCharacter::OnExecute(const FGameplayTag& GameplayTag, bool bIsAdded)
+{
+	if (bIsAdded)
+	{
+		SpecialMovePoint = 0;
+		OnSpecialMovePointChanged();
+	}
+}
+

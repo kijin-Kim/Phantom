@@ -25,6 +25,8 @@ enum class ECharacterMovementState : uint8
 	Max UMETA(hidden)
 };
 
+#define PHANTOM_PLAYER_WEAPON_PRESET TEXT("PlayerWeapon")
+#define PHANTOM_ENEMY_WEAPON_PRESET TEXT("EnemyWeapon")
 
 #define PHANTOM_PLAYER_NAME_TAG TEXT("Player")
 #define PHANTOM_GENERIC_TEAM_ID_PLAYER 0

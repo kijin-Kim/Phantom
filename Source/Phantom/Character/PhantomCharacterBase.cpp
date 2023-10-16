@@ -10,6 +10,7 @@
 #include "Phantom/UI/HUD/PhantomHUD.h"
 #include "Phantom/UI/Widget/PhantomUserWidget.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 APhantomCharacterBase::APhantomCharacterBase()
@@ -18,6 +19,12 @@ APhantomCharacterBase::APhantomCharacterBase()
 	HeroActionComponent = CreateDefaultSubobject<UHeroActionComponent>(TEXT("HeroAction"));
 	InteractWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("InteractWidget"));
 	InteractWidget->SetupAttachment(RootComponent);
+}
+
+void APhantomCharacterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(APhantomCharacterBase, TeamID);
 }
 
 void APhantomCharacterBase::BeginPlay()

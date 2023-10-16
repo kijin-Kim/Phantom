@@ -12,18 +12,20 @@ struct PHANTOM_API FRepAnimMontageData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(Transient)
+	UPROPERTY()
 	TObjectPtr<UAnimMontage> AnimMontage;
-	UPROPERTY(Transient)
+	UPROPERTY()
 	uint8 AnimMontageInstanceID = 0;
-	UPROPERTY(Transient)
+	UPROPERTY()
 	float PlayRate  = 0.0f;
-	UPROPERTY(Transient)
+	UPROPERTY()
 	float Position = 0.0f;
-	UPROPERTY(Transient)
+	UPROPERTY()
 	bool bIsStopped = false;
-	UPROPERTY(Transient)
+	UPROPERTY()
 	FName StartSectionName = NAME_None;
+	UPROPERTY()
+	bool bIsPaused = false;
 };
 
 USTRUCT()
