@@ -144,11 +144,22 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerTryTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData);
 
+
+	void CallClientTryTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData);
+	UFUNCTION(Client, Reliable)
+	void ClientTryTriggerHeroAction(UHeroAction* HeroAction);
+	UFUNCTION(Client, Reliable)
+	void ClientTryTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData);
+
+	
+
 	void CallClientTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData);
 	UFUNCTION(Client, Reliable)
 	void ClientTriggerHeroAction(UHeroAction* HeroAction);
 	UFUNCTION(Client, Reliable)
 	void ClientTriggerHeroActionFromEvent(UHeroAction* HeroAction, const FHeroActionEventData& EventData);
+
+	
 
 
 	UFUNCTION(Client, Reliable)

@@ -5,6 +5,7 @@
 #include "HeroAction.h"
 #include "Engine/ActorChannel.h"
 #include "Engine/Canvas.h"
+#include "Evaluation/IMovieSceneEvaluationHook.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Phantom/Phantom.h"
@@ -436,17 +437,20 @@ bool UHeroActionComponent::InternalTryTriggerHeroAction(UHeroAction* HeroAction,
 	const EHeroActionNetBehavior NetBehavior = HeroAction->GetHeroActionNetBehavior();
 	check(NetBehavior != EHeroActionNetBehavior::Max);
 
+	if (GetNetMode() == ROLE_SimulatedProxy)
+	{
+		return false;
+	}
+
 	if (!bIsLocal && (NetBehavior == EHeroActionNetBehavior::LocalOnly || NetBehavior == EHeroActionNetBehavior::LocalPredicted))
 	{
-		ensure(false);
-		PHANTOM_LOG(Error, TEXT("[%s]는 Local이 아닌곳에서는 실행할 수 없는 Action입니다."), *GetNameSafe(HeroAction));
-		return false;
+		CallClientTryTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 	}
 
 	if (!bHasAuthority && NetBehavior == EHeroActionNetBehavior::ServerOnly)
 	{
 		ensure(false);
-		PHANTOM_LOG(Error, TEXT("[%s] Server가 아닌곳에서는 실행할 수 없는 Action입니다."), *GetNameSafe(HeroAction));
+		CallServerTryTriggerHeroAction(HeroAction, bTriggeredFromEvent, EventData);
 		return false;
 	}
 
@@ -578,6 +582,26 @@ void UHeroActionComponent::CallServerTryTriggerHeroAction(UHeroAction* HeroActio
 	}
 }
 
+void UHeroActionComponent::CallClientTryTriggerHeroAction(UHeroAction* HeroAction, bool bTriggeredFromEvent, const FHeroActionEventData& EventData)
+{
+	if (bTriggeredFromEvent)
+	{
+		ClientTryTriggerHeroActionFromEvent(HeroAction, EventData);
+	}
+	else
+	{
+		ClientTryTriggerHeroAction(HeroAction);
+	}
+}
+
+void UHeroActionComponent::ClientTryTriggerHeroAction_Implementation(UHeroAction* HeroAction)
+{
+	if (CanTriggerHeroAction(HeroAction))
+	{
+		TriggerHeroAction(HeroAction);
+	}
+}
+
 void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction* HeroAction)
 {
 	if (!ensure(HeroAction))
@@ -592,7 +616,7 @@ void UHeroActionComponent::ServerTryTriggerHeroAction_Implementation(UHeroAction
 		{
 			ClientNotifyPredictionAccepted(HeroAction);
 		}
-		else
+		else if (HeroActionNetBehavior == EHeroActionNetBehavior::ServerOriginated)
 		{
 			ClientTriggerHeroAction(HeroAction);
 		}
@@ -618,7 +642,7 @@ void UHeroActionComponent::ServerTryTriggerHeroActionFromEvent_Implementation(UH
 		{
 			ClientNotifyPredictionAccepted(HeroAction);
 		}
-		else
+		else if (HeroActionNetBehavior == EHeroActionNetBehavior::ServerOriginated)
 		{
 			ClientTriggerHeroActionFromEvent(HeroAction, EventData);
 		}
@@ -627,6 +651,14 @@ void UHeroActionComponent::ServerTryTriggerHeroActionFromEvent_Implementation(UH
 	else if (HeroActionNetBehavior == EHeroActionNetBehavior::LocalPredicted)
 	{
 		ClientNotifyPredictionDeclined(HeroAction);
+	}
+}
+
+void UHeroActionComponent::ClientTryTriggerHeroActionFromEvent_Implementation(UHeroAction* HeroAction, const FHeroActionEventData& EventData)
+{
+	if (CanTriggerHeroActionFromEvent(HeroAction, EventData))
+	{
+		TriggerHeroActionFromEvent(HeroAction, EventData);
 	}
 }
 
@@ -723,7 +755,7 @@ void UHeroActionComponent::OnRep_ReplicatedAnimMontage()
 			AnimInstance->Montage_Stop(LocalAnimMontageData.AnimMontage->BlendOut.GetBlendTime(), ReplicatedAnimMontageData.AnimMontage);
 		}
 
-		if(ReplicatedAnimMontageData.bIsPaused)
+		if (ReplicatedAnimMontageData.bIsPaused)
 		{
 			AnimInstance->Montage_Pause(LocalAnimMontageData.AnimMontage);
 		}

@@ -9,7 +9,8 @@
   <component name="ChangeListManager">
     <list default="true" id="9ca4a08b-49b5-4b60-8bba-7acfa52bd9f5" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Phantom.dir/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Phantom.dir/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/Phantom/HeroActionSystem/HeroActionComponent.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/Source/Phantom/HeroActionSystem/HeroActionComponent.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Source/Phantom/HeroActionSystem/HeroActionComponent.h" beforeDir="false" afterPath="$PROJECT_DIR$/Source/Phantom/HeroActionSystem/HeroActionComponent.h" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -17,6 +18,11 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
@@ -67,7 +73,7 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "WebServerToolWindowFactoryState": "false",
-    "git-widget-placeholder": "master",
+    "git-widget-placeholder": "dev",
     "ignore.virus.scanning.warn.message": "true",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
@@ -154,6 +160,7 @@
       <workItem from="1697556946109" duration="26325000" />
       <workItem from="1697594663838" duration="16815000" />
       <workItem from="1697619120161" duration="214000" />
+      <workItem from="1697629995936" duration="2157000" />
     </task>
     <task id="LOCAL-00001" summary="OverlayUI 몇개 추가">
       <option name="closed" value="true" />
@@ -183,7 +190,19 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="dev" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
